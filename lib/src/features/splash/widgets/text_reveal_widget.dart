@@ -77,46 +77,43 @@ class _AnimatedLetter extends StatelessWidget {
             alignment: Alignment.center,
             child: Transform.scale(
               scale: scale,
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Subtle light flash behind the building letter
-                    if (progress > 0.1 && progress < 0.6)
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: ColorApp.white.withOpacity(0.3 * (1 - progress)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: ColorApp.white.withOpacity(0.2),
-                              blurRadius: 30 * progress,
-                              spreadRadius: 10 * progress,
-                            ),
-                          ],
-                        ),
-                      ),
-                    Text(
-                      letter,
-                      style: TextStyle(
-                        color: ColorApp.white,
-                        fontSize: 54,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 4,
-                        shadows: [
-                          Shadow(
-                            color: Colors.white.withOpacity(0.3 * progress),
-                            blurRadius: 15 * progress,
-                            offset: const Offset(0, 5),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Subtle light flash behind the building letter
+                  if (progress > 0.1 && progress < 0.6)
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ColorApp.white.withOpacity(0.3 * (1 - progress)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ColorApp.white.withOpacity(0.2),
+                            blurRadius: 30 * progress,
+                            spreadRadius: 10 * progress,
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  Text(
+                    letter,
+                    style: TextStyle(
+                      color: ColorApp.white,
+                      fontSize: 54,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 4,
+                      shadows: [
+                        Shadow(
+                          color: Colors.white.withOpacity(0.3 * progress),
+                          blurRadius: 15 * progress,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

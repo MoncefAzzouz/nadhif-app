@@ -18,7 +18,7 @@ class CleanApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Clean App',
+      title: 'Nadhif App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

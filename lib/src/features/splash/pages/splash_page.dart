@@ -144,7 +144,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 return Transform.scale(
                   scale: _pulseAnimation.value,
                   child: TextRevealWidget(
-                    text: "ALDOBI",
+                    text: "NADHIF",
                     controller: _mainController,
                     startInterval: 0.38, // 2.5s
                     endInterval: 0.69,   // 4.5s
