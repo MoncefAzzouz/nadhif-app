@@ -120,14 +120,14 @@ class _UserInfoPageState extends State<UserInfoPage> {
                     _buildInputField(
                       controller: _firstNameController,
                       label: "First Name (Prenom)",
-                      hint: "e.g. John",
+                      hint: "Name",
                       icon: MediaRes.users,
                     ),
                     const SizedBox(height: 24),
                     _buildInputField(
                       controller: _lastNameController,
                       label: "Last Name (Nom)",
-                      hint: "e.g. Doe",
+                      hint: "Last Name",
                       icon: MediaRes.users,
                     ),
                     const Spacer(),

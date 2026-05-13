@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
 
+import 'package:cleanapp/src/features/profile/pages/personal_info_page.dart';
+
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -110,7 +112,7 @@ class ProfilePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              "John Doe",
+                              "Moncef az",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
@@ -119,7 +121,7 @@ class ProfilePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "john.doe@nadhif.com",
+                              "Moncefaz@nadhif.com",
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.8),
                                 fontSize: 13,
@@ -143,18 +145,26 @@ class ProfilePage extends StatelessWidget {
               ),
 
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
 
               // Menu Sections
               _buildSectionTitle(context, l10n.profile),
-              _buildMenuItem(context, Icons.person_outline_rounded, l10n.personalInfo),
+              _buildMenuItem(
+                context, 
+                Icons.person_outline_rounded, 
+                l10n.personalInfo,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PersonalInfoPage()),
+                  );
+                },
+              ),
               _buildMenuItem(context, Icons.location_on_outlined, l10n.manageAddresses),
-              _buildMenuItem(context, Icons.payment_rounded, l10n.paymentMethods),
 
               const SizedBox(height: 10),
 
               _buildSectionTitle(context, l10n.settings),
-              _buildMenuItem(context, Icons.notifications_none_rounded, l10n.notifications),
               BlocBuilder<LocaleCubit, Locale>(
                 builder: (context, locale) {
                   String languageName = l10n.english;

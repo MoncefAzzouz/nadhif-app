@@ -1,6 +1,8 @@
+import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/core/res/media_res.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -17,49 +19,53 @@ class _ServicesPageState extends State<ServicesPage> {
       [l10n.all, l10n.cleaning, l10n.repair, l10n.laundry, l10n.maintenance];
 
   List<Map<String, dynamic>> _getServices(AppLocalizations l10n) => [
-    {
-      "name": l10n.homeClean,
-      "icon": Icons.home_work_rounded,
-      "desc": l10n.homeCleaningDesc,
-      "category": l10n.cleaning,
-      "price": l10n.fromPrice("DA 69"),
-    },
-    {
-      "name": l10n.laundry,
-      "icon": Icons.local_laundry_service_rounded,
-      "desc": l10n.laundryDesc,
-      "category": l10n.laundry,
-      "price": l10n.fromPrice("DA 45"),
-    },
-    {
-      "name": l10n.carWash,
-      "icon": Icons.directions_car_filled_rounded,
-      "desc": l10n.carWashDesc,
-      "category": l10n.cleaning,
-      "price": l10n.fromPrice("DA 80"),
-    },
-    {
-      "name": l10n.acServices,
-      "icon": Icons.ac_unit_rounded,
-      "desc": l10n.acServicesDesc,
-      "category": l10n.repair,
-      "price": l10n.fromPrice("DA 150"),
-    },
-    {
-      "name": l10n.pestControl,
-      "icon": Icons.bug_report_rounded,
-      "desc": l10n.pestControlDesc,
-      "category": l10n.maintenance,
-      "price": l10n.fromPrice("DA 200"),
-    },
-    {
-      "name": l10n.furniture,
-      "icon": Icons.weekend_rounded,
-      "desc": l10n.furnitureDesc,
-      "category": l10n.cleaning,
-      "price": l10n.fromPrice("DA 120"),
-    },
-  ];
+        {
+          "name": l10n.homeClean,
+          "icon": Icons.home_work_rounded,
+          "image": MediaRes.deepCleanIcon,
+          "desc": l10n.homeCleaningDesc,
+          "category": l10n.cleaning,
+          "price": l10n.fromPrice("DA 69"),
+        },
+        {
+          "name": l10n.laundry,
+          "icon": Icons.local_laundry_service_rounded,
+          "image": MediaRes.laundryIcon,
+          "desc": l10n.laundryDesc,
+          "category": l10n.laundry,
+          "price": l10n.fromPrice("DA 45"),
+        },
+        {
+          "name": l10n.carWash,
+          "icon": Icons.directions_car_filled_rounded,
+          "desc": l10n.carWashDesc,
+          "category": l10n.cleaning,
+          "price": l10n.fromPrice("DA 80"),
+        },
+        {
+          "name": l10n.acServices,
+          "icon": Icons.ac_unit_rounded,
+          "image": MediaRes.acRepairIcon,
+          "desc": l10n.acServicesDesc,
+          "category": l10n.repair,
+          "price": l10n.fromPrice("DA 150"),
+        },
+        {
+          "name": l10n.pestControl,
+          "icon": Icons.bug_report_rounded,
+          "desc": l10n.pestControlDesc,
+          "category": l10n.maintenance,
+          "price": l10n.fromPrice("DA 200"),
+        },
+        {
+          "name": l10n.furniture,
+          "icon": Icons.weekend_rounded,
+          "image": MediaRes.carpetIcon,
+          "desc": l10n.furnitureDesc,
+          "category": l10n.cleaning,
+          "price": l10n.fromPrice("DA 120"),
+        },
+      ];
 
   @override
   void initState() {
@@ -205,7 +211,20 @@ class _ServicesPageState extends State<ServicesPage> {
                     final service = filteredServices[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 20),
-                      child: Container(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ServiceBookingPage(
+                                serviceName: service["name"] as String,
+                                serviceImage: service["image"] as String?,
+                                serviceIcon: service["icon"] as IconData?,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -222,16 +241,27 @@ class _ServicesPageState extends State<ServicesPage> {
                           children: [
                             // Icon Container
                             Container(
-                              padding: const EdgeInsets.all(16),
+                              width: 62,
+                              height: 62,
                               decoration: BoxDecoration(
                                 color: ColorApp.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Icon(
-                                service['icon'] as IconData,
-                                color: ColorApp.primary,
-                                size: 30,
-                              ),
+                              child: service['image'] != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Image.asset(
+                                        service['image'] as String,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : Icon(
+                                      service['icon'] as IconData,
+                                      color: ColorApp.primary,
+                                      size: 30,
+                                    ),
                             ),
                             const SizedBox(width: 20),
                             // Details
@@ -293,8 +323,9 @@ class _ServicesPageState extends State<ServicesPage> {
                           ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
                   childCount: filteredServices.length,
                 ),
               ),
