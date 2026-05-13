@@ -14,17 +14,17 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedTab = 0;
-  
+
   // Controllers for auto-scrolling
   late ScrollController _recommendedController;
   late PageController _heroPageController;
-  
+
   Timer? _recommendedTimer;
   Timer? _heroTimer;
-  
+
   int _currentRecommendedIndex = 0;
   int _currentHeroIndex = 0;
-  
+
   final double _recommendedCardWidth = 206.0;
 
   @override
@@ -42,9 +42,14 @@ class _HomePageState extends State<HomePage> {
         _currentRecommendedIndex++;
         if (_currentRecommendedIndex >= 3) {
           _currentRecommendedIndex = 0;
-          _recommendedController.animateTo(0, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOutBack);
+          _recommendedController.animateTo(0,
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeInOutBack);
         } else {
-          _recommendedController.animateTo(_currentRecommendedIndex * _recommendedCardWidth, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOutCubic);
+          _recommendedController.animateTo(
+              _currentRecommendedIndex * _recommendedCardWidth,
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeInOutCubic);
         }
       }
     });
@@ -55,9 +60,13 @@ class _HomePageState extends State<HomePage> {
         _currentHeroIndex++;
         if (_currentHeroIndex >= 3) {
           _currentHeroIndex = 0;
-          _heroPageController.animateToPage(0, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOutCubic);
+          _heroPageController.animateToPage(0,
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeInOutCubic);
         } else {
-          _heroPageController.nextPage(duration: const Duration(milliseconds: 1000), curve: Curves.easeInOutCubic);
+          _heroPageController.nextPage(
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeInOutCubic);
         }
       }
     });
@@ -106,10 +115,10 @@ class _HomePageState extends State<HomePage> {
         children: [
           _buildHeader(),
           _buildHeroCarousel(), // Now a carousel
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           _buildSectionHeader("Recommended Services", showViewAll: true),
           _buildHorizontalServices(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 12),
           _buildSectionHeader("Our Services"),
           _buildServiceGrid(),
           const SizedBox(height: 32),
@@ -125,7 +134,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 10),
-      color: Colors.white,
+      color: ColorApp.primary,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -133,17 +142,18 @@ class _HomePageState extends State<HomePage> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: ColorApp.primary.withOpacity(0.1),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.cleaning_services_rounded, color: ColorApp.primary, size: 24),
+                child: const Icon(Icons.cleaning_services_rounded,
+                    color: ColorApp.primary, size: 24),
               ),
               const SizedBox(width: 10),
               const Text(
                 "Nadhif",
                 style: TextStyle(
-                  color: ColorApp.primary,
+                  color: Colors.white,
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.5,
@@ -154,14 +164,18 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: Colors.white.withOpacity(0.5)),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Row(
               children: [
-                Icon(Icons.language, size: 16, color: ColorApp.primary),
+                Icon(Icons.language, size: 16, color: Colors.white),
                 SizedBox(width: 4),
-                Text("EN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                Text("EN",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Colors.white)),
               ],
             ),
           ),
@@ -179,14 +193,14 @@ class _HomePageState extends State<HomePage> {
         children: [
           _buildHeroCard(),
           _buildOfferCard(
-            "NEW OFFER", 
-            "Washing machine\nmaintenance", 
+            "NEW OFFER",
+            "Washing machine\nmaintenance",
             "Quality service at your door",
             "https://images.unsplash.com/photo-1582733775062-eb92170f5de0?w=400",
           ),
           _buildOfferCard(
-            "FLASH SALE", 
-            "Home Deep Cleaning\nPackage", 
+            "FLASH SALE",
+            "Home Deep Cleaning\nPackage",
             "Special 30% discount today",
             "https://images.unsplash.com/photo-1581578731548-c64695ce6958?w=400",
           ),
@@ -220,13 +234,21 @@ class _HomePageState extends State<HomePage> {
           const Text(
             "WELCOME TO NADHIF",
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, height: 1.1),
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                height: 1.1),
           ),
           const SizedBox(height: 8),
           const Text(
             "كل الخدمات المنزلية التي تحتاجها في بلاصة وحدة مع تطبيق نظيف",
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, height: 1.4),
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                height: 1.4),
           ),
           const SizedBox(height: 16),
           _buildHeroButton("Book Now", Colors.white, ColorApp.primary),
@@ -235,7 +257,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildOfferCard(String tag, String title, String subtitle, String imageUrl) {
+  Widget _buildOfferCard(
+      String tag, String title, String subtitle, String imageUrl) {
     return Container(
       margin: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -264,19 +287,35 @@ class _HomePageState extends State<HomePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: ColorApp.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(tag, style: const TextStyle(color: ColorApp.primary, fontSize: 9, fontWeight: FontWeight.w900)),
+                      child: Text(tag,
+                          style: const TextStyle(
+                              color: ColorApp.primary,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900)),
                     ),
                     const SizedBox(height: 12),
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, height: 1.2, color: Color(0xFF1E293B))),
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            height: 1.2,
+                            color: Color(0xFF1E293B))),
                     const SizedBox(height: 6),
-                    Text(subtitle, style: const TextStyle(color: ColorApp.textGrey, fontSize: 11)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: ColorApp.textGrey, fontSize: 11)),
                     const SizedBox(height: 12),
-                    Text("Book Now", style: TextStyle(color: ColorApp.primary, fontWeight: FontWeight.w900, fontSize: 13)),
+                    Text("Book Now",
+                        style: TextStyle(
+                            color: ColorApp.primary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13)),
                   ],
                 ),
               ),
@@ -286,7 +325,10 @@ class _HomePageState extends State<HomePage> {
               child: Image.network(
                 imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFFF0FDFA), child: const Icon(Icons.settings_suggest, color: ColorApp.primary)),
+                errorBuilder: (context, error, stackTrace) => Container(
+                    color: const Color(0xFFF0FDFA),
+                    child: const Icon(Icons.settings_suggest,
+                        color: ColorApp.primary)),
               ),
             ),
           ],
@@ -306,7 +348,8 @@ class _HomePageState extends State<HomePage> {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: TextStyle(color: textColor, fontWeight: FontWeight.w800, fontSize: 14),
+        style: TextStyle(
+            color: textColor, fontWeight: FontWeight.w800, fontSize: 14),
       ),
     );
   }
@@ -320,15 +363,33 @@ class _HomePageState extends State<HomePage> {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
-          _buildHorizontalCard("Home Cleaning", "Starting\n3 Hours", "QAR 69*", const Color(0xFFF0FDFA), "https://images.unsplash.com/photo-1581578731548-c64695ce6958?w=200"),
-          _buildHorizontalCard("Washing Machine", "Washing\nMachine Service", "30 DAY WARRANTY", const Color(0xFFF0FDF4), "https://images.unsplash.com/photo-1582733775062-eb92170f5de0?w=200", isNew: true),
-          _buildHorizontalCard("AC Services", "Foam\nDeep Cleaning", "PREMIUM CARE", const Color(0xFFF0F9FF), "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=200"),
+          _buildHorizontalCard(
+              "Home Cleaning",
+              "Starting\n3 Hours",
+              "QAR 69*",
+              const Color(0xFFF0FDFA),
+              "https://images.unsplash.com/photo-1581578731548-c64695ce6958?w=200"),
+          _buildHorizontalCard(
+              "Washing Machine",
+              "Washing\nMachine Service",
+              "30 DAY WARRANTY",
+              const Color(0xFFF0FDF4),
+              "https://images.unsplash.com/photo-1582733775062-eb92170f5de0?w=200",
+              isNew: true),
+          _buildHorizontalCard(
+              "AC Services",
+              "Foam\nDeep Cleaning",
+              "PREMIUM CARE",
+              const Color(0xFFF0F9FF),
+              "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=200"),
         ],
       ),
     );
   }
 
-  Widget _buildHorizontalCard(String title, String subtitle, String price, Color bgColor, String imageUrl, {bool isNew = false}) {
+  Widget _buildHorizontalCard(String title, String subtitle, String price,
+      Color bgColor, String imageUrl,
+      {bool isNew = false}) {
     return Container(
       width: 190,
       margin: const EdgeInsets.only(right: 16),
@@ -345,23 +406,61 @@ class _HomePageState extends State<HomePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: ColorApp.primary), overflow: TextOverflow.ellipsis)),
-                if (isNew) Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: ColorApp.primary, borderRadius: BorderRadius.circular(8)), child: const Text("NEW", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900))),
+                Expanded(
+                    child: Text(title,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: ColorApp.primary),
+                        overflow: TextOverflow.ellipsis)),
+                if (isNew)
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: ColorApp.primary,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: const Text("NEW",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900))),
               ],
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(subtitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1E293B), height: 1.1)),
+            child: Text(subtitle,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1E293B),
+                    height: 1.1)),
           ),
           const Spacer(),
-          Center(child: Image.network(imageUrl, height: 90, fit: BoxFit.contain, errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50, color: Colors.grey))),
+          Center(
+              child: Image.network(imageUrl,
+                  height: 90,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.broken_image,
+                      size: 50,
+                      color: Colors.grey))),
           const Spacer(),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: const BoxDecoration(color: ColorApp.primary, borderRadius: BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28))),
-            child: Text(price, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
+            decoration: const BoxDecoration(
+                color: ColorApp.primary,
+                borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(28),
+                    bottomRight: Radius.circular(28))),
+            child: Text(price,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13)),
           ),
         ],
       ),
@@ -409,7 +508,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              child: Icon(services[index]["icon"] as IconData, color: ColorApp.primary, size: 28),
+              child: Icon(services[index]["icon"] as IconData,
+                  color: ColorApp.primary, size: 28),
             ),
             const SizedBox(height: 6),
             Text(
@@ -448,12 +548,41 @@ class _HomePageState extends State<HomePage> {
     return Container(
       width: 220,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: ColorApp.greyBorder)),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: ColorApp.greyBorder)),
       child: Row(
         children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [if (isBaby) const Text("NEW LAUNCH", style: TextStyle(color: ColorApp.primary, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)), const SizedBox(height: 4), Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: Color(0xFF1E293B)))])),
-          if (!isBaby) const Text("Dior", style: TextStyle(fontFamily: 'Serif', fontSize: 22, fontWeight: FontWeight.w900, color: ColorApp.primary)),
-          if (isBaby) const Icon(Icons.child_friendly_rounded, size: 38, color: ColorApp.primary),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                if (isBaby)
+                  const Text("NEW LAUNCH",
+                      style: TextStyle(
+                          color: ColorApp.primary,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5)),
+                const SizedBox(height: 4),
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        color: Color(0xFF1E293B)))
+              ])),
+          if (!isBaby)
+            const Text("Dior",
+                style: TextStyle(
+                    fontFamily: 'Serif',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: ColorApp.primary)),
+          if (isBaby)
+            const Icon(Icons.child_friendly_rounded,
+                size: 38, color: ColorApp.primary),
         ],
       ),
     );
@@ -465,8 +594,17 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19, color: Color(0xFF0F172A))),
-          if (showViewAll) const Text("View All", style: TextStyle(color: ColorApp.primary, fontWeight: FontWeight.w700, fontSize: 13)),
+          Text(title,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 19,
+                  color: Color(0xFF0F172A))),
+          if (showViewAll)
+            const Text("View All",
+                style: TextStyle(
+                    color: ColorApp.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13)),
         ],
       ),
     );
@@ -477,14 +615,52 @@ class _HomePageState extends State<HomePage> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [ColorApp.primary, Color(0xFF00BFA5)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(
+            colors: [ColorApp.primary, Color(0xFF00BFA5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(32),
-        boxShadow: [BoxShadow(color: ColorApp.primary.withOpacity(0.3), blurRadius: 25, offset: const Offset(0, 12))],
+        boxShadow: [
+          BoxShadow(
+              color: ColorApp.primary.withOpacity(0.3),
+              blurRadius: 25,
+              offset: const Offset(0, 12))
+        ],
       ),
       child: Row(
         children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text("Customize your\nexperience", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.1)), const SizedBox(height: 10), const Text("Tailor Nadhif to your preferences!", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)), const SizedBox(height: 20), ElevatedButton(onPressed: () {}, style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: ColorApp.primary, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: const Text("Explore Now", style: TextStyle(fontWeight: FontWeight.w800)))])),
-          const Icon(Icons.auto_fix_high_rounded, size: 70, color: Colors.white24),
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                const Text("Customize your\nexperience",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1)),
+                const SizedBox(height: 10),
+                const Text("Tailor Nadhif to your preferences!",
+                    style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: ColorApp.primary,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16))),
+                    child: const Text("Explore Now",
+                        style: TextStyle(fontWeight: FontWeight.w800)))
+              ])),
+          const Icon(Icons.auto_fix_high_rounded,
+              size: 70, color: Colors.white24),
         ],
       ),
     );
@@ -492,12 +668,18 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildBottomNavBar() {
     return Container(
-      margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-      height: 65,
+      margin: const EdgeInsets.only(left: 20, right: 20, bottom: 24),
+      height: 80,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(38),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 25, offset: const Offset(0, 10))],
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -516,15 +698,33 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: () => setState(() => _selectedTab = index),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(color: isActive ? ColorApp.primary.withOpacity(0.1) : Colors.transparent, borderRadius: BorderRadius.circular(20)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive
+              ? ColorApp.primary.withOpacity(0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(32),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? ColorApp.primary : const Color(0xFF64748B), size: 24),
+            Icon(
+              icon,
+              color: isActive ? ColorApp.primary : const Color(0xFF64748B),
+              size: 28,
+            ),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: isActive ? ColorApp.primary : const Color(0xFF64748B), fontSize: 10, fontWeight: isActive ? FontWeight.w800 : FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? ColorApp.primary : const Color(0xFF64748B),
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),

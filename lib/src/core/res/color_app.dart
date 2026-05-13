@@ -4,8 +4,8 @@ class ColorApp {
   ColorApp._();
 
   // The vibrant Teal/Cyan from the Moueene screenshot
-  static const Color primary = Color(0xFF00C8A8); 
-  static const Color background = Color(0xFF00C8A8); 
+  static const Color primary = Color(0xFF00C8A8);
+  static const Color background = Color(0xFF00C8A8);
   static const Color primaryDark = Color(0xFF00A88E);
   static const Color white = Color(0xFFFFFFFF);
   static const Color textBlack = Color(0xFF1E293B);

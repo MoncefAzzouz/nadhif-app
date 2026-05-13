@@ -10,10 +10,6 @@ class ProfilePage extends StatelessWidget {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text("Profile", style: TextStyle(fontWeight: FontWeight.w900)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: ColorApp.textBlack,
         actions: [
           IconButton(
             onPressed: () {},

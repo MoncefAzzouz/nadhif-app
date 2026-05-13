@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
-// import 'package:flutter_localizations/flutter_localizations.dart';
-// import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'src/core/utils/dependency_injection.dart';
 import 'src/core/res/color_app.dart';
+import 'src/features/auth/cubit/auth_cubit.dart';
 
 import 'src/features/splash/pages/splash_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   setupLocator();
-  runApp(const CleanApp());
+  runApp(
+    MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => AuthCubit()),
+      ],
+      child: const CleanApp(),
+    ),
+  );
 }
 
 class CleanApp extends StatelessWidget {
@@ -28,6 +36,18 @@ class CleanApp extends StatelessWidget {
           surface: Colors.white,
         ),
         scaffoldBackgroundColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: ColorApp.primary,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Colors.white),
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+          systemOverlayStyle: SystemUiOverlayStyle.light,
+        ),
       ),
       /*
       localizationsDelegates: const [

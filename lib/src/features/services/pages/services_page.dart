@@ -19,10 +19,6 @@ class ServicesPage extends StatelessWidget {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text("All Services", style: TextStyle(fontWeight: FontWeight.w900)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: ColorApp.textBlack,
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(20),

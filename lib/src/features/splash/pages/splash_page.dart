@@ -3,7 +3,7 @@ import '../../../core/res/color_app.dart';
 import '../widgets/particles_widget.dart';
 import '../widgets/color_reveal_widget.dart';
 import '../widgets/text_reveal_widget.dart';
-import '../../home/pages/home_page.dart';
+import '../../auth/pages/phone_number_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -12,9 +12,10 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _mainController;
-  
+
   // Animation sequences
   late Animation<double> _ambientGlowAnimation;
   late Animation<double> _colorExpansionAnimation;
@@ -59,7 +60,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   void _navigateToHome() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const HomePage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const PhoneNumberPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final slideAnimation = Tween<Offset>(
             begin: const Offset(-1.0, 0.0),
@@ -114,7 +116,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Colors.white.withOpacity(0.15 * _ambientGlowAnimation.value),
+                        Colors.white
+                            .withOpacity(0.15 * _ambientGlowAnimation.value),
                         Colors.transparent,
                       ],
                     ),
@@ -130,7 +133,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
             builder: (context, child) {
               return Center(
                 child: CustomPaint(
-                  painter: BloomExpansionPainter(progress: _colorExpansionAnimation.value),
+                  painter: BloomExpansionPainter(
+                      progress: _colorExpansionAnimation.value),
                 ),
               );
             },
@@ -147,7 +151,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                     text: "NADHIF",
                     controller: _mainController,
                     startInterval: 0.38, // 2.5s
-                    endInterval: 0.69,   // 4.5s
+                    endInterval: 0.69, // 4.5s
                   ),
                 );
               },
