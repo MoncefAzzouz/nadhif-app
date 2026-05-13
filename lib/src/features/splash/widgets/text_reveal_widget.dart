@@ -87,10 +87,10 @@ class _AnimatedLetter extends StatelessWidget {
                       height: 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: ColorApp.white.withValues(alpha: 0.3 * (1 - progress)),
+                        color: ColorApp.white.withOpacity(0.3 * (1 - progress)),
                         boxShadow: [
                           BoxShadow(
-                            color: ColorApp.white.withValues(alpha: 0.2),
+                            color: ColorApp.white.withOpacity(0.2),
                             blurRadius: 30 * progress,
                             spreadRadius: 10 * progress,
                           ),
@@ -106,7 +106,7 @@ class _AnimatedLetter extends StatelessWidget {
                       letterSpacing: 4,
                       shadows: [
                         Shadow(
-                          color: Colors.white.withValues(alpha: 0.3 * progress),
+                          color: Colors.white.withOpacity(0.3 * progress),
                           blurRadius: 15 * progress,
                           offset: const Offset(0, 5),
                         ),

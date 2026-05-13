@@ -117,7 +117,7 @@ class _SplashPageState extends State<SplashPage>
                     gradient: RadialGradient(
                       colors: [
                         Colors.white
-                            .withValues(alpha: 0.15 * _ambientGlowAnimation.value),
+                            .withOpacity(0.15 * _ambientGlowAnimation.value),
                         Colors.transparent,
                       ],
                     ),
@@ -179,8 +179,8 @@ class BloomExpansionPainter extends CustomPainter {
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          Colors.white.withValues(alpha: 0.2 * (1 - progress)),
-          Colors.white.withValues(alpha: 0.05 * (1 - progress)),
+          Colors.white.withOpacity(0.2 * (1 - progress)),
+          Colors.white.withOpacity(0.05 * (1 - progress)),
           Colors.transparent,
         ],
         stops: const [0.0, 0.5, 1.0],

@@ -37,7 +37,7 @@ class _OrdersPageState extends State<OrdersPage> {
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: ColorApp.primary.withValues(alpha: 0.08),
+                color: ColorApp.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
               child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), child: Container()),
@@ -87,7 +87,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                    BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: const Icon(Icons.search_rounded, color: ColorApp.textBlack, size: 22),
@@ -100,7 +100,7 @@ class _OrdersPageState extends State<OrdersPage> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: ColorApp.textGrey.withValues(alpha: 0.7),
+              color: ColorApp.textGrey.withOpacity(0.7),
             ),
           ),
         ],
@@ -134,7 +134,7 @@ class _OrdersPageState extends State<OrdersPage> {
                       width: 1.5,
                     ),
                     boxShadow: isSelected ? [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 15, offset: const Offset(0, 8)),
+                      BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 8)),
                     ] : [],
                   ),
                   child: Row(
@@ -208,9 +208,9 @@ class _OrdersPageState extends State<OrdersPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: ColorApp.greyBorder.withValues(alpha: 0.39)),
+        border: Border.all(color: ColorApp.greyBorder.withOpacity(0.39)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -240,7 +240,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withValues(alpha: 0.78)),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withOpacity(0.78)),
                     ),
                   ],
                 ),
@@ -248,7 +248,7 @@ class _OrdersPageState extends State<OrdersPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: ColorApp.primary.withValues(alpha: 0.12),
+                  color: ColorApp.primary.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -291,7 +291,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   gradient: const LinearGradient(colors: [ColorApp.primary, Color(0xFF00BFA5)]),
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
-                    BoxShadow(color: ColorApp.primary.withValues(alpha: 0.31), blurRadius: 10, offset: const Offset(0, 2)),
+                    BoxShadow(color: ColorApp.primary.withOpacity(0.31), blurRadius: 10, offset: const Offset(0, 2)),
                   ],
                 ),
               ),
@@ -308,9 +308,9 @@ class _OrdersPageState extends State<OrdersPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: ColorApp.greyBorder.withValues(alpha: 0.39)),
+        border: Border.all(color: ColorApp.greyBorder.withOpacity(0.39)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -340,7 +340,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withValues(alpha: 0.78)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withOpacity(0.78)),
                     ),
                   ],
                 ),
@@ -351,19 +351,19 @@ class _OrdersPageState extends State<OrdersPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ColorApp.softGrey.withValues(alpha: 0.59),
+              color: ColorApp.softGrey.withOpacity(0.59),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_rounded, size: 16, color: ColorApp.textBlack.withValues(alpha: 0.59)),
+                Icon(Icons.calendar_today_rounded, size: 16, color: ColorApp.textBlack.withOpacity(0.59)),
                 const SizedBox(width: 8),
                 Text(
                   date,
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: ColorApp.textBlack),
                 ),
                 const Spacer(),
-                Icon(Icons.access_time_rounded, size: 16, color: ColorApp.textBlack.withValues(alpha: 0.59)),
+                Icon(Icons.access_time_rounded, size: 16, color: ColorApp.textBlack.withOpacity(0.59)),
                 const SizedBox(width: 8),
                 Text(
                   time,
@@ -391,7 +391,7 @@ class _OrdersPageState extends State<OrdersPage> {
               color: ColorApp.softGrey,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.assignment_rounded, size: 40, color: ColorApp.textGrey.withValues(alpha: 0.39)),
+            child: Icon(Icons.assignment_rounded, size: 40, color: ColorApp.textGrey.withOpacity(0.39)),
           ),
           const SizedBox(height: 24),
           Text(

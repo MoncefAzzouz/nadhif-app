@@ -57,7 +57,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: ColorApp.primary.withValues(alpha: 0.08),
+                color: ColorApp.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
               child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), child: Container()),
@@ -120,7 +120,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: const Icon(Icons.arrow_back_rounded, color: ColorApp.textBlack, size: 20),
@@ -136,7 +136,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
               ],
             ),
             child: const Icon(Icons.favorite_border_rounded, color: ColorApp.textBlack, size: 20),
@@ -152,13 +152,13 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [ColorApp.primary, ColorApp.primary.withValues(alpha: 0.7)],
+          colors: [ColorApp.primary, ColorApp.primary.withOpacity(0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: ColorApp.primary.withValues(alpha: 0.23), blurRadius: 25, offset: const Offset(0, 10)),
+          BoxShadow(color: ColorApp.primary.withOpacity(0.23), blurRadius: 25, offset: const Offset(0, 10)),
         ],
       ),
       child: Row(
@@ -169,9 +169,9 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               width: 70,
               height: 70,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.31)),
+                border: Border.all(color: Colors.white.withOpacity(0.31)),
               ),
               child: widget.serviceImage != null
                   ? ClipRRect(
@@ -262,7 +262,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: isSelected ? Colors.transparent : ColorApp.greyBorder, width: 1.5),
                 boxShadow: isSelected ? [
-                  BoxShadow(color: ColorApp.primary.withValues(alpha: 0.23), blurRadius: 15, offset: const Offset(0, 8)),
+                  BoxShadow(color: ColorApp.primary.withOpacity(0.23), blurRadius: 15, offset: const Offset(0, 8)),
                 ] : [],
               ),
               child: Column(
@@ -273,7 +273,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? Colors.white.withValues(alpha: 0.78) : ColorApp.textGrey,
+                      color: isSelected ? Colors.white.withOpacity(0.78) : ColorApp.textGrey,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -348,7 +348,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               height: 50,
               margin: EdgeInsets.only(right: index == 4 ? 0 : 8),
               decoration: BoxDecoration(
-                color: isSelected ? ColorApp.primary.withValues(alpha: 0.12) : Colors.white,
+                color: isSelected ? ColorApp.primary.withOpacity(0.12) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: isSelected ? ColorApp.primary : ColorApp.greyBorder, width: 1.5),
               ),
@@ -413,7 +413,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           decoration: BoxDecoration(
             color: ColorApp.softGrey,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+            border: Border.all(color: Colors.black.withOpacity(0.02)),
           ),
           child: Row(
             children: [
@@ -444,7 +444,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               Switch.adaptive(
                 value: _needMaterials,
                 onChanged: (val) => setState(() => _needMaterials = val),
-                activeTrackColor: ColorApp.primary.withValues(alpha: 0.39),
+                activeTrackColor: ColorApp.primary.withOpacity(0.39),
               ),
             ],
           ),
@@ -478,7 +478,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? Colors.transparent : ColorApp.greyBorder, width: 1.5),
           boxShadow: isSelected ? [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 4)),
           ] : [],
         ),
         child: Column(
@@ -498,7 +498,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white.withValues(alpha: 0.7) : ColorApp.textGrey,
+                color: isSelected ? Colors.white.withOpacity(0.7) : ColorApp.textGrey,
               ),
             ),
           ],
@@ -518,7 +518,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           color: Colors.white,
           borderRadius: const BorderRadius.only(topLeft: Radius.circular(40), topRight: Radius.circular(40)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 30, offset: const Offset(0, -10)),
+            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 30, offset: const Offset(0, -10)),
           ],
         ),
         child: Column(
@@ -589,7 +589,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                         ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
-                          BoxShadow(color: ColorApp.primary.withValues(alpha: 0.39), blurRadius: 15, offset: const Offset(0, 8)),
+                          BoxShadow(color: ColorApp.primary.withOpacity(0.39), blurRadius: 15, offset: const Offset(0, 8)),
                         ],
                       ),
                       child: Center(

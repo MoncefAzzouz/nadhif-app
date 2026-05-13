@@ -130,7 +130,7 @@ class _ServicesPageState extends State<ServicesPage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
+                        color: Colors.black.withOpacity(0.03),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -141,7 +141,7 @@ class _ServicesPageState extends State<ServicesPage> {
                     onChanged: (val) => setState(() {}),
                     decoration: InputDecoration(
                       hintText: l10n.searchServices,
-                      hintStyle: TextStyle(color: ColorApp.textGrey.withValues(alpha: 0.5), fontSize: 14),
+                      hintStyle: TextStyle(color: ColorApp.textGrey.withOpacity(0.5), fontSize: 14),
                       prefixIcon: const Icon(Icons.search_rounded, color: ColorApp.primary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -173,8 +173,8 @@ class _ServicesPageState extends State<ServicesPage> {
                             boxShadow: [
                               BoxShadow(
                                 color: isSelected 
-                                    ? ColorApp.primary.withValues(alpha: 0.3)
-                                    : Colors.black.withValues(alpha: 0.03),
+                                    ? ColorApp.primary.withOpacity(0.3)
+                                    : Colors.black.withOpacity(0.03),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -212,7 +212,7 @@ class _ServicesPageState extends State<ServicesPage> {
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
+                              color: Colors.black.withOpacity(0.02),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -224,7 +224,7 @@ class _ServicesPageState extends State<ServicesPage> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: ColorApp.primary.withValues(alpha: 0.1),
+                                color: ColorApp.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Icon(

@@ -190,7 +190,7 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               color: ColorApp.softGrey,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
             ),
             child: const Badge(
               label: Text("2"),
@@ -228,7 +228,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -309,7 +309,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: Colors.black.withOpacity(0.02),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -380,13 +380,18 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                            color: ColorApp.textGrey,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800),
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: ColorApp.textGrey,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800),
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         price,
                         style: const TextStyle(
@@ -470,7 +475,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
+                      color: Colors.black.withOpacity(0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -565,7 +570,7 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
       ),
       child: Row(
         children: [
@@ -643,7 +648,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.black.withOpacity(0.2),
               blurRadius: 20,
               offset: const Offset(0, 10)),
         ],
@@ -666,7 +671,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   l10n.joinPremium,
                   style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: Colors.white.withOpacity(0.7),
                       fontSize: 12,
                       fontWeight: FontWeight.w500),
                 ),
@@ -687,7 +692,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Icon(Icons.stars_rounded,
-              size: 60, color: Colors.white.withValues(alpha: 0.1)),
+              size: 60, color: Colors.white.withOpacity(0.1)),
         ],
       ),
     );
@@ -704,7 +709,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 30,
             offset: const Offset(0, 10),
           )
@@ -732,7 +737,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isActive
-              ? ColorApp.primary.withValues(alpha: 0.12)
+              ? ColorApp.primary.withOpacity(0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(32),
         ),

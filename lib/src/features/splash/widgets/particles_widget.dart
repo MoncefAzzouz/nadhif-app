@@ -71,7 +71,7 @@ class ParticlesPainter extends CustomPainter {
     final paint = Paint()..color = ColorApp.particleColor;
 
     for (var particle in particles) {
-      final pPaint = paint..color = ColorApp.particleColor.withValues(alpha: particle.opacity);
+      final pPaint = paint..color = ColorApp.particleColor.withOpacity(particle.opacity);
       canvas.drawCircle(
         Offset(particle.x * size.width, particle.y * size.height),
         particle.size,

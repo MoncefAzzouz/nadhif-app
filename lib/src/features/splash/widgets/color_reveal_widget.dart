@@ -37,7 +37,7 @@ class ColorExpansionPainter extends CustomPainter {
       ..shader = RadialGradient(
         colors: [
           ColorApp.primary,
-          ColorApp.primary.withValues(alpha: 0.8),
+          ColorApp.primary.withOpacity(0.8),
           Colors.transparent,
         ],
         stops: const [0.0, 0.8, 1.0],
@@ -48,7 +48,7 @@ class ColorExpansionPainter extends CustomPainter {
     // Add a glow/bloom effect around the edges
     if (progress < 1.0) {
       final glowPaint = Paint()
-        ..color = ColorApp.primary.withValues(alpha: 0.3 * (1 - progress))
+        ..color = ColorApp.primary.withOpacity(0.3 * (1 - progress))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30);
       canvas.drawCircle(center, currentRadius, glowPaint);
     }
