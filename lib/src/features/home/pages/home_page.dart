@@ -5,6 +5,8 @@ import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
 
+import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -25,7 +27,7 @@ class _HomePageState extends State<HomePage> {
   int _currentRecommendedIndex = 0;
   int _currentHeroIndex = 0;
 
-  final double _recommendedCardWidth = 206.0;
+  final double _recommendedCardWidth = 220.0;
 
   @override
   void initState() {
@@ -36,7 +38,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _startAutoScrolls() {
-    // Timer for Recommended Services
     _recommendedTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (_recommendedController.hasClients && _selectedTab == 0) {
         _currentRecommendedIndex++;
@@ -54,7 +55,6 @@ class _HomePageState extends State<HomePage> {
       }
     });
 
-    // Timer for Hero Carousel
     _heroTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_heroPageController.hasClients && _selectedTab == 0) {
         _currentHeroIndex++;
@@ -84,7 +84,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF9F9F9),
       body: Stack(
         children: [
           IndexedStack(
@@ -114,18 +114,19 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
-          _buildHeroCarousel(), // Now a carousel
+          const SizedBox(height: 10),
+          _buildHeroCarousel(),
           const SizedBox(height: 12),
           _buildSectionHeader("Recommended Services", showViewAll: true),
           _buildHorizontalServices(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
           _buildSectionHeader("Our Services"),
           _buildServiceGrid(),
           const SizedBox(height: 32),
           _buildBrandsSection(),
           const SizedBox(height: 32),
           _buildCustomizeSection(),
-          const SizedBox(height: 120),
+          const SizedBox(height: 140),
         ],
       ),
     );
@@ -133,50 +134,61 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 10),
-      color: ColorApp.primary,
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.cleaning_services_rounded,
-                    color: ColorApp.primary, size: 24),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_rounded,
+                      color: ColorApp.primary, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    "Home, West Bay",
+                    style: TextStyle(
+                      color: ColorApp.textGrey.withOpacity(0.8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Icon(Icons.keyboard_arrow_down_rounded,
+                      color: ColorApp.textGrey, size: 16),
+                ],
               ),
-              const SizedBox(width: 10),
+              const SizedBox(height: 4),
               const Text(
-                "Nadhif",
+                "Hello, John Doe 👋",
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
+                  color: ColorApp.textBlack,
                   letterSpacing: -0.5,
                 ),
               ),
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withOpacity(0.5)),
-              borderRadius: BorderRadius.circular(20),
+              color: ColorApp.softGrey,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
             ),
-            child: const Row(
-              children: [
-                Icon(Icons.language, size: 16, color: Colors.white),
-                SizedBox(width: 4),
-                Text("EN",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.white)),
-              ],
+            child: const Badge(
+              label: Text("2"),
+              backgroundColor: ColorApp.primary,
+              child: Icon(Icons.notifications_outlined,
+                  color: ColorApp.textBlack, size: 22),
             ),
           ),
         ],
@@ -186,22 +198,21 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildHeroCarousel() {
     return SizedBox(
-      height: 240,
+      height: 220,
       child: PageView(
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
         children: [
-          _buildHeroCard(),
-          _buildOfferCard(
-            "NEW OFFER",
-            "Washing machine\nmaintenance",
-            "Quality service at your door",
-            "https://images.unsplash.com/photo-1582733775062-eb92170f5de0?w=400",
+          _buildHeroCard(
+            "WELCOME TO NADHIF",
+            "Professional cleaning\nservices at your door",
+            const [ColorApp.primary, Color(0xFF00BFA5)],
           ),
+          _buildBannerOnlyCard("assets/images/cleanair.png"),
           _buildOfferCard(
             "FLASH SALE",
             "Home Deep Cleaning\nPackage",
-            "Special 30% discount today",
+            "Special 30% discount",
             "https://images.unsplash.com/photo-1581578731548-c64695ce6958?w=400",
           ),
         ],
@@ -209,49 +220,68 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeroCard() {
+  Widget _buildHeroCard(String tag, String title, List<Color> colors) {
     return Container(
-      margin: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [ColorApp.primary, Color(0xFF00BFA5)],
+        gradient: LinearGradient(
+          colors: colors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: ColorApp.primary.withOpacity(0.3),
+            color: colors[0].withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            "WELCOME TO NADHIF",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                height: 1.1),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              tag,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900),
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            "كل الخدمات المنزلية التي تحتاجها في بلاصة وحدة مع تطبيق نظيف",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                height: 1.4),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+            ),
           ),
           const SizedBox(height: 16),
-          _buildHeroButton("Book Now", Colors.white, ColorApp.primary),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              "Book Now",
+              style: TextStyle(
+                  color: ColorApp.primary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13),
+            ),
+          ),
         ],
       ),
     );
@@ -260,14 +290,13 @@ class _HomePageState extends State<HomePage> {
   Widget _buildOfferCard(
       String tag, String title, String subtitle, String imageUrl) {
     return Container(
-      margin: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: ColorApp.greyBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -276,46 +305,42 @@ class _HomePageState extends State<HomePage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(32),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               flex: 3,
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: ColorApp.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                    Text(
+                      tag,
+                      style: const TextStyle(
+                        color: ColorApp.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
                       ),
-                      child: Text(tag,
-                          style: const TextStyle(
-                              color: ColorApp.primary,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900)),
                     ),
-                    const SizedBox(height: 12),
-                    Text(title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                            height: 1.2,
-                            color: Color(0xFF1E293B))),
-                    const SizedBox(height: 6),
-                    Text(subtitle,
-                        style: const TextStyle(
-                            color: ColorApp.textGrey, fontSize: 11)),
-                    const SizedBox(height: 12),
-                    Text("Book Now",
-                        style: TextStyle(
-                            color: ColorApp.primary,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13)),
+                    const SizedBox(height: 8),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        height: 1.2,
+                        color: ColorApp.textBlack,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                          color: ColorApp.textGrey.withOpacity(0.7),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
               ),
@@ -324,11 +349,10 @@ class _HomePageState extends State<HomePage> {
               flex: 2,
               child: Image.network(
                 imageUrl,
+                height: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFFF0FDFA),
-                    child: const Icon(Icons.settings_suggest,
-                        color: ColorApp.primary)),
+                errorBuilder: (context, error, stackTrace) =>
+                    Container(color: ColorApp.softGrey),
               ),
             ),
           ],
@@ -337,51 +361,60 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeroButton(String text, Color bgColor, Color textColor) {
+  Widget _buildBannerOnlyCard(String imagePath) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-            color: textColor, fontWeight: FontWeight.w800, fontSize: 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Image.asset(
+          imagePath,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
 
   Widget _buildHorizontalServices() {
     return SizedBox(
-      height: 240,
+      height: 220,
       child: ListView(
         controller: _recommendedController,
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         children: [
           _buildHorizontalCard(
-              "Home Cleaning",
-              "Starting\n3 Hours",
-              "QAR 69*",
-              const Color(0xFFF0FDFA),
-              "https://images.unsplash.com/photo-1581578731548-c64695ce6958?w=200"),
+            "Urgent Cleaning",
+            "Starting 3 Hours",
+            "DA 69",
+            const Color(0xFFFFF1F2),
+            "assets/images/urgent.png",
+          ),
           _buildHorizontalCard(
-              "Washing Machine",
-              "Washing\nMachine Service",
-              "30 DAY WARRANTY",
-              const Color(0xFFF0FDF4),
-              "https://images.unsplash.com/photo-1582733775062-eb92170f5de0?w=200",
-              isNew: true),
+            "Subscription Pack",
+            "Full Maintenance",
+            "DA 120",
+            const Color(0xFFF0FDF4),
+            "assets/images/pack.png",
+            isNew: true,
+          ),
           _buildHorizontalCard(
-              "AC Services",
-              "Foam\nDeep Cleaning",
-              "PREMIUM CARE",
-              const Color(0xFFF0F9FF),
-              "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=200"),
+            "AC Services",
+            "Foam Deep Cleaning",
+            "DA 150",
+            const Color(0xFFF0F9FF),
+            "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=200",
+          ),
         ],
       ),
     );
@@ -390,79 +423,114 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHorizontalCard(String title, String subtitle, String price,
       Color bgColor, String imageUrl,
       {bool isNew = false}) {
-    return Container(
-      width: 190,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: ColorApp.primary.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                    child: Text(title,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: ColorApp.primary),
-                        overflow: TextOverflow.ellipsis)),
-                if (isNew)
-                  Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: ColorApp.primary,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: const Text("NEW",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w900))),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => ServiceBookingPage(serviceName: title)),
+        );
+      },
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 16, bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(subtitle,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF1E293B),
-                    height: 1.1)),
-          ),
-          const Spacer(),
-          Center(
-              child: Image.network(imageUrl,
-                  height: 90,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.broken_image,
-                      size: 50,
-                      color: Colors.grey))),
-          const Spacer(),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: const BoxDecoration(
-                color: ColorApp.primary,
-                borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(28),
-                    bottomRight: Radius.circular(28))),
-            child: Text(price,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13)),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(28),
+                          topRight: Radius.circular(28),
+                        ),
+                        child: imageUrl.startsWith('http')
+                            ? Image.network(imageUrl, fit: BoxFit.fitWidth)
+                            : Image.asset(imageUrl, fit: BoxFit.fitWidth),
+                      ),
+                    ),
+                    if (isNew)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: ColorApp.primary,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            "NEW",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: ColorApp.textBlack),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                            color: ColorApp.textGrey.withOpacity(0.7),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        price,
+                        style: const TextStyle(
+                            color: ColorApp.primary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -470,119 +538,152 @@ class _HomePageState extends State<HomePage> {
   Widget _buildServiceGrid() {
     final services = [
       {"name": "Laundry", "icon": Icons.local_laundry_service_rounded},
-      {"name": "Home Cleaning", "icon": Icons.home_work_rounded},
+      {"name": "Home Clean", "icon": Icons.home_work_rounded},
       {"name": "Car Wash", "icon": Icons.directions_car_filled_rounded},
-      {"name": "Carpet Cleaning", "icon": Icons.texture_rounded},
+      {"name": "Carpet", "icon": Icons.texture_rounded},
       {"name": "Shoe Care", "icon": Icons.shopping_bag_rounded},
-      {"name": "Charity", "icon": Icons.favorite_rounded},
+      {"name": "AC Repair", "icon": Icons.ac_unit_rounded},
       {"name": "Furniture", "icon": Icons.weekend_rounded},
       {"name": "Deep Clean", "icon": Icons.auto_awesome_rounded},
-      {"name": "AC Services", "icon": Icons.ac_unit_rounded},
-      {"name": "Pest Control", "icon": Icons.bug_report_rounded},
     ];
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.8,
+        mainAxisSpacing: 20,
+        crossAxisSpacing: 16,
+        childAspectRatio: 0.75,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
-        return Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x0A000000),
-                    blurRadius: 15,
-                    offset: Offset(0, 4),
-                  ),
-                ],
+        final service = services[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => ServiceBookingPage(
+                      serviceName: service["name"] as String)),
+            );
+          },
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(services[index]["icon"] as IconData,
+                    color: ColorApp.primary, size: 24),
               ),
-              child: Icon(services[index]["icon"] as IconData,
-                  color: ColorApp.primary, size: 28),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              services[index]["name"] as String,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF475569),
+              const SizedBox(height: 8),
+              Text(
+                services[index]["name"] as String,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: ColorApp.textBlack,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 
   Widget _buildBrandsSection() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          _buildBrandCard("Luxury\nLaundry", "Dior"),
-          const SizedBox(width: 16),
-          _buildBrandCard("Baby\nLaundry", "New Launch", isBaby: true),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader("Official Partners"),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            ServiceBookingPage(serviceName: "Dior")),
+                  );
+                },
+                child: _buildBrandCard(
+                    "Luxury Care", "Dior", const Color(0xFFF1F5F9)),
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            ServiceBookingPage(serviceName: "Nadhif Kids")),
+                  );
+                },
+                child: _buildBrandCard(
+                    "Baby Safe", "Nadhif Kids", const Color(0xFFFFF7ED)),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildBrandCard(String title, String subtitle, {bool isBaby = false}) {
+  Widget _buildBrandCard(String title, String subtitle, Color bgColor) {
     return Container(
-      width: 220,
+      width: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: ColorApp.greyBorder)),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black.withOpacity(0.05)),
+      ),
       child: Row(
         children: [
           Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                if (isBaby)
-                  const Text("NEW LAUNCH",
-                      style: TextStyle(
-                          color: ColorApp.primary,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                      color: ColorApp.primary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5),
+                ),
                 const SizedBox(height: 4),
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        color: Color(0xFF1E293B)))
-              ])),
-          if (!isBaby)
-            const Text("Dior",
-                style: TextStyle(
-                    fontFamily: 'Serif',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: ColorApp.primary)),
-          if (isBaby)
-            const Icon(Icons.child_friendly_rounded,
-                size: 38, color: ColorApp.primary),
+                Text(
+                  title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                      color: ColorApp.textBlack),
+                )
+              ],
+            ),
+          ),
+          const Icon(Icons.verified_rounded, size: 24, color: ColorApp.primary),
         ],
       ),
     );
@@ -590,21 +691,26 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildSectionHeader(String title, {bool showViewAll = false}) {
     return Padding(
-      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 19,
-                  color: Color(0xFF0F172A))),
+          Text(
+            title,
+            style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                color: ColorApp.textBlack,
+                letterSpacing: -0.5),
+          ),
           if (showViewAll)
-            const Text("View All",
-                style: TextStyle(
-                    color: ColorApp.primary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13)),
+            const Text(
+              "See All",
+              style: TextStyle(
+                  color: ColorApp.primary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13),
+            ),
         ],
       ),
     );
@@ -612,55 +718,62 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildCustomizeSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-            colors: [ColorApp.primary, Color(0xFF00BFA5)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
+          colors: [ColorApp.textBlack, Color(0xFF475569)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-              color: ColorApp.primary.withOpacity(0.3),
-              blurRadius: 25,
-              offset: const Offset(0, 12))
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10)),
         ],
       ),
       child: Row(
         children: [
           Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                const Text("Customize your\nexperience",
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Exclusive Offers\nfor You",
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1),
+                ),
                 const SizedBox(height: 10),
-                const Text("Tailor Nadhif to your preferences!",
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500)),
+                Text(
+                  "Join our premium membership!",
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                ),
                 const SizedBox(height: 20),
-                ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: ColorApp.primary,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16))),
-                    child: const Text("Explore Now",
-                        style: TextStyle(fontWeight: FontWeight.w800)))
-              ])),
-          const Icon(Icons.auto_fix_high_rounded,
-              size: 70, color: Colors.white24),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: ColorApp.primary,
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Text("Join Now",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
+                )
+              ],
+            ),
+          ),
+          Icon(Icons.stars_rounded,
+              size: 60, color: Colors.white.withOpacity(0.1)),
         ],
       ),
     );
