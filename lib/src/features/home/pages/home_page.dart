@@ -5,6 +5,7 @@ import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -161,11 +162,11 @@ class _HomePageState extends State<HomePage> {
                       color: ColorApp.primary, size: 16),
                   const SizedBox(width: 4),
                   Text(
-                    "Home, West Bay",
+                    "Setif center ville",
                     style: const TextStyle(
                       color: ColorApp.textGrey,
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Icon(Icons.keyboard_arrow_down_rounded,
@@ -174,10 +175,10 @@ class _HomePageState extends State<HomePage> {
               ),
               const SizedBox(height: 4),
               Text(
-                "${l10n.hello}, John Doe 👋",
+                "${l10n.hello},Moncef az",
                 style: const TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: ColorApp.textBlack,
                   letterSpacing: -0.5,
                 ),
@@ -210,9 +211,9 @@ class _HomePageState extends State<HomePage> {
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
         children: [
-          _buildBannerOnlyCard("assets/images/promo.png"),
-          _buildBannerOnlyCard("assets/images/cleanair.png"),
-          _buildBannerOnlyCard("assets/images/aid.png"),
+          _buildBannerOnlyCard(MediaRes.promoBanner),
+          _buildBannerOnlyCard(MediaRes.cleanAirBanner),
+          _buildBannerOnlyCard(MediaRes.aidBanner),
         ],
       ),
     );
@@ -277,7 +278,7 @@ class _HomePageState extends State<HomePage> {
             l10n.foamDeepCleaning,
             "DA 150",
             const Color(0xFFF0F9FF),
-            "assets/images/clima.JPG",
+            MediaRes.acRepairIcon,
           ),
         ],
       ),
@@ -293,7 +294,11 @@ class _HomePageState extends State<HomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => ServiceBookingPage(serviceName: title)),
+            builder: (context) => ServiceBookingPage(
+              serviceName: title,
+              serviceImage: imageUrl,
+            ),
+          ),
         );
       },
       child: Container(
@@ -351,7 +356,7 @@ class _HomePageState extends State<HomePage> {
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 8,
-                                fontWeight: FontWeight.w900),
+                                fontWeight: FontWeight.w800),
                           ),
                         ),
                       ),
@@ -367,7 +372,7 @@ class _HomePageState extends State<HomePage> {
                   Text(
                     title,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w800,
                         fontSize: 15,
                         color: ColorApp.textBlack),
                   ),
@@ -380,13 +385,13 @@ class _HomePageState extends State<HomePage> {
                         style: const TextStyle(
                             color: ColorApp.textGrey,
                             fontSize: 11,
-                            fontWeight: FontWeight.w900),
+                            fontWeight: FontWeight.w800),
                       ),
                       Text(
                         price,
                         style: const TextStyle(
                             color: ColorApp.primary,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w800,
                             fontSize: 13),
                       ),
                     ],
@@ -405,22 +410,22 @@ class _HomePageState extends State<HomePage> {
     final services = [
       {
         "name": l10n.laundry,
-        "image": "assets/images/landiring.JPG",
+        "image": MediaRes.laundryIcon,
         "icon": Icons.local_laundry_service_rounded
       },
       {
         "name": l10n.carpet,
-        "image": "assets/images/sejadaclean.JPG",
+        "image": MediaRes.carpetIcon,
         "icon": Icons.texture_rounded
       },
       {
         "name": l10n.acRepair,
-        "image": "assets/images/clima.JPG",
+        "image": MediaRes.acRepairIcon,
         "icon": Icons.ac_unit_rounded
       },
       {
         "name": l10n.deepClean,
-        "image": "assets/images/deepclean.JPG",
+        "image": MediaRes.deepCleanIcon,
         "icon": Icons.auto_awesome_rounded
       },
       {"name": l10n.homeClean, "icon": Icons.home_work_rounded},
@@ -444,12 +449,16 @@ class _HomePageState extends State<HomePage> {
         final service = services[index];
         return GestureDetector(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ServiceBookingPage(
-                      serviceName: service["name"] as String)),
-            );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ServiceBookingPage(
+                      serviceName: service["name"] as String,
+                      serviceImage: service["image"] as String?,
+                      serviceIcon: service["icon"] as IconData?,
+                    ),
+                  ),
+                );
           },
           child: Column(
             children: [
@@ -485,9 +494,10 @@ class _HomePageState extends State<HomePage> {
                 services[index]["name"] as String,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: ColorApp.textBlack,
+                  height: 1,
                 ),
               ),
             ],
@@ -515,8 +525,11 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) =>
-                            const ServiceBookingPage(serviceName: "Dior")),
+                      builder: (context) => const ServiceBookingPage(
+                        serviceName: "Dior",
+                        serviceIcon: Icons.verified_rounded,
+                      ),
+                    ),
                   );
                 },
                 child: _buildBrandCard(
@@ -528,8 +541,11 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const ServiceBookingPage(
-                            serviceName: "Nadhif Kids")),
+                      builder: (context) => const ServiceBookingPage(
+                        serviceName: "Nadhif Kids",
+                        serviceIcon: Icons.child_care_rounded,
+                      ),
+                    ),
                   );
                 },
                 child: _buildBrandCard(
@@ -563,14 +579,14 @@ class _HomePageState extends State<HomePage> {
                   style: const TextStyle(
                       color: ColorApp.primary,
                       fontSize: 9,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                       letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   title,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                       fontSize: 15,
                       color: ColorApp.textBlack),
                 )
@@ -595,7 +611,7 @@ class _HomePageState extends State<HomePage> {
           Text(
             title,
             style: const TextStyle(
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w800,
                 fontSize: 18,
                 color: ColorApp.textBlack,
                 letterSpacing: -0.5),
@@ -605,7 +621,7 @@ class _HomePageState extends State<HomePage> {
               l10n.seeAll,
               style: const TextStyle(
                   color: ColorApp.primary,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   fontSize: 13),
             ),
         ],
@@ -643,7 +659,7 @@ class _HomePageState extends State<HomePage> {
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                       height: 1.1),
                 ),
                 const SizedBox(height: 10),
@@ -664,7 +680,7 @@ class _HomePageState extends State<HomePage> {
                   child: Text(l10n.joinNow,
                       style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           fontSize: 13)),
                 )
               ],

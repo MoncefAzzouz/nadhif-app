@@ -1,20 +1,37 @@
 class MediaRes {
-  MediaRes._();
+  const MediaRes._();
 
-  static const String _baseIcons = 'assets/icons';
-  static const String _baseImages = 'assets/images';
-  static const String _baseSvgs = 'assets/images/svg';
-  static const String _baseAnimations = 'assets/animation';
+  static const _baseImage = 'assets/images';
+  static const _baseImageIcon = '$_baseImage/svg';
+  static const _baseAnimation = 'assets/animation';
 
-  // Assets
-  static const String logo = '$_baseIcons/logo.png';
-  static const String algeriaFlag = '$_baseImages/alg.png';
-  
-  // SVGs
-  static const String whatsapp = '$_baseSvgs/whatsup.svg';
-  static const String sms = '$_baseSvgs/message_1_line.svg';
-  static const String users = '$_baseSvgs/users_icon.svg';
-  static const String backButton = '$_baseSvgs/back_button_icon.svg';
-  static const String doubleArrow = '$_baseSvgs/double_arrow.svg';
-  static const String shieldUser = '$_baseSvgs/Shield User.svg';
+  // Hero Banners
+  static const promoBanner = '$_baseImage/promo.png';
+  static const cleanAirBanner = '$_baseImage/cleanair.png';
+  static const aidBanner = '$_baseImage/aid.png';
+
+  // Service Icons (Images)
+  static const laundryIcon = '$_baseImage/landiring.JPG';
+  static const carpetIcon = '$_baseImage/sejadaclean.JPG';
+  static const acRepairIcon = '$_baseImage/clima.JPG';
+  static const deepCleanIcon = '$_baseImage/deepclean.JPG';
+
+  // Recommended Service Images
+  static const urgentCleaning = '$_baseImage/urgent.png';
+  static const subscriptionPack = '$_baseImage/pack.png';
+
+  // Auth & Navigation Icons (SVG)
+  static const backButton = '$_baseImageIcon/back_button_icon.svg';
+  static const doubleArrow = '$_baseImageIcon/double_arrow.svg';
+  static const whatsapp = '$_baseImageIcon/whatsup.svg';
+  static const sms = '$_baseImageIcon/message_1_line.svg';
+  static const shieldUser = '$_baseImageIcon/Shield User.svg';
+  static const users = '$_baseImageIcon/users_icon.svg';
+
+  // Auth Images (PNG)
+  static const algeriaFlag = '$_baseImage/alg.png';
+  static const logo = '$_baseImage/logo.png';
+
+  // Placeholders / Other
+  static const successAnimation = '$_baseAnimation/success.json';
 }

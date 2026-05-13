@@ -5,8 +5,15 @@ import 'dart:ui';
 
 class ServiceBookingPage extends StatefulWidget {
   final String serviceName;
+  final String? serviceImage;
+  final IconData? serviceIcon;
 
-  const ServiceBookingPage({super.key, required this.serviceName});
+  const ServiceBookingPage({
+    super.key,
+    required this.serviceName,
+    this.serviceImage,
+    this.serviceIcon,
+  });
 
   @override
   State<ServiceBookingPage> createState() => _ServiceBookingPageState();
@@ -166,7 +173,21 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.31)),
               ),
-              child: const Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 35),
+              child: widget.serviceImage != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.asset(
+                        widget.serviceImage!,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Icon(
+                      widget.serviceIcon ?? Icons.cleaning_services_rounded,
+                      color: Colors.white,
+                      size: 35,
+                    ),
             ),
           ),
           const SizedBox(width: 20),

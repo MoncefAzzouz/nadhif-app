@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../core/res/media_res.dart';
-import '../../../core/res/color_app.dart';
-import '../cubit/auth_cubit.dart';
-import '../cubit/auth_state.dart';
+import 'package:cleanapp/src/core/res/media_res.dart';
+import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_state.dart';
 import 'verification_page.dart';
 
 class VerificationMethodPage extends StatefulWidget {
@@ -192,7 +192,7 @@ class _VerificationMethodPageState extends State<VerificationMethodPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: SvgPicture.asset(

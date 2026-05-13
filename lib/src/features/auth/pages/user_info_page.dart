@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../core/res/media_res.dart';
-import '../../../core/res/color_app.dart';
-import '../../home/pages/home_page.dart';
-import '../cubit/auth_cubit.dart';
-import '../cubit/auth_state.dart';
+import 'package:cleanapp/src/core/res/media_res.dart';
+import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/features/home/pages/home_page.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_state.dart';
 
 class UserInfoPage extends StatefulWidget {
   final String phoneNumber;
