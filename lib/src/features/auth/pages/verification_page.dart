@@ -11,8 +11,7 @@ import 'user_info_page.dart';
 class VerificationPage extends StatefulWidget {
   final String phoneNumber;
 
-  const VerificationPage({Key? key, required this.phoneNumber})
-      : super(key: key);
+  const VerificationPage({super.key, required this.phoneNumber});
 
   @override
   State<VerificationPage> createState() => _VerificationPageState();

@@ -85,7 +85,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: ColorApp.softGrey, shape: BoxShape.circle),
+                        decoration: const BoxDecoration(color: ColorApp.softGrey, shape: BoxShape.circle),
                         child: const Icon(Icons.close_rounded, size: 20, color: ColorApp.textGrey),
                       ),
                       onPressed: () => Navigator.pop(context),
@@ -145,7 +145,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.1),
+      barrierColor: Colors.black.withValues(alpha: 0.1),
       builder: (context) {
         return TweenAnimationBuilder<double>(
           duration: const Duration(milliseconds: 600),
@@ -169,7 +169,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: ColorApp.primary.withOpacity(0.3),
+                              color: ColorApp.primary.withValues(alpha: 0.3),
                               blurRadius: 30,
                               spreadRadius: 10,
                             ),
@@ -205,7 +205,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                       Text(
                         "Your request has been received",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
@@ -220,13 +220,14 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       },
     );
 
+    final navigator = Navigator.of(context);
     Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomePage(initialIndex: 2)),
-          (route) => false,
-        );
-      }
+      if (!mounted) return;
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(
+            builder: (context) => const HomePage(initialIndex: 2)),
+        (route) => false,
+      );
     });
   }
 
@@ -238,7 +239,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       backgroundColor: const Color(0xFFF8FAFC),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.white.withOpacity(0.8),
+        backgroundColor: Colors.white.withValues(alpha: 0.8),
         elevation: 0,
         flexibleSpace: ClipRect(
           child: BackdropFilter(
@@ -302,7 +303,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: ColorApp.primary.withOpacity(0.1),
+                              color: ColorApp.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.location_on_rounded, color: ColorApp.primary, size: 20),
@@ -396,7 +397,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 color: Colors.white,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, -5)),
                 ],
               ),
               child: SizedBox(
@@ -431,7 +432,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -477,7 +478,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: ColorApp.textGrey.withOpacity(0.5)),
+          Icon(icon, size: 18, color: ColorApp.textGrey.withValues(alpha: 0.5)),
           const SizedBox(width: 12),
           Text(label, style: const TextStyle(color: ColorApp.textGrey, fontSize: 14, fontWeight: FontWeight.w500)),
           const Spacer(),
@@ -494,11 +495,11 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         decoration: BoxDecoration(
-          color: isSelected ? ColorApp.primary.withOpacity(0.03) : Colors.white,
+          color: isSelected ? ColorApp.primary.withValues(alpha: 0.03) : Colors.white,
           border: Border.all(color: isSelected ? ColorApp.primary : Colors.transparent, width: 2),
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -540,7 +541,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         decoration: BoxDecoration(
           color: const Color(0xFFF0FDF4),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.green.withOpacity(0.2)),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [

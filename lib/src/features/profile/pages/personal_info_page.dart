@@ -64,14 +64,14 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 20,
                         ),
                       ],
                     ),
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor: ColorApp.primary.withOpacity(0.1),
+                      backgroundColor: ColorApp.primary.withValues(alpha: 0.1),
                       child: const Icon(Icons.person_rounded, size: 60, color: ColorApp.primary),
                     ),
                   ),
@@ -175,7 +175,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: ColorApp.textGrey.withOpacity(0.8),
+            color: ColorApp.textGrey.withValues(alpha: 0.8),
             letterSpacing: 0.5,
           ),
         ),

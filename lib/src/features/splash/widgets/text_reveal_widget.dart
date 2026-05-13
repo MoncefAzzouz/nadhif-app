@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/res/color_app.dart';
 
@@ -63,7 +62,6 @@ class _AnimatedLetter extends StatelessWidget {
         // Complex "Building" transforms
         final opacity = (progress * 2).clamp(0.0, 1.0);
         final scale = 0.3 + (progress * 0.7);
-        final blur = (1 - progress) * 15.0;
         final rotateX = (1 - progress) * 1.5; // 3D Tilt
         final offsetY = 40.0 * (1 - progress);
 
@@ -73,7 +71,7 @@ class _AnimatedLetter extends StatelessWidget {
             transform: Matrix4.identity()
               ..setEntry(3, 2, 0.002) // perspective
               ..rotateX(rotateX)
-              ..translate(0.0, offsetY),
+              ..translateByDouble(0.0, offsetY, 0.0, 1.0),
             alignment: Alignment.center,
             child: Transform.scale(
               scale: scale,
@@ -87,10 +85,10 @@ class _AnimatedLetter extends StatelessWidget {
                       height: 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: ColorApp.white.withOpacity(0.3 * (1 - progress)),
+                        color: ColorApp.white.withValues(alpha: 0.3 * (1 - progress)),
                         boxShadow: [
                           BoxShadow(
-                            color: ColorApp.white.withOpacity(0.2),
+                            color: ColorApp.white.withValues(alpha: 0.2),
                             blurRadius: 30 * progress,
                             spreadRadius: 10 * progress,
                           ),
@@ -106,7 +104,7 @@ class _AnimatedLetter extends StatelessWidget {
                       letterSpacing: 4,
                       shadows: [
                         Shadow(
-                          color: Colors.white.withOpacity(0.3 * progress),
+                          color: Colors.white.withValues(alpha: 0.3 * progress),
                           blurRadius: 15 * progress,
                           offset: const Offset(0, 5),
                         ),

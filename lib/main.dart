@@ -1,12 +1,13 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
+import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/splash/pages/splash_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:cleanapp/l10n/app_localizations.dart';import 'src/core/utils/dependency_injection.dart';
-import 'src/core/res/color_app.dart';
-import 'src/features/auth/cubit/auth_cubit.dart';
-import 'src/core/common/cubit/locale_cubit.dart';
-import 'src/features/splash/pages/splash_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

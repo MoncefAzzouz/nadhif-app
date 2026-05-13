@@ -10,8 +10,7 @@ import 'verification_page.dart';
 class VerificationMethodPage extends StatefulWidget {
   final String phoneNumber;
 
-  const VerificationMethodPage({Key? key, required this.phoneNumber})
-      : super(key: key);
+  const VerificationMethodPage({super.key, required this.phoneNumber});
 
   @override
   State<VerificationMethodPage> createState() => _VerificationMethodPageState();
@@ -192,7 +191,7 @@ class _VerificationMethodPageState extends State<VerificationMethodPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: SvgPicture.asset(

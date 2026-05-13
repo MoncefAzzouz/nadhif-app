@@ -1,16 +1,23 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
+import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/features/profile/data/user_profile.dart';
+import 'package:cleanapp/src/features/profile/pages/personal_info_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:cleanapp/l10n/app_localizations.dart';import 'package:cleanapp/src/core/res/color_app.dart';
-import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
-
-import 'package:cleanapp/src/features/profile/pages/personal_info_page.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  final ProfileRepository repository;
+
+  const ProfilePage({
+    super.key,
+    this.repository = const InMemoryProfileRepository(),
+  });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final user = repository.getCurrentUser();
     
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
@@ -44,7 +51,7 @@ class ProfilePage extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 10,
                             ),
                           ],
@@ -70,7 +77,7 @@ class ProfilePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: ColorApp.primary.withOpacity(0.3),
+                        color: ColorApp.primary.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -111,9 +118,9 @@ class ProfilePage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "Moncef az",
-                              style: TextStyle(
+                            Text(
+                              user.firstName,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
@@ -121,9 +128,9 @@ class ProfilePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              "Moncefaz@nadhif.com",
+                              user.email,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -134,7 +141,7 @@ class ProfilePage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.qr_code_rounded, color: Colors.white, size: 20),
@@ -201,7 +208,7 @@ class ProfilePage extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.red.withOpacity(0.1)),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -275,7 +282,7 @@ class ProfilePage extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? ColorApp.primary.withOpacity(0.08) : ColorApp.softGrey,
+          color: isSelected ? ColorApp.primary.withValues(alpha: 0.08) : ColorApp.softGrey,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: isSelected ? ColorApp.primary : Colors.transparent, width: 1.5),
         ),
@@ -306,7 +313,7 @@ class ProfilePage extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w800,
-          color: ColorApp.textGrey.withOpacity(0.6),
+          color: ColorApp.textGrey.withValues(alpha: 0.6),
           letterSpacing: 1.2,
         ),
       ),
@@ -322,7 +329,7 @@ class ProfilePage extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.01),
+              color: Colors.black.withValues(alpha: 0.01),
               blurRadius: 10,
             ),
           ],

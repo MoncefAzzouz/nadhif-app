@@ -6,7 +6,7 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'verification_method_page.dart';
 
 class PhoneNumberPage extends StatefulWidget {
-  const PhoneNumberPage({Key? key}) : super(key: key);
+  const PhoneNumberPage({super.key});
 
   @override
   State<PhoneNumberPage> createState() => _PhoneNumberPageState();
@@ -96,9 +96,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
+                            const CircleAvatar(
                               backgroundImage:
-                                  const AssetImage(MediaRes.algeriaFlag),
+                                  AssetImage(MediaRes.algeriaFlag),
                               radius: 14,
                             ),
                             const SizedBox(width: 8),

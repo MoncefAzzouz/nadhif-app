@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/res/color_app.dart';
-import '../widgets/particles_widget.dart';
-import '../widgets/color_reveal_widget.dart';
 import '../widgets/text_reveal_widget.dart';
 import '../../auth/pages/phone_number_page.dart';
 
@@ -117,7 +115,7 @@ class _SplashPageState extends State<SplashPage>
                     gradient: RadialGradient(
                       colors: [
                         Colors.white
-                            .withOpacity(0.15 * _ambientGlowAnimation.value),
+                            .withValues(alpha: 0.15 * _ambientGlowAnimation.value),
                         Colors.transparent,
                       ],
                     ),
@@ -172,15 +170,15 @@ class BloomExpansionPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (progress <= 0) return;
 
-    final center = Offset.zero; // relative to parent center
-    final maxRadius = 1000.0;
+    const center = Offset.zero; // relative to parent center
+    const maxRadius = 1000.0;
     final currentRadius = maxRadius * progress;
 
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          Colors.white.withOpacity(0.2 * (1 - progress)),
-          Colors.white.withOpacity(0.05 * (1 - progress)),
+          Colors.white.withValues(alpha: 0.2 * (1 - progress)),
+          Colors.white.withValues(alpha: 0.05 * (1 - progress)),
           Colors.transparent,
         ],
         stops: const [0.0, 0.5, 1.0],

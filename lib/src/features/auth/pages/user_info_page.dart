@@ -10,7 +10,7 @@ import 'package:cleanapp/src/features/auth/cubit/auth_state.dart';
 class UserInfoPage extends StatefulWidget {
   final String phoneNumber;
 
-  const UserInfoPage({Key? key, required this.phoneNumber}) : super(key: key);
+  const UserInfoPage({super.key, required this.phoneNumber});
 
   @override
   State<UserInfoPage> createState() => _UserInfoPageState();
