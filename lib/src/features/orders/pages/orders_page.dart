@@ -1,3 +1,4 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'dart:ui';
@@ -12,14 +13,18 @@ class OrdersPage extends StatefulWidget {
 class _OrdersPageState extends State<OrdersPage> {
   String _activeFilter = 'Active';
 
-  final List<Map<String, dynamic>> _filters = [
-    {'label': 'Active', 'icon': Icons.local_fire_department_rounded},
-    {'label': 'Scheduled', 'icon': Icons.calendar_month_rounded},
-    {'label': 'History', 'icon': Icons.history_rounded},
-  ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    // Update filter labels dynamically
+    final List<Map<String, dynamic>> localizedFilters = [
+      {'label': l10n.active, 'icon': Icons.local_fire_department_rounded, 'id': 'Active'},
+      {'label': l10n.scheduled, 'icon': Icons.calendar_month_rounded, 'id': 'Scheduled'},
+      {'label': l10n.history, 'icon': Icons.history_rounded, 'id': 'History'},
+    ];
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -32,7 +37,7 @@ class _OrdersPageState extends State<OrdersPage> {
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: ColorApp.primary.withAlpha(20),
+                color: ColorApp.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), child: Container()),
@@ -43,10 +48,10 @@ class _OrdersPageState extends State<OrdersPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
-                _buildFilterBar(),
+                _buildHeader(context),
+                _buildFilterBar(localizedFilters),
                 Expanded(
-                  child: _buildOrderList(),
+                  child: _buildOrderList(context),
                 ),
               ],
             ),
@@ -56,7 +61,9 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
@@ -65,9 +72,9 @@ class _OrdersPageState extends State<OrdersPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "My Orders",
-                style: TextStyle(
+              Text(
+                l10n.orders,
+                style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w900,
                   color: ColorApp.textBlack,
@@ -80,7 +87,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10, offset: const Offset(0, 4)),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: const Icon(Icons.search_rounded, color: ColorApp.textBlack, size: 22),
@@ -89,11 +96,11 @@ class _OrdersPageState extends State<OrdersPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Track and manage your bookings",
+            l10n.trackManage,
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: ColorApp.textGrey.withAlpha(180),
+              color: ColorApp.textGrey.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -101,18 +108,18 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Widget _buildFilterBar() {
+  Widget _buildFilterBar(List<Map<String, dynamic>> filters) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       physics: const BouncingScrollPhysics(),
       child: Row(
-        children: _filters.map((filter) {
-          final bool isSelected = _activeFilter == filter['label'];
+        children: filters.map((filter) {
+          final bool isSelected = _activeFilter == filter['id'];
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: () => setState(() => _activeFilter = filter['label']!),
+              onTap: () => setState(() => _activeFilter = filter['id']!),
               child: AnimatedScale(
                 scale: isSelected ? 1.05 : 1.0,
                 duration: const Duration(milliseconds: 200),
@@ -127,7 +134,7 @@ class _OrdersPageState extends State<OrdersPage> {
                       width: 1.5,
                     ),
                     boxShadow: isSelected ? [
-                      BoxShadow(color: Colors.black.withAlpha(40), blurRadius: 15, offset: const Offset(0, 8)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 15, offset: const Offset(0, 8)),
                     ] : [],
                   ),
                   child: Row(
@@ -157,9 +164,9 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Widget _buildOrderList() {
+  Widget _buildOrderList(BuildContext context) {
     if (_activeFilter == 'History') {
-      return _buildEmptyState();
+      return _buildEmptyState(context);
     }
 
     return ListView(
@@ -201,9 +208,9 @@ class _OrdersPageState extends State<OrdersPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: ColorApp.greyBorder.withAlpha(100)),
+        border: Border.all(color: ColorApp.greyBorder.withValues(alpha: 0.39)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -233,7 +240,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withAlpha(200)),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withValues(alpha: 0.78)),
                     ),
                   ],
                 ),
@@ -241,7 +248,7 @@ class _OrdersPageState extends State<OrdersPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: ColorApp.primary.withAlpha(30),
+                  color: ColorApp.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -284,7 +291,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   gradient: const LinearGradient(colors: [ColorApp.primary, Color(0xFF00BFA5)]),
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
-                    BoxShadow(color: ColorApp.primary.withAlpha(80), blurRadius: 10, offset: const Offset(0, 2)),
+                    BoxShadow(color: ColorApp.primary.withValues(alpha: 0.31), blurRadius: 10, offset: const Offset(0, 2)),
                   ],
                 ),
               ),
@@ -301,9 +308,9 @@ class _OrdersPageState extends State<OrdersPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: ColorApp.greyBorder.withAlpha(100)),
+        border: Border.all(color: ColorApp.greyBorder.withValues(alpha: 0.39)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -333,7 +340,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withAlpha(200)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ColorApp.textGrey.withValues(alpha: 0.78)),
                     ),
                   ],
                 ),
@@ -344,19 +351,19 @@ class _OrdersPageState extends State<OrdersPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: ColorApp.softGrey.withAlpha(150),
+              color: ColorApp.softGrey.withValues(alpha: 0.59),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today_rounded, size: 16, color: ColorApp.textBlack.withAlpha(150)),
+                Icon(Icons.calendar_today_rounded, size: 16, color: ColorApp.textBlack.withValues(alpha: 0.59)),
                 const SizedBox(width: 8),
                 Text(
                   date,
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: ColorApp.textBlack),
                 ),
                 const Spacer(),
-                Icon(Icons.access_time_rounded, size: 16, color: ColorApp.textBlack.withAlpha(150)),
+                Icon(Icons.access_time_rounded, size: 16, color: ColorApp.textBlack.withValues(alpha: 0.59)),
                 const SizedBox(width: 8),
                 Text(
                   time,
@@ -370,7 +377,9 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -382,17 +391,17 @@ class _OrdersPageState extends State<OrdersPage> {
               color: ColorApp.softGrey,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.assignment_rounded, size: 40, color: ColorApp.textGrey.withAlpha(100)),
+            child: Icon(Icons.assignment_rounded, size: 40, color: ColorApp.textGrey.withValues(alpha: 0.39)),
           ),
           const SizedBox(height: 24),
-          const Text(
-            "No Orders Found",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+          Text(
+            l10n.noOrders,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
           ),
           const SizedBox(height: 8),
           Text(
-            "Your order history will appear here",
-            style: TextStyle(fontSize: 14, color: ColorApp.textGrey, fontWeight: FontWeight.w600),
+            l10n.bookServiceNow,
+            style: const TextStyle(fontSize: 14, color: ColorApp.textGrey, fontWeight: FontWeight.w600),
           ),
         ],
       ),

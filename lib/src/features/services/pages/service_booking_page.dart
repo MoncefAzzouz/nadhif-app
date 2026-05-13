@@ -1,5 +1,6 @@
+import 'package:cleanapp/src/features/services/pages/order_summary_page.dart';
 import 'package:flutter/material.dart';
-import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/l10n/app_localizations.dart';import 'package:cleanapp/src/core/res/color_app.dart';
 import 'dart:ui';
 
 class ServiceBookingPage extends StatefulWidget {
@@ -35,6 +36,8 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -47,7 +50,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: ColorApp.primary.withAlpha(20),
+                color: ColorApp.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80), child: Container()),
@@ -57,7 +60,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           SafeArea(
             child: Column(
               children: [
-                _buildAppBar(),
+                _buildAppBar(context),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -67,19 +70,19 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                       children: [
                         _buildHeaderInfo(),
                         const SizedBox(height: 16),
-                        _buildSectionHeader("Select Date", "May 2026"),
+                        _buildSectionHeader(l10n.selectDate, "May 2026"),
                         _buildHorizontalCalendar(),
                         const SizedBox(height: 16),
-                        _buildSectionHeader("How Many Hours", "$_selectedHours Hours"),
+                        _buildSectionHeader(l10n.howManyHours, "$_selectedHours ${l10n.hours}"),
                         _buildHoursPicker(),
                         const SizedBox(height: 16),
-                        _buildSectionHeader("Number Of Cleaners", "$_selectedCleaners Pro"),
+                        _buildSectionHeader(l10n.numberOfCleaners, "$_selectedCleaners ${l10n.pro}"),
                         _buildCleanersPicker(),
                         const SizedBox(height: 16),
-                        _buildSectionHeader("Time Slot", _selectedTimeSlot.split(" ")[0]),
+                        _buildSectionHeader(l10n.timeSlot, _selectedTimeSlot.split(" ")[0]),
                         _buildTimeSlotPicker(),
                         const SizedBox(height: 16),
-                        _buildMaterialsCard(),
+                        _buildMaterialsCard(context),
                         const SizedBox(height: 120), // Bottom bar space
                       ],
                     ),
@@ -88,13 +91,15 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               ],
             ),
           ),
-          _buildBottomAction(),
+          _buildBottomAction(context),
         ],
       ),
     );
   }
 
-  Widget _buildAppBar() {
+  Widget _buildAppBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 24, 8),
       child: Row(
@@ -108,15 +113,15 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 color: Colors.white,
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
                 ],
               ),
               child: const Icon(Icons.arrow_back_rounded, color: ColorApp.textBlack, size: 20),
             ),
           ),
-          const Text(
-            "Booking Details",
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+          Text(
+            l10n.bookingDetails,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
           ),
           Container(
             padding: const EdgeInsets.all(10),
@@ -124,7 +129,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
-                BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 10, offset: const Offset(0, 4)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
               ],
             ),
             child: const Icon(Icons.favorite_border_rounded, color: ColorApp.textBlack, size: 20),
@@ -135,17 +140,18 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
   }
 
   Widget _buildHeaderInfo() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [ColorApp.primary, ColorApp.primary.withAlpha(180)],
+          colors: [ColorApp.primary, ColorApp.primary.withValues(alpha: 0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: ColorApp.primary.withAlpha(60), blurRadius: 25, offset: const Offset(0, 10)),
+          BoxShadow(color: ColorApp.primary.withValues(alpha: 0.23), blurRadius: 25, offset: const Offset(0, 10)),
         ],
       ),
       child: Row(
@@ -156,9 +162,9 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               width: 70,
               height: 70,
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(50),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withAlpha(80)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.31)),
               ),
               child: const Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 35),
             ),
@@ -177,9 +183,9 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                   children: [
                     Icon(Icons.star_rounded, color: Colors.amber.shade400, size: 18),
                     const SizedBox(width: 4),
-                    const Text(
-                      "4.8 (1.2k Reviews)",
-                      style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    Text(
+                      l10n.reviews("4.8", "1.2k"),
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -235,7 +241,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: isSelected ? Colors.transparent : ColorApp.greyBorder, width: 1.5),
                 boxShadow: isSelected ? [
-                  BoxShadow(color: ColorApp.primary.withAlpha(60), blurRadius: 15, offset: const Offset(0, 8)),
+                  BoxShadow(color: ColorApp.primary.withValues(alpha: 0.23), blurRadius: 15, offset: const Offset(0, 8)),
                 ] : [],
               ),
               child: Column(
@@ -246,7 +252,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? Colors.white.withAlpha(200) : ColorApp.textGrey,
+                      color: isSelected ? Colors.white.withValues(alpha: 0.78) : ColorApp.textGrey,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -321,7 +327,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               height: 50,
               margin: EdgeInsets.only(right: index == 4 ? 0 : 8),
               decoration: BoxDecoration(
-                color: isSelected ? ColorApp.primary.withAlpha(30) : Colors.white,
+                color: isSelected ? ColorApp.primary.withValues(alpha: 0.12) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: isSelected ? ColorApp.primary : ColorApp.greyBorder, width: 1.5),
               ),
@@ -376,7 +382,9 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
     );
   }
 
-  Widget _buildMaterialsCard() {
+  Widget _buildMaterialsCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Column(
       children: [
         Container(
@@ -384,7 +392,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           decoration: BoxDecoration(
             color: ColorApp.softGrey,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Colors.black.withAlpha(5)),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
           ),
           child: Row(
             children: [
@@ -397,17 +405,17 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 child: const Icon(Icons.auto_awesome_rounded, color: ColorApp.primary, size: 22),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Cleaning Materials",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+                      l10n.cleaningMaterials,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
                     ),
                     Text(
-                      "Choose your preferred products",
-                      style: TextStyle(fontSize: 12, color: ColorApp.textGrey, fontWeight: FontWeight.w600),
+                      l10n.chooseProducts,
+                      style: const TextStyle(fontSize: 12, color: ColorApp.textGrey, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -415,8 +423,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               Switch.adaptive(
                 value: _needMaterials,
                 onChanged: (val) => setState(() => _needMaterials = val),
-                activeColor: ColorApp.primary,
-                activeTrackColor: ColorApp.primary.withAlpha(100),
+                activeTrackColor: ColorApp.primary.withValues(alpha: 0.39),
               ),
             ],
           ),
@@ -425,9 +432,9 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildMaterialTypeOption("Algerian", "DA ${_materialPriceAlgerian.toInt()}/hr")),
+              Expanded(child: _buildMaterialTypeOption(context, "Algerian", "DA ${_materialPriceAlgerian.toInt()}/hr")),
               const SizedBox(width: 12),
-              Expanded(child: _buildMaterialTypeOption("Imported", "DA ${_materialPriceImported.toInt()}/hr")),
+              Expanded(child: _buildMaterialTypeOption(context, "Imported", "DA ${_materialPriceImported.toInt()}/hr")),
             ],
           ),
         ],
@@ -435,9 +442,10 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
     );
   }
 
-  Widget _buildMaterialTypeOption(String type, String price) {
+  Widget _buildMaterialTypeOption(BuildContext context, String type, String price) {
+    final l10n = AppLocalizations.of(context)!;
     final isSelected = _materialType == type;
-    final String label = type == "Algerian" ? "Algerian Products" : "Imported (France)";
+    final String label = type == "Algerian" ? l10n.algerianProducts : l10n.importedFrance;
     
     return GestureDetector(
       onTap: () => setState(() => _materialType = type),
@@ -449,7 +457,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? Colors.transparent : ColorApp.greyBorder, width: 1.5),
           boxShadow: isSelected ? [
-            BoxShadow(color: Colors.black.withAlpha(30), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 4)),
           ] : [],
         ),
         child: Column(
@@ -469,7 +477,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? Colors.white.withAlpha(180) : ColorApp.textGrey,
+                color: isSelected ? Colors.white.withValues(alpha: 0.7) : ColorApp.textGrey,
               ),
             ),
           ],
@@ -478,7 +486,9 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
     );
   }
 
-  Widget _buildBottomAction() {
+  Widget _buildBottomAction(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
@@ -487,7 +497,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
           color: Colors.white,
           borderRadius: const BorderRadius.only(topLeft: Radius.circular(40), topRight: Radius.circular(40)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 30, offset: const Offset(0, -10)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 30, offset: const Offset(0, -10)),
           ],
         ),
         child: Column(
@@ -505,7 +515,7 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                         onTap: () => setState(() => _showBreakdown = !_showBreakdown),
                         child: Row(
                           children: [
-                            const Text("Total Price", style: TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w700, fontSize: 11)),
+                            Text(l10n.totalPrice, style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w700, fontSize: 11)),
                             const SizedBox(width: 4),
                             Icon(_showBreakdown ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded, size: 14, color: ColorApp.textGrey),
                           ],
@@ -529,23 +539,43 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
                 const SizedBox(width: 20),
                 Expanded(
                   flex: 2,
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [ColorApp.primary, Color(0xFF00BFA5)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => OrderSummaryPage(
+                            serviceName: widget.serviceName,
+                            date: "Wednesday, May 13",
+                            time: "07:00 PM - 07:30 PM",
+                            address: "Hsh jshs, jzjx, x d, Jasim Bin Mohammed Street, 774905514",
+                            frequency: "One time schedule",
+                            duration: _selectedHours,
+                            cleaners: _selectedCleaners,
+                            needMaterials: _needMaterials,
+                            subtotal: _totalPrice,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [ColorApp.primary, Color(0xFF00BFA5)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(color: ColorApp.primary.withValues(alpha: 0.39), blurRadius: 15, offset: const Offset(0, 8)),
+                        ],
                       ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(color: ColorApp.primary.withAlpha(100), blurRadius: 15, offset: const Offset(0, 8)),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "Book Now",
-                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900),
+                      child: Center(
+                        child: Text(
+                          l10n.bookNow,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                        ),
                       ),
                     ),
                   ),
@@ -559,18 +589,19 @@ class _ServiceBookingPageState extends State<ServiceBookingPage> with SingleTick
   }
 
   Widget _buildPriceBreakdown() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         children: [
-          _breakdownRow("Base Price", "DA $_basePricePerHour/hr"),
+          _breakdownRow(l10n.basePrice, "DA $_basePricePerHour/hr"),
           const SizedBox(height: 8),
-          _breakdownRow("Professionals", "x $_selectedCleaners"),
+          _breakdownRow(l10n.professionals, "x $_selectedCleaners"),
           const SizedBox(height: 8),
-          _breakdownRow("Duration", "$_selectedHours Hours"),
+          _breakdownRow(l10n.duration, "$_selectedHours ${l10n.hours}"),
           if (_needMaterials) ...[
             const SizedBox(height: 8),
-            _breakdownRow("${_materialType == 'Algerian' ? 'Local' : 'Imported'} Materials", "DA ${((_materialType == 'Algerian' ? _materialPriceAlgerian : _materialPriceImported) * _selectedHours).toStringAsFixed(0)}"),
+            _breakdownRow(_materialType == 'Algerian' ? l10n.algerianProducts : l10n.importedFrance, "DA ${((_materialType == 'Algerian' ? _materialPriceAlgerian : _materialPriceImported) * _selectedHours).toStringAsFixed(0)}"),
           ],
           const Divider(height: 32),
         ],

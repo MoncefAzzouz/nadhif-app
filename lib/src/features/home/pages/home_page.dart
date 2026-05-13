@@ -4,18 +4,19 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
-
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialIndex;
+  const HomePage({super.key, this.initialIndex = 0});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedTab = 0;
+  late int _selectedTab;
 
   // Controllers for auto-scrolling
   late ScrollController _recommendedController;
@@ -32,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialIndex;
     _recommendedController = ScrollController();
     _heroPageController = PageController();
     _startAutoScrolls();
@@ -90,7 +92,7 @@ class _HomePageState extends State<HomePage> {
           IndexedStack(
             index: _selectedTab,
             children: [
-              _buildHomeView(),
+              _buildHomeView(context),
               const ServicesPage(),
               const OrdersPage(),
               const ProfilePage(),
@@ -100,41 +102,46 @@ class _HomePageState extends State<HomePage> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildBottomNavBar(),
+            child: _buildBottomNavBar(context),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHomeView() {
+  Widget _buildHomeView(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
+          _buildHeader(context),
+          const SizedBox(height: 2),
+          _buildHeroCarousel(context),
+          const SizedBox(height: 4),
+          _buildSectionHeader(context, l10n.recommendedServices,
+              showViewAll: true),
+          _buildHorizontalServices(context),
+          const SizedBox(height: 4),
+          _buildSectionHeader(context, l10n.ourServices),
+          _buildServiceGrid(context),
           const SizedBox(height: 10),
-          _buildHeroCarousel(),
-          const SizedBox(height: 12),
-          _buildSectionHeader("Recommended Services", showViewAll: true),
-          _buildHorizontalServices(),
-          const SizedBox(height: 24),
-          _buildSectionHeader("Our Services"),
-          _buildServiceGrid(),
-          const SizedBox(height: 32),
-          _buildBrandsSection(),
-          const SizedBox(height: 32),
-          _buildCustomizeSection(),
-          const SizedBox(height: 140),
+          _buildBrandsSection(context),
+          const SizedBox(height: 10),
+          _buildCustomizeSection(context),
+          const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+      padding: const EdgeInsets.fromLTRB(24, 50, 24, 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
@@ -155,10 +162,10 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(width: 4),
                   Text(
                     "Home, West Bay",
-                    style: TextStyle(
-                      color: ColorApp.textGrey.withOpacity(0.8),
+                    style: const TextStyle(
+                      color: ColorApp.textGrey,
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const Icon(Icons.keyboard_arrow_down_rounded,
@@ -166,9 +173,9 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
               const SizedBox(height: 4),
-              const Text(
-                "Hello, John Doe 👋",
-                style: TextStyle(
+              Text(
+                "${l10n.hello}, John Doe 👋",
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                   color: ColorApp.textBlack,
@@ -182,7 +189,7 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               color: ColorApp.softGrey,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black.withOpacity(0.05)),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
             ),
             child: const Badge(
               label: Text("2"),
@@ -196,170 +203,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHeroCarousel() {
+  Widget _buildHeroCarousel(BuildContext context) {
     return SizedBox(
       height: 220,
       child: PageView(
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
         children: [
-          _buildHeroCard(
-            "WELCOME TO NADHIF",
-            "Professional cleaning\nservices at your door",
-            const [ColorApp.primary, Color(0xFF00BFA5)],
-          ),
+          _buildBannerOnlyCard("assets/images/promo.png"),
           _buildBannerOnlyCard("assets/images/cleanair.png"),
-          _buildOfferCard(
-            "FLASH SALE",
-            "Home Deep Cleaning\nPackage",
-            "Special 30% discount",
-            "https://images.unsplash.com/photo-1581578731548-c64695ce6958?w=400",
-          ),
+          _buildBannerOnlyCard("assets/images/aid.png"),
         ],
       ),
     );
   }
 
-  Widget _buildHeroCard(String tag, String title, List<Color> colors) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: colors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: colors[0].withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              tag,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              "Book Now",
-              style: TextStyle(
-                  color: ColorApp.primary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildOfferCard(
-      String tag, String title, String subtitle, String imageUrl) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      tag,
-                      style: const TextStyle(
-                        color: ColorApp.primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        height: 1.2,
-                        color: ColorApp.textBlack,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                          color: ColorApp.textGrey.withOpacity(0.7),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Image.network(
-                imageUrl,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    Container(color: ColorApp.softGrey),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildBannerOnlyCard(String imagePath) {
     return Container(
@@ -368,7 +227,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -378,13 +237,15 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         child: Image.asset(
           imagePath,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
         ),
       ),
     );
   }
 
-  Widget _buildHorizontalServices() {
+  Widget _buildHorizontalServices(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return SizedBox(
       height: 220,
       child: ListView(
@@ -394,35 +255,39 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         children: [
           _buildHorizontalCard(
-            "Urgent Cleaning",
-            "Starting 3 Hours",
+            context,
+            l10n.urgentCleaning,
+            l10n.startingHours(3),
             "DA 69",
             const Color(0xFFFFF1F2),
             "assets/images/urgent.png",
           ),
           _buildHorizontalCard(
-            "Subscription Pack",
-            "Full Maintenance",
+            context,
+            l10n.subscriptionPack,
+            l10n.fullMaintenance,
             "DA 120",
             const Color(0xFFF0FDF4),
             "assets/images/pack.png",
             isNew: true,
           ),
           _buildHorizontalCard(
-            "AC Services",
-            "Foam Deep Cleaning",
+            context,
+            l10n.acServices,
+            l10n.foamDeepCleaning,
             "DA 150",
             const Color(0xFFF0F9FF),
-            "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=200",
+            "assets/images/clima.JPG",
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHorizontalCard(String title, String subtitle, String price,
-      Color bgColor, String imageUrl,
+  Widget _buildHorizontalCard(BuildContext context, String title,
+      String subtitle, String price, Color bgColor, String imageUrl,
       {bool isNew = false}) {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -439,7 +304,7 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -481,9 +346,9 @@ class _HomePageState extends State<HomePage> {
                             color: ColorApp.primary,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            "NEW",
-                            style: TextStyle(
+                          child: Text(
+                            l10n.newLabel,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 8,
                                 fontWeight: FontWeight.w900),
@@ -512,10 +377,10 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text(
                         subtitle,
-                        style: TextStyle(
-                            color: ColorApp.textGrey.withOpacity(0.7),
+                        style: const TextStyle(
+                            color: ColorApp.textGrey,
                             fontSize: 11,
-                            fontWeight: FontWeight.w500),
+                            fontWeight: FontWeight.w900),
                       ),
                       Text(
                         price,
@@ -535,16 +400,33 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildServiceGrid() {
+  Widget _buildServiceGrid(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final services = [
-      {"name": "Laundry", "icon": Icons.local_laundry_service_rounded},
-      {"name": "Home Clean", "icon": Icons.home_work_rounded},
-      {"name": "Car Wash", "icon": Icons.directions_car_filled_rounded},
-      {"name": "Carpet", "icon": Icons.texture_rounded},
-      {"name": "Shoe Care", "icon": Icons.shopping_bag_rounded},
-      {"name": "AC Repair", "icon": Icons.ac_unit_rounded},
-      {"name": "Furniture", "icon": Icons.weekend_rounded},
-      {"name": "Deep Clean", "icon": Icons.auto_awesome_rounded},
+      {
+        "name": l10n.laundry,
+        "image": "assets/images/landiring.JPG",
+        "icon": Icons.local_laundry_service_rounded
+      },
+      {
+        "name": l10n.carpet,
+        "image": "assets/images/sejadaclean.JPG",
+        "icon": Icons.texture_rounded
+      },
+      {
+        "name": l10n.acRepair,
+        "image": "assets/images/clima.JPG",
+        "icon": Icons.ac_unit_rounded
+      },
+      {
+        "name": l10n.deepClean,
+        "image": "assets/images/deepclean.JPG",
+        "icon": Icons.auto_awesome_rounded
+      },
+      {"name": l10n.homeClean, "icon": Icons.home_work_rounded},
+      {"name": l10n.carWash, "icon": Icons.directions_car_filled_rounded},
+      {"name": l10n.shoeCare, "icon": Icons.shopping_bag_rounded},
+      {"name": l10n.furniture, "icon": Icons.weekend_rounded},
     ];
 
     return GridView.builder(
@@ -553,9 +435,9 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        mainAxisSpacing: 20,
+        mainAxisSpacing: 12,
         crossAxisSpacing: 16,
-        childAspectRatio: 0.75,
+        childAspectRatio: 0.7,
       ),
       itemCount: services.length,
       itemBuilder: (context, index) {
@@ -573,20 +455,30 @@ class _HomePageState extends State<HomePage> {
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: Icon(services[index]["icon"] as IconData,
-                    color: ColorApp.primary, size: 24),
+                child: service["image"] != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          service["image"] as String,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Icon(service["icon"] as IconData,
+                        color: ColorApp.primary, size: 32),
               ),
               const SizedBox(height: 8),
               Text(
@@ -605,15 +497,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBrandsSection() {
+  Widget _buildBrandsSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader("Official Partners"),
+        _buildSectionHeader(context, l10n.officialPartners),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
           child: Row(
             children: [
               GestureDetector(
@@ -622,11 +516,11 @@ class _HomePageState extends State<HomePage> {
                     context,
                     MaterialPageRoute(
                         builder: (context) =>
-                            ServiceBookingPage(serviceName: "Dior")),
+                            const ServiceBookingPage(serviceName: "Dior")),
                   );
                 },
                 child: _buildBrandCard(
-                    "Luxury Care", "Dior", const Color(0xFFF1F5F9)),
+                    l10n.luxuryCare, "Dior", const Color(0xFFF1F5F9)),
               ),
               const SizedBox(width: 16),
               GestureDetector(
@@ -634,12 +528,12 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) =>
-                            ServiceBookingPage(serviceName: "Nadhif Kids")),
+                        builder: (context) => const ServiceBookingPage(
+                            serviceName: "Nadhif Kids")),
                   );
                 },
                 child: _buildBrandCard(
-                    "Baby Safe", "Nadhif Kids", const Color(0xFFFFF7ED)),
+                    l10n.babySafe, "Nadhif Kids", const Color(0xFFFFF7ED)),
               ),
             ],
           ),
@@ -655,7 +549,7 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -689,9 +583,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {bool showViewAll = false}) {
+  Widget _buildSectionHeader(BuildContext context, String title,
+      {bool showViewAll = false}) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -704,9 +601,9 @@ class _HomePageState extends State<HomePage> {
                 letterSpacing: -0.5),
           ),
           if (showViewAll)
-            const Text(
-              "See All",
-              style: TextStyle(
+            Text(
+              l10n.seeAll,
+              style: const TextStyle(
                   color: ColorApp.primary,
                   fontWeight: FontWeight.w800,
                   fontSize: 13),
@@ -716,7 +613,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCustomizeSection() {
+  Widget _buildCustomizeSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(28),
@@ -729,7 +627,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 10)),
         ],
@@ -740,9 +638,9 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Exclusive Offers\nfor You",
-                  style: TextStyle(
+                Text(
+                  l10n.exclusiveOffers,
+                  style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.w900,
@@ -750,9 +648,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  "Join our premium membership!",
+                  l10n.joinPremium,
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 12,
                       fontWeight: FontWeight.w500),
                 ),
@@ -763,8 +661,8 @@ class _HomePageState extends State<HomePage> {
                   decoration: BoxDecoration(
                       color: ColorApp.primary,
                       borderRadius: BorderRadius.circular(12)),
-                  child: const Text("Join Now",
-                      style: TextStyle(
+                  child: Text(l10n.joinNow,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
                           fontSize: 13)),
@@ -773,13 +671,15 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Icon(Icons.stars_rounded,
-              size: 60, color: Colors.white.withOpacity(0.1)),
+              size: 60, color: Colors.white.withValues(alpha: 0.1)),
         ],
       ),
     );
   }
 
-  Widget _buildBottomNavBar() {
+  Widget _buildBottomNavBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 20, bottom: 24),
       height: 80,
@@ -788,7 +688,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 30,
             offset: const Offset(0, 10),
           )
@@ -797,16 +697,16 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(0, Icons.home_filled, "Home"),
-          _buildNavItem(1, Icons.electric_bolt_rounded, "Services"),
-          _buildNavItem(2, Icons.receipt_long_rounded, "Orders"),
-          _buildNavItem(3, Icons.person_rounded, "Profile"),
+          _buildNavItem(0, l10n.homeLabel, Icons.home_rounded),
+          _buildNavItem(1, l10n.servicesLabel, Icons.grid_view_rounded),
+          _buildNavItem(2, l10n.ordersLabel, Icons.receipt_long_rounded),
+          _buildNavItem(3, l10n.profileLabel, Icons.person_rounded),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, String label, IconData icon) {
     final isActive = _selectedTab == index;
     return GestureDetector(
       onTap: () => setState(() => _selectedTab = index),
@@ -816,7 +716,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isActive
-              ? ColorApp.primary.withOpacity(0.12)
+              ? ColorApp.primary.withValues(alpha: 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(32),
         ),

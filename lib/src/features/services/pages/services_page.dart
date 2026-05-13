@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/l10n/app_localizations.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -12,57 +13,73 @@ class _ServicesPageState extends State<ServicesPage> {
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
 
-  final List<String> _categories = ['All', 'Cleaning', 'Repair', 'Laundry', 'Maintenance'];
+  List<String> _getCategories(AppLocalizations l10n) => 
+      [l10n.all, l10n.cleaning, l10n.repair, l10n.laundry, l10n.maintenance];
 
-  final List<Map<String, dynamic>> _services = [
+  List<Map<String, dynamic>> _getServices(AppLocalizations l10n) => [
     {
-      "name": "Home Cleaning",
+      "name": l10n.homeClean,
       "icon": Icons.home_work_rounded,
-      "desc": "Professional home cleaning & sanitization",
-      "category": "Cleaning",
-      "price": "From DA 69",
+      "desc": l10n.homeCleaningDesc,
+      "category": l10n.cleaning,
+      "price": l10n.fromPrice("DA 69"),
     },
     {
-      "name": "Laundry",
+      "name": l10n.laundry,
       "icon": Icons.local_laundry_service_rounded,
-      "desc": "Premium wash, fold & expert ironing",
-      "category": "Laundry",
-      "price": "From DA 45",
+      "desc": l10n.laundryDesc,
+      "category": l10n.laundry,
+      "price": l10n.fromPrice("DA 45"),
     },
     {
-      "name": "Car Wash",
+      "name": l10n.carWash,
       "icon": Icons.directions_car_filled_rounded,
-      "desc": "Full exterior & detailed interior cleaning",
-      "category": "Cleaning",
-      "price": "From DA 80",
+      "desc": l10n.carWashDesc,
+      "category": l10n.cleaning,
+      "price": l10n.fromPrice("DA 80"),
     },
     {
-      "name": "AC Services",
+      "name": l10n.acServices,
       "icon": Icons.ac_unit_rounded,
-      "desc": "Expert AC repair & deep foam maintenance",
-      "category": "Repair",
-      "price": "From DA 150",
+      "desc": l10n.acServicesDesc,
+      "category": l10n.repair,
+      "price": l10n.fromPrice("DA 150"),
     },
     {
-      "name": "Pest Control",
+      "name": l10n.pestControl,
       "icon": Icons.bug_report_rounded,
-      "desc": "Safe & effective pest removal services",
-      "category": "Maintenance",
-      "price": "From DA 200",
+      "desc": l10n.pestControlDesc,
+      "category": l10n.maintenance,
+      "price": l10n.fromPrice("DA 200"),
     },
     {
-      "name": "Furniture",
+      "name": l10n.furniture,
       "icon": Icons.weekend_rounded,
-      "desc": "Deep upholstery & furniture cleaning",
-      "category": "Cleaning",
-      "price": "From DA 120",
+      "desc": l10n.furnitureDesc,
+      "category": l10n.cleaning,
+      "price": l10n.fromPrice("DA 120"),
     },
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // We'll set the default category after l10n is available in build
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final filteredServices = _services.where((service) {
-      final matchesCategory = _selectedCategory == 'All' || service['category'] == _selectedCategory;
+    final l10n = AppLocalizations.of(context)!;
+    final services = _getServices(l10n);
+    final categories = _getCategories(l10n);
+
+    // Initial value for _selectedCategory if it's still 'All'
+    if (_selectedCategory == 'All') {
+      _selectedCategory = l10n.all;
+    }
+
+    final filteredServices = services.where((service) {
+      final matchesCategory = _selectedCategory == l10n.all || service['category'] == _selectedCategory;
       final matchesSearch = service['name'].toString().toLowerCase().contains(_searchController.text.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
@@ -81,7 +98,7 @@ class _ServicesPageState extends State<ServicesPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Services",
+                      l10n.servicesLabel,
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
@@ -91,7 +108,7 @@ class _ServicesPageState extends State<ServicesPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "What can we help you with today?",
+                      l10n.helpQuestion,
                       style: TextStyle(
                         fontSize: 15,
                         color: ColorApp.textGrey,
@@ -113,7 +130,7 @@ class _ServicesPageState extends State<ServicesPage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -123,8 +140,8 @@ class _ServicesPageState extends State<ServicesPage> {
                     controller: _searchController,
                     onChanged: (val) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: "Search for services...",
-                      hintStyle: TextStyle(color: ColorApp.textGrey.withOpacity(0.5), fontSize: 14),
+                      hintText: l10n.searchServices,
+                      hintStyle: TextStyle(color: ColorApp.textGrey.withValues(alpha: 0.5), fontSize: 14),
                       prefixIcon: const Icon(Icons.search_rounded, color: ColorApp.primary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -141,7 +158,7 @@ class _ServicesPageState extends State<ServicesPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 physics: const BouncingScrollPhysics(),
                 child: Row(
-                  children: _categories.map((cat) {
+                  children: categories.map((cat) {
                     final isSelected = _selectedCategory == cat;
                     return Padding(
                       padding: const EdgeInsets.only(right: 12),
@@ -156,8 +173,8 @@ class _ServicesPageState extends State<ServicesPage> {
                             boxShadow: [
                               BoxShadow(
                                 color: isSelected 
-                                    ? ColorApp.primary.withOpacity(0.3)
-                                    : Colors.black.withOpacity(0.03),
+                                    ? ColorApp.primary.withValues(alpha: 0.3)
+                                    : Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -195,7 +212,7 @@ class _ServicesPageState extends State<ServicesPage> {
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
+                              color: Colors.black.withValues(alpha: 0.02),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -207,7 +224,7 @@ class _ServicesPageState extends State<ServicesPage> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: ColorApp.primary.withOpacity(0.1),
+                                color: ColorApp.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Icon(
@@ -259,9 +276,9 @@ class _ServicesPageState extends State<ServicesPage> {
                                           color: const Color(0xFFF1F5F9),
                                           borderRadius: BorderRadius.circular(10),
                                         ),
-                                        child: const Text(
-                                          "Book",
-                                          style: TextStyle(
+                                        child: Text(
+                                          l10n.book,
+                                          style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w900,
                                             color: Color(0xFF475569),

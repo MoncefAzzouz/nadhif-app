@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cleanapp/l10n/app_localizations.dart';import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       body: SafeArea(
@@ -21,8 +25,8 @@ class ProfilePage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Profile",
-                      style: TextStyle(
+                      l10n.profile,
+                      style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
                         color: ColorApp.textBlack,
@@ -38,7 +42,7 @@ class ProfilePage extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 10,
                             ),
                           ],
@@ -64,7 +68,7 @@ class ProfilePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: ColorApp.primary.withOpacity(0.3),
+                        color: ColorApp.primary.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -117,7 +121,7 @@ class ProfilePage extends StatelessWidget {
                             Text(
                               "john.doe@nadhif.com",
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -128,7 +132,7 @@ class ProfilePage extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.qr_code_rounded, color: Colors.white, size: 20),
@@ -142,24 +146,38 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 10),
 
               // Menu Sections
-              _buildSectionTitle("Account Settings"),
-              _buildMenuItem(Icons.person_outline_rounded, "Personal Information"),
-              _buildMenuItem(Icons.location_on_outlined, "Manage Addresses"),
-              _buildMenuItem(Icons.payment_rounded, "Payment Methods"),
+              _buildSectionTitle(context, l10n.profile),
+              _buildMenuItem(context, Icons.person_outline_rounded, l10n.personalInfo),
+              _buildMenuItem(context, Icons.location_on_outlined, l10n.manageAddresses),
+              _buildMenuItem(context, Icons.payment_rounded, l10n.paymentMethods),
 
               const SizedBox(height: 10),
 
-              _buildSectionTitle("Preferences"),
-              _buildMenuItem(Icons.notifications_none_rounded, "Notifications"),
-              _buildMenuItem(Icons.language_rounded, "Language Settings", trailing: "English"),
-              _buildMenuItem(Icons.dark_mode_outlined, "Appearance"),
+              _buildSectionTitle(context, l10n.settings),
+              _buildMenuItem(context, Icons.notifications_none_rounded, l10n.notifications),
+              BlocBuilder<LocaleCubit, Locale>(
+                builder: (context, locale) {
+                  String languageName = l10n.english;
+                  if (locale.languageCode == 'fr') languageName = l10n.frenchNative;
+                  if (locale.languageCode == 'ar') languageName = l10n.arabicNative;
+                  
+                  return _buildMenuItem(
+                    context, 
+                    Icons.language_rounded, 
+                    l10n.language, 
+                    trailing: languageName,
+                    onTap: () => _showLanguagePicker(context),
+                  );
+                },
+              ),
+              _buildMenuItem(context, Icons.dark_mode_outlined, l10n.appearance),
 
               const SizedBox(height: 10),
 
-              _buildSectionTitle("Support"),
-              _buildMenuItem(Icons.help_outline_rounded, "Help Center"),
-              _buildMenuItem(Icons.privacy_tip_outlined, "Privacy Policy"),
-              _buildMenuItem(Icons.info_outline_rounded, "About Nadhif"),
+              _buildSectionTitle(context, l10n.support),
+              _buildMenuItem(context, Icons.help_outline_rounded, l10n.helpCenter),
+              _buildMenuItem(context, Icons.privacy_tip_outlined, l10n.privacyPolicy),
+              _buildMenuItem(context, Icons.info_outline_rounded, l10n.aboutNadhif),
 
               const SizedBox(height: 10),
 
@@ -173,16 +191,16 @@ class ProfilePage extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.red.withOpacity(0.1)),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.logout_rounded, color: Colors.red, size: 20),
                         const SizedBox(width: 8),
-                        const Text(
-                          "Log Out",
-                          style: TextStyle(
+                        Text(
+                          l10n.logOut,
+                          style: const TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
@@ -202,8 +220,75 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  void _showLanguagePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.chooseLanguage,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+              ),
+              const SizedBox(height: 24),
+              _buildLanguageOption(context, l10n.english, "en"),
+              _buildLanguageOption(context, l10n.frenchNative, "fr"),
+              _buildLanguageOption(context, l10n.arabicNative, "ar"),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildLanguageOption(BuildContext context, String label, String code) {
+    final currentLocale = context.watch<LocaleCubit>().state;
+    final isSelected = currentLocale.languageCode == code;
+
+    return GestureDetector(
+      onTap: () {
+        context.read<LocaleCubit>().changeLocale(code);
+        Navigator.pop(context);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? ColorApp.primary.withValues(alpha: 0.08) : ColorApp.softGrey,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isSelected ? ColorApp.primary : Colors.transparent, width: 1.5),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                color: isSelected ? ColorApp.primary : ColorApp.textBlack,
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle_rounded, color: ColorApp.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
       child: Text(
@@ -211,14 +296,14 @@ class ProfilePage extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w800,
-          color: ColorApp.textGrey.withOpacity(0.6),
+          color: ColorApp.textGrey.withValues(alpha: 0.6),
           letterSpacing: 1.2,
         ),
       ),
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, {String? trailing}) {
+  Widget _buildMenuItem(BuildContext context, IconData icon, String title, {String? trailing, VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       child: Container(
@@ -227,13 +312,13 @@ class ProfilePage extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.01),
+              color: Colors.black.withValues(alpha: 0.01),
               blurRadius: 10,
             ),
           ],
         ),
         child: ListTile(
-          onTap: () {},
+          onTap: onTap ?? () {},
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: Container(
             padding: const EdgeInsets.all(10),
