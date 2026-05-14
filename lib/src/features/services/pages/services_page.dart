@@ -22,7 +22,7 @@ class _ServicesPageState extends State<ServicesPage> {
         {
           "name": l10n.homeClean,
           "icon": Icons.home_work_rounded,
-          "image": MediaRes.deepCleanIcon,
+          "image": MediaRes.fastCleanIcon,
           "desc": l10n.homeCleaningDesc,
           "category": l10n.cleaning,
           "price": l10n.fromPrice("DA 69"),
@@ -38,9 +38,18 @@ class _ServicesPageState extends State<ServicesPage> {
         {
           "name": l10n.carWash,
           "icon": Icons.directions_car_filled_rounded,
+          "image": MediaRes.carWashIcon,
           "desc": l10n.carWashDesc,
           "category": l10n.cleaning,
           "price": l10n.fromPrice("DA 80"),
+        },
+        {
+          "name": l10n.carpet,
+          "icon": Icons.texture_rounded,
+          "image": MediaRes.carpetIcon,
+          "desc": l10n.carpetDesc,
+          "category": l10n.cleaning,
+          "price": l10n.fromPrice("DA 90"),
         },
         {
           "name": l10n.acServices,
@@ -60,7 +69,7 @@ class _ServicesPageState extends State<ServicesPage> {
         {
           "name": l10n.furniture,
           "icon": Icons.weekend_rounded,
-          "image": MediaRes.carpetIcon,
+          "image": MediaRes.furnitureIcon,
           "desc": l10n.furnitureDesc,
           "category": l10n.cleaning,
           "price": l10n.fromPrice("DA 120"),

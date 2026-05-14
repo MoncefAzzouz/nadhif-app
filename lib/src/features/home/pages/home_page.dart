@@ -317,11 +317,22 @@ class _HomePageState extends State<HomePage>
         image: MediaRes.deepCleanIcon,
         icon: Icons.auto_awesome_rounded,
       ),
-      _ServiceTile(name: l10n.homeClean, icon: Icons.home_work_rounded),
       _ServiceTile(
-          name: l10n.carWash, icon: Icons.directions_car_filled_rounded),
+        name: l10n.homeClean,
+        image: MediaRes.fastCleanIcon,
+        icon: Icons.home_work_rounded,
+      ),
+      _ServiceTile(
+        name: l10n.carWash,
+        image: MediaRes.carWashIcon,
+        icon: Icons.directions_car_filled_rounded,
+      ),
       _ServiceTile(name: l10n.shoeCare, icon: Icons.shopping_bag_rounded),
-      _ServiceTile(name: l10n.furniture, icon: Icons.weekend_rounded),
+      _ServiceTile(
+        name: l10n.furniture,
+        image: MediaRes.furnitureIcon,
+        icon: Icons.weekend_rounded,
+      ),
     ];
 
     return GridView.builder(

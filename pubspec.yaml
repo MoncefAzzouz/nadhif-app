@@ -44,6 +44,11 @@ flutter:
   assets:
     - assets/icons/
     - assets/images/
+    - assets/images/car.JPG
+    - assets/images/fast.JPG
+    - assets/images/matla.JPG
+    - assets/images/sejadaclean.JPG
+    - assets/images/logo.png
     - assets/images/svg/
     - assets/animation/
   fonts:

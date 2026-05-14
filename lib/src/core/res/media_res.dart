@@ -15,6 +15,9 @@ class MediaRes {
   static const carpetIcon = '$_baseImage/sejadaclean.JPG';
   static const acRepairIcon = '$_baseImage/clima.JPG';
   static const deepCleanIcon = '$_baseImage/deepclean.JPG';
+  static const carWashIcon = '$_baseImage/car.JPG';
+  static const fastCleanIcon = '$_baseImage/fast.JPG';
+  static const furnitureIcon = '$_baseImage/matla.JPG';
 
   // Recommended Service Images
   static const urgentCleaning = '$_baseImage/urgent.png';
