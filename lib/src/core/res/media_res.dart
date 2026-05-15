@@ -37,6 +37,7 @@ class MediaRes {
   // Auth Images (PNG)
   static const algeriaFlag = '$_baseImage/alg.png';
   static const logo = '$_baseImage/logo.png';
+  static const login = '$_baseImage/login.png';
 
   // Placeholders / Other
   static const successAnimation = '$_baseAnimation/success.json';

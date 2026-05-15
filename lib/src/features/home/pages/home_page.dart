@@ -11,6 +11,7 @@ import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
+import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -50,6 +51,7 @@ class _HomePageState extends State<HomePage>
   int _currentRecommendedIndex = 0;
   int _currentHeroIndex = 0;
   bool _isAppActive = true;
+  late String _currentLocation;
 
   @override
   void initState() {
@@ -57,6 +59,7 @@ class _HomePageState extends State<HomePage>
     _tabCubit = HomeTabCubit(widget.initialIndex);
     _recommendedController = ScrollController();
     _heroPageController = PageController();
+    _currentLocation = widget.profileRepository.getCurrentUser().location;
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
   }
@@ -189,37 +192,50 @@ class _HomePageState extends State<HomePage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.location_on_rounded,
-                      color: ColorApp.primary, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    user.location,
-                    style: const TextStyle(
-                      color: ColorApp.textGrey,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+          GestureDetector(
+            onTap: () async {
+              final newLocation = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(builder: (context) => const LocationSetupPage()),
+              );
+              if (newLocation != null) {
+                setState(() {
+                  _currentLocation = newLocation;
+                });
+              }
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded,
+                        color: ColorApp.primary, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      _currentLocation,
+                      style: const TextStyle(
+                        color: ColorApp.textGrey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const Icon(Icons.keyboard_arrow_down_rounded,
-                      color: ColorApp.textGrey, size: 16),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${l10n.hello}, ${user.firstName}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: ColorApp.textBlack,
-                  letterSpacing: -0.5,
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: ColorApp.textGrey, size: 16),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  '${l10n.hello}, ${user.firstName}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: ColorApp.textBlack,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
           ),
           Container(
             padding: const EdgeInsets.all(10),

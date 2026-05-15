@@ -39,16 +39,11 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
               child: Container(
                 width: double.infinity,
                 color: ColorApp.primary,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      MediaRes.logo,
-                      width: 200,
-                      height: 80,
-                      fit: BoxFit.contain,
-                    ),
-                  ],
+                child: Image.asset(
+                  MediaRes.login,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
@@ -97,8 +92,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                         child: Row(
                           children: [
                             const CircleAvatar(
-                              backgroundImage:
-                                  AssetImage(MediaRes.algeriaFlag),
+                              backgroundImage: AssetImage(MediaRes.algeriaFlag),
                               radius: 14,
                             ),
                             const SizedBox(width: 8),

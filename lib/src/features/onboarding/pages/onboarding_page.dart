@@ -72,7 +72,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
               onPressed: _navigateToLogin,
               style: TextButton.styleFrom(
                 backgroundColor: Colors.black.withOpacity(0.3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
               ),
               child: const Text(
                 "Skip",
@@ -96,23 +97,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 alignment: Alignment.center,
                 children: [
                   // Page Indicators (Dots) in the middle
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(
-                        _images.length,
-                        (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          height: 8,
-                          width: _currentPage == index ? 24 : 8,
-                          decoration: BoxDecoration(
-                            color: _currentPage == index 
-                                ? ColorApp.primary 
-                                : ColorApp.primary.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      _images.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        height: 8,
+                        width: _currentPage == index ? 24 : 8,
+                        decoration: BoxDecoration(
+                          color: _currentPage == index
+                              ? ColorApp.primary
+                              : ColorApp.primary.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ),
@@ -123,37 +121,38 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     right: 0,
                     child: GestureDetector(
                       onTap: _onNext,
-                      child: Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: ColorApp.primary,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ColorApp.primary.withOpacity(0.4),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: ColorApp.primary,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: ColorApp.primary.withOpacity(0.4),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _currentPage == _images.length - 1
+                                  ? "Start"
+                                  : "Next",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _currentPage == _images.length - 1 ? "Start" : "Next",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded,
+                                color: Colors.white, size: 18),
+                          ],
                         ),
                       ),
                     ),

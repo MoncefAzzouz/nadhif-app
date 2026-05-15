@@ -243,3 +243,4 @@ class _VerificationPageState extends State<VerificationPage> {
     );
   }
 }
+

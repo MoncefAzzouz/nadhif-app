@@ -68,7 +68,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                     MediaRes.users,
                     width: 50,
                     height: 50,
-                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                    colorFilter:
+                        const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -137,7 +138,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                           width: double.infinity,
                           height: 60,
                           child: ElevatedButton(
-                            onPressed: state is AuthLoading ? null : _handleComplete,
+                            onPressed:
+                                state is AuthLoading ? null : _handleComplete,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ColorApp.primary,
                               foregroundColor: Colors.white,
@@ -147,7 +149,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                               elevation: 0,
                             ),
                             child: state is AuthLoading
-                                ? const CircularProgressIndicator(color: Colors.white)
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white)
                                 : const Text(
                                     "Complete Profile",
                                     style: TextStyle(
@@ -162,7 +165,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                   ],
                 ),
               ),
-            ),),
+            ),
+          ),
         ],
       ),
     );
@@ -209,7 +213,8 @@ class _UserInfoPageState extends State<UserInfoPage> {
                   icon,
                   width: 20,
                   height: 20,
-                  colorFilter: const ColorFilter.mode(ColorApp.textGrey, BlendMode.srcIn),
+                  colorFilter: const ColorFilter.mode(
+                      ColorApp.textGrey, BlendMode.srcIn),
                 ),
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 40),
