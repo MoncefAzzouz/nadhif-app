@@ -147,6 +147,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pestControlDesc => 'Safe & effective pest removal services';
 
   @override
+  String get carpetDesc => 'Professional carpet & rug deep cleaning';
+
+  @override
   String get furnitureDesc => 'Deep upholstery & furniture cleaning';
 
   @override

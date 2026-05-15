@@ -151,6 +151,9 @@ class AppLocalizationsFr extends AppLocalizations {
       'Services d\'élimination des nuisibles sûrs et efficaces';
 
   @override
+  String get carpetDesc => 'Professional carpet & rug deep cleaning';
+
+  @override
   String get furnitureDesc =>
       'Nettoyage en profondeur des tissus et des meubles';
 

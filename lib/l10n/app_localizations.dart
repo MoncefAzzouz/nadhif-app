@@ -376,6 +376,12 @@ abstract class AppLocalizations {
   /// **'Safe & effective pest removal services'**
   String get pestControlDesc;
 
+  /// No description provided for @carpetDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Professional carpet & rug deep cleaning'**
+  String get carpetDesc;
+
   /// No description provided for @furnitureDesc.
   ///
   /// In en, this message translates to:

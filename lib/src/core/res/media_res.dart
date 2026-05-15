@@ -9,6 +9,9 @@ class MediaRes {
   static const promoBanner = '$_baseImage/promo.png';
   static const cleanAirBanner = '$_baseImage/cleanair.png';
   static const aidBanner = '$_baseImage/aid.png';
+  static const onboarding1 = '$_baseImage/fix1.png';
+  static const onboarding2 = '$_baseImage/fix2.png';
+  static const onboarding3 = '$_baseImage/fix3.png';
 
   // Service Icons (Images)
   static const laundryIcon = '$_baseImage/landiring.JPG';

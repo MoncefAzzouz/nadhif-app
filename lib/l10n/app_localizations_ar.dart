@@ -147,6 +147,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get pestControlDesc => 'خدمات إزالة الحشرات آمنة وفعالة';
 
   @override
+  String get carpetDesc => 'تنظيف عميق واحترافي للسجاد والموكيت';
+
+  @override
   String get furnitureDesc => 'تنظيف عميق للمفروشات والأثاث';
 
   @override
@@ -238,10 +241,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get history => 'السجل';
 
   @override
-  String get myOrders => 'My Orders';
+  String get myOrders => 'طلباتي';
 
   @override
-  String get trackBookings => 'Track and manage your bookings';
+  String get trackBookings => 'تتبع وإدارة حجوزاتك';
 
   @override
   String get language => 'اللغة';

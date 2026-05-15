@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/res/color_app.dart';
 import '../widgets/text_reveal_widget.dart';
-import '../../auth/pages/phone_number_page.dart';
+import '../../onboarding/pages/onboarding_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -51,15 +51,15 @@ class _SplashPageState extends State<SplashPage>
     );
 
     _mainController.forward().then((_) {
-      _navigateToHome();
+      _navigateToOnboarding();
     });
   }
 
-  void _navigateToHome() {
+  void _navigateToOnboarding() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const PhoneNumberPage(),
+            const OnboardingPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final slideAnimation = Tween<Offset>(
             begin: const Offset(-1.0, 0.0),
