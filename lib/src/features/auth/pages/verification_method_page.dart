@@ -38,6 +38,7 @@ class _VerificationMethodPageState extends State<VerificationMethodPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: ColorApp.primary,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -52,118 +53,105 @@ class _VerificationMethodPageState extends State<VerificationMethodPage> {
       body: Column(
         children: [
           Expanded(
-            flex: 25,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    MediaRes.logo,
-                    width: 150,
-                    height: 60,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Verification",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
+            flex: 35,
+            child: SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: Image.asset(
+                'assets/images/second.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.bottomCenter,
               ),
             ),
           ),
           Expanded(
-            flex: 75,
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(40),
-                  topRight: Radius.circular(40),
+            flex: 65,
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(40),
+                    topRight: Radius.circular(40),
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Choose verification method",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: ColorApp.textBlack,
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Choose verification method",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: ColorApp.textBlack,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "Select how you want to receive your verification code.",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: ColorApp.textGrey,
-                        height: 1.5,
+                      const SizedBox(height: 12),
+                      const Text(
+                        "Select how you want to receive your verification code.",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: ColorApp.textGrey,
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildMethodCard(
-                      id: 'whatsapp',
-                      title: "WhatsApp",
-                      subtitle: "Fast and secure",
-                      icon: MediaRes.whatsapp,
-                      color: const Color(0xFF25D366),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMethodCard(
-                      id: 'sms',
-                      title: "SMS",
-                      subtitle: "Standard carrier rates apply",
-                      icon: MediaRes.sms,
-                      color: ColorApp.primary,
-                    ),
-                    const Spacer(),
-                    BlocBuilder<AuthCubit, AuthState>(
-                      builder: (context, state) {
-                        return SizedBox(
-                          width: double.infinity,
-                          height: 60,
-                          child: ElevatedButton(
-                            onPressed:
-                                state is AuthLoading ? null : _handleContinue,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: ColorApp.primary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                      const SizedBox(height: 32),
+                      _buildMethodCard(
+                        id: 'whatsapp',
+                        title: "WhatsApp",
+                        subtitle: "Fast and secure",
+                        icon: MediaRes.whatsapp,
+                        color: const Color(0xFF25D366),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildMethodCard(
+                        id: 'sms',
+                        title: "SMS",
+                        subtitle: "Standard carrier rates apply",
+                        icon: MediaRes.sms,
+                        color: ColorApp.primary,
+                      ),
+                      const Spacer(),
+                      BlocBuilder<AuthCubit, AuthState>(
+                        builder: (context, state) {
+                          return SizedBox(
+                            width: double.infinity,
+                            height: 60,
+                            child: ElevatedButton(
+                              onPressed:
+                                  state is AuthLoading ? null : _handleContinue,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ColorApp.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                elevation: 0,
                               ),
-                              elevation: 0,
-                            ),
-                            child: state is AuthLoading
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white)
-                                : const Text(
-                                    "Continue",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
+                              child: state is AuthLoading
+                                  ? const CircularProgressIndicator(
+                                      color: Colors.white)
+                                  : const Text(
+                                      "Continue",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
-                                  ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
   }
 
   Widget _buildMethodCard({
