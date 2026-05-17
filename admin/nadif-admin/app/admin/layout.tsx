@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList } from 'lucide-react';
+import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck } from 'lucide-react';
 
 interface NavItem {
   name: string;
@@ -19,6 +19,13 @@ const navItems: NavItem[] = [
   { name: 'Categories', href: '/admin/categories', icon: Layers, disabled: false },
   { name: 'Services', href: '/admin/services', icon: ShoppingBag, disabled: false },
   { name: 'Commands', href: '/admin/commands', icon: ClipboardList, disabled: false },
+  { name: 'Utilisateurs', href: '/admin/users', icon: Users, disabled: false },
+  { name: 'Cleaners', href: '/admin/cleaners', icon: UserCheck, disabled: false },
+  { name: 'Compétences', href: '/admin/skills', icon: Sparkles, disabled: false },
+  { name: 'Promo Codes', href: '/admin/promos', icon: Ticket, disabled: false },
+  { name: 'Notifications', href: '/admin/notifications', icon: Bell, disabled: false },
+  { name: 'Slides', href: '/admin/slides', icon: Sliders, disabled: false },
+  { name: 'Pages Manager', href: '/admin/pages', icon: BookOpen, disabled: false },
   { name: 'Settings', href: '/admin/settings-mock', icon: Settings, disabled: true },
 ];
 
@@ -69,7 +76,7 @@ export default function AdminLayout({
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-gilmer text-foreground-nadif flex">
       {/* 1. Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-100 p-6 h-screen sticky top-0 shrink-0">
+      <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-slate-100 p-6 h-screen sticky top-0 shrink-0 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Brand Header */}
         <Link href="/" className="flex items-center gap-4 mb-12 group">
           <div className="bg-primary p-3 rounded-2xl group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">

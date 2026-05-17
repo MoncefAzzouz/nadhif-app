@@ -51,6 +51,7 @@ interface Command {
   // State: 'pending' (en attente), 'approved', 'completed', 'cancelled'
   status: 'pending' | 'approved' | 'completed' | 'cancelled';
   createdAt: string;
+  note?: string;
 }
 
 const DEFAULT_COMMANDS: Command[] = [
@@ -73,6 +74,7 @@ const DEFAULT_COMMANDS: Command[] = [
     scheduledDate: '2026-05-18',
     scheduledTime: '09:00',
     status: 'pending',
+    note: 'Client requested extra care for glass coffee tables.',
     createdAt: '2026-05-17T10:15:30Z'
   },
   {
@@ -94,6 +96,7 @@ const DEFAULT_COMMANDS: Command[] = [
     scheduledDate: '2026-05-19',
     scheduledTime: '14:00',
     status: 'approved',
+    note: 'Prefers eco-friendly or non-scented products.',
     createdAt: '2026-05-16T15:20:00Z'
   },
   {
@@ -545,10 +548,20 @@ export default function CommandsPage() {
 
                       {/* Client particulars */}
                       <td className="py-5">
-                        <span className="text-sm font-bold uppercase tracking-tight text-slate-800 block">
-                          {command.firstName} {command.lastName}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-bold uppercase tracking-tight text-slate-800">
+                            {command.firstName} {command.lastName}
+                          </span>
+                          {command.note && (
+                            <span 
+                              className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg text-[8px] font-black uppercase tracking-wider animate-pulse shrink-0 cursor-help"
+                              title={`Note: ${command.note}`}
+                            >
+                              Note
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
                           Registered Client
                         </span>
                       </td>
@@ -803,6 +816,16 @@ export default function CommandsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Note Details */}
+                {selectedCommand.note && (
+                  <div className="space-y-2 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
+                    <span className="text-slate-400 block text-[9px] font-black uppercase">Client / Admin Instructions Note</span>
+                    <p className="text-xs font-semibold text-slate-700 font-inter italic leading-relaxed bg-white border border-slate-100 p-4 rounded-2xl">
+                      💡 "{selectedCommand.note}"
+                    </p>
+                  </div>
+                )}
 
                 {/* Dynamic Status Action workflows */}
                 <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
@@ -1186,6 +1209,18 @@ export default function CommandsPage() {
                           </select>
                           <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                         </div>
+                      </div>
+
+                      {/* Admin Note */}
+                      <div className="sm:col-span-2">
+                        <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Reservation & Admin Notes</label>
+                        <textarea
+                          rows={3}
+                          value={editForm.note || ''}
+                          onChange={(e) => handleEditFormChange('note', e.target.value)}
+                          className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-primary/20 outline-none transition-all resize-none font-inter"
+                          placeholder="Enter custom instructions or client specific feedback notes..."
+                        />
                       </div>
                     </div>
                   </div>
