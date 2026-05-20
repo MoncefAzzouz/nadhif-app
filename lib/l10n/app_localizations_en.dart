@@ -352,4 +352,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get apply => 'Apply';
+
+  @override
+  String get cleaningEquipment => 'Cleaning Equipment';
+
+  @override
+  String get bringEquipment => 'Bring vacuum, mop, and bucket';
 }

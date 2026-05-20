@@ -352,4 +352,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get apply => 'تطبيق';
+
+  @override
+  String get cleaningEquipment => 'معدات التنظيف';
+
+  @override
+  String get bringEquipment => 'إحضار المكنسة الكهربائية والممسحة والدلو';
 }

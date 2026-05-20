@@ -357,4 +357,10 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get apply => 'Appliquer';
+
+  @override
+  String get cleaningEquipment => 'Équipement de Nettoyage';
+
+  @override
+  String get bringEquipment => 'Apporter aspirateur, serpillère et seau';
 }

@@ -122,6 +122,14 @@ class _ServiceBookingView extends StatelessWidget {
                             materialType: state.materialType,
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        BlocBuilder<BookingCubit, BookingState>(
+                          buildWhen: (a, b) =>
+                              a.needEquipment != b.needEquipment,
+                          builder: (context, state) => _EquipmentCard(
+                            needEquipment: state.needEquipment,
+                          ),
+                        ),
                         const SizedBox(height: 120),
                       ],
                     ),
@@ -614,6 +622,69 @@ class _MaterialsCard extends StatelessWidget {
   }
 }
 
+class _EquipmentCard extends StatelessWidget {
+  final bool needEquipment;
+
+  const _EquipmentCard({
+    required this.needEquipment,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: ColorApp.softGrey,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.handyman_rounded,
+                color: ColorApp.primary, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.cleaningEquipment,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: ColorApp.textBlack),
+                ),
+                Text(
+                  l10n.bringEquipment,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: ColorApp.textGrey,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: needEquipment,
+            onChanged: (val) =>
+                context.read<BookingCubit>().toggleEquipment(val),
+            activeTrackColor:
+                ColorApp.primary.withValues(alpha: 0.39),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BookingMaterialOption extends StatelessWidget {
   final BookingMaterial type;
   final String price;
@@ -800,6 +871,7 @@ class _BottomAction extends StatelessWidget {
           duration: state.selectedHours,
           cleaners: state.selectedCleaners,
           needMaterials: state.needMaterials,
+          needEquipment: state.needEquipment,
           subtotal: state.totalPrice,
         ),
       ),

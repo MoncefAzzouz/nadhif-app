@@ -13,6 +13,7 @@ class OrderSummaryPage extends StatefulWidget {
   final int duration;
   final int cleaners;
   final bool needMaterials;
+  final bool needEquipment;
   final double subtotal;
 
   const OrderSummaryPage({
@@ -25,6 +26,7 @@ class OrderSummaryPage extends StatefulWidget {
     required this.duration,
     required this.cleaners,
     required this.needMaterials,
+    required this.needEquipment,
     required this.subtotal,
   });
 
@@ -355,6 +357,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                       _detailRow("Duration", "${widget.duration} Hours", Icons.timer_outlined),
                       _detailRow("Cleaners", "${widget.cleaners} Professionals", Icons.people_outline_rounded),
                       _detailRow("Materials", widget.needMaterials ? "Provided" : "Not needed", Icons.inventory_2_outlined),
+                      _detailRow("Equipment", widget.needEquipment ? "Provided" : "Not needed", Icons.handyman_outlined),
                     ],
                   ),
                 ),

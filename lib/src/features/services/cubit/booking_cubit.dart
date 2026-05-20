@@ -9,6 +9,7 @@ class BookingState extends Equatable {
   final String selectedTimeSlot;
   final bool needMaterials;
   final BookingMaterial materialType;
+  final bool needEquipment;
   final bool showBreakdown;
 
   const BookingState({
@@ -18,6 +19,7 @@ class BookingState extends Equatable {
     required this.selectedTimeSlot,
     required this.needMaterials,
     required this.materialType,
+    required this.needEquipment,
     required this.showBreakdown,
   });
 
@@ -28,6 +30,7 @@ class BookingState extends Equatable {
         selectedTimeSlot: '05:30 pm - 06:00 pm',
         needMaterials: false,
         materialType: BookingMaterial.algerian,
+        needEquipment: false,
         showBreakdown: false,
       );
 
@@ -45,6 +48,7 @@ class BookingState extends Equatable {
     String? selectedTimeSlot,
     bool? needMaterials,
     BookingMaterial? materialType,
+    bool? needEquipment,
     bool? showBreakdown,
   }) {
     return BookingState(
@@ -54,6 +58,7 @@ class BookingState extends Equatable {
       selectedTimeSlot: selectedTimeSlot ?? this.selectedTimeSlot,
       needMaterials: needMaterials ?? this.needMaterials,
       materialType: materialType ?? this.materialType,
+      needEquipment: needEquipment ?? this.needEquipment,
       showBreakdown: showBreakdown ?? this.showBreakdown,
     );
   }
@@ -66,6 +71,7 @@ class BookingState extends Equatable {
         selectedTimeSlot,
         needMaterials,
         materialType,
+        needEquipment,
         showBreakdown,
       ];
 }
@@ -83,6 +89,8 @@ class BookingCubit extends Cubit<BookingState> {
       emit(state.copyWith(needMaterials: need));
   void selectMaterial(BookingMaterial type) =>
       emit(state.copyWith(materialType: type));
+  void toggleEquipment(bool need) =>
+      emit(state.copyWith(needEquipment: need));
   void toggleBreakdown() =>
       emit(state.copyWith(showBreakdown: !state.showBreakdown));
 }

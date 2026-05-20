@@ -111,5 +111,7 @@
   "baridiMobCCP": "Baridi Mob / CCP",
   "enterYourCode": "Enter your code",
   "tapYourCodeHere": "Tap your code here",
-  "apply": "Apply"
+  "apply": "Apply",
+  "cleaningEquipment": "Cleaning Equipment",
+  "bringEquipment": "Bring vacuum, mop, and bucket"
 }

@@ -777,6 +777,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply'**
   String get apply;
+
+  /// No description provided for @cleaningEquipment.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning Equipment'**
+  String get cleaningEquipment;
+
+  /// No description provided for @bringEquipment.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring vacuum, mop, and bucket'**
+  String get bringEquipment;
 }
 
 class _AppLocalizationsDelegate

@@ -112,5 +112,7 @@
   "baridiMobCCP": "Baridi Mob / CCP",
   "enterYourCode": "Entrez votre code",
   "tapYourCodeHere": "Tapez votre code ici",
-  "apply": "Appliquer"
+  "apply": "Appliquer",
+  "cleaningEquipment": "Équipement de Nettoyage",
+  "bringEquipment": "Apporter aspirateur, serpillère et seau"
 }
