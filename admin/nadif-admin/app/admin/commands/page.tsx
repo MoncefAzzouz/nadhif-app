@@ -1,0 +1,1016 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ClipboardList, 
+  Search, 
+  MapPin, 
+  Phone, 
+  Calendar, 
+  Clock3, 
+  CheckCircle, 
+  XCircle, 
+  ThumbsUp, 
+  Trash2, 
+  Eye, 
+  Navigation,
+  Sparkles, 
+  X,
+  ChevronDown,
+  RefreshCw,
+  AlertCircle,
+  DollarSign,
+  User,
+  Package,
+  Wrench,
+  Plus,
+  Lock
+} from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { ordersApi, servicesApi, type ApiOrder, type ApiService } from '../../lib/api';
+
+const LocationPicker = dynamic(() => import('../../components/LocationPicker'), { 
+  ssr: false, 
+  loading: () => <div className="h-[250px] w-full bg-slate-50 rounded-2xl animate-pulse border border-slate-100 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-400">Loading Map Core...</div> 
+});
+
+// ─── Status helpers ────────────────────────────────────────────────────────────
+const STATUS_LABELS: Record<ApiOrder['status'], string> = {
+  PENDING:     'En Attente',
+  ASSIGNED:    'Assigned',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED:   'Completed',
+  CANCELLED:   'Cancelled',
+};
+
+const STATUS_STYLES: Record<ApiOrder['status'], string> = {
+  PENDING:     'bg-amber-50 text-amber-600 border-amber-100',
+  ASSIGNED:    'bg-blue-50 text-blue-600 border-blue-100',
+  IN_PROGRESS: 'bg-violet-50 text-violet-600 border-violet-100',
+  COMPLETED:   'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CANCELLED:   'bg-rose-50 text-rose-600 border-rose-100',
+};
+
+const STATUS_DOT: Record<ApiOrder['status'], string> = {
+  PENDING:     'bg-amber-500 animate-pulse',
+  ASSIGNED:    'bg-blue-500',
+  IN_PROGRESS: 'bg-violet-500',
+  COMPLETED:   'bg-emerald-500',
+  CANCELLED:   'bg-rose-500',
+};
+
+type FilterStatus = 'all' | ApiOrder['status'];
+
+import { useRouter } from 'next/navigation';
+
+export default function CommandsPage() {
+  const router = useRouter();
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [services, setServices] = useState<ApiService[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
+  
+  const [selectedOrder, setSelectedOrder] = useState<ApiOrder | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<ApiOrder | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    fullName: '', phone: '', address: '', serviceId: '', houseConfigId: '', 
+    scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
+    latitude: undefined as number | undefined, longitude: undefined as number | undefined
+  });
+  
+  const selectedAddService = services.find(s => s.id === addFormData.serviceId);
+
+  useEffect(() => {
+    if (selectedAddService) {
+      if (selectedAddService.materialsMandatory) {
+        setAddFormData(prev => ({ ...prev, useMaterials: true }));
+      }
+      if (selectedAddService.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE')) {
+        setAddFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }));
+      }
+    }
+  }, [addFormData.serviceId, selectedAddService]);
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addFormData.phone || !addFormData.address || !addFormData.serviceId || !addFormData.houseConfigId || !addFormData.scheduledDate) {
+      alert('Please fill out all required fields.');
+      return;
+    }
+    try {
+      await ordersApi.createAdminOrder(addFormData);
+      setIsAddModalOpen(false);
+      fetchOrders();
+      setAddFormData({
+        fullName: '', phone: '', address: '', serviceId: '', houseConfigId: '', 
+        scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
+        latitude: undefined, longitude: undefined
+      });
+    } catch (err: any) {
+      alert(`Failed to create command: ${err.message}`);
+    }
+  };
+
+  // ─── Fetch orders from API ────────────────────────────────────────────────
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [data, srvData] = await Promise.all([
+        ordersApi.getAll(),
+        servicesApi.getAll()
+      ]);
+      setOrders(data);
+      setServices(srvData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load orders. Is the backend running?');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  // ─── Update status via API ────────────────────────────────────────────────
+  const handleUpdateStatus = async (id: string, newStatus: ApiOrder['status']) => {
+    setUpdatingId(id);
+    try {
+      const updated = await ordersApi.updateStatus(id, newStatus);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
+      if (selectedOrder?.id === id) {
+        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (err: any) {
+      alert(`Status update failed: ${err.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // ─── Open Google Maps ─────────────────────────────────────────────────────
+  const handleOpenGoogleMaps = (lat?: number | null, lng?: number | null, address?: string) => {
+    if (lat && lng) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
+    } else if (address) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
+    }
+  };
+
+  // ─── Delete order via API ─────────────────────────────────────────────────
+  const handleDeleteConfirm = async () => {
+    if (!orderToDelete) return;
+    setIsDeleting(true);
+    try {
+      await ordersApi.delete(orderToDelete.id);
+      setOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+      setIsDeleteModalOpen(false);
+      setOrderToDelete(null);
+    } catch (err: any) {
+      alert(`Delete failed: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // ─── Stats ────────────────────────────────────────────────────────────────
+  const countByStatus = (s: ApiOrder['status']) => orders.filter(o => o.status === s).length;
+
+  // ─── Filter ───────────────────────────────────────────────────────────────
+  const filtered = orders.filter(order => {
+    const fullName = order.user?.fullName ?? '';
+    const phone = order.user?.phone ?? '';
+    const email = order.user?.email ?? '';
+    const service = order.service?.name ?? '';
+    const matchSearch =
+      fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      phone.includes(searchQuery) ||
+      email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = statusFilter === 'all' || order.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short', year: 'numeric' }); } 
+    catch { return iso; }
+  };
+  const shortId = (id: string) => `CMD-${id.slice(0, 6).toUpperCase()}`;
+
+  // Dynamic price calculation for Add Modal
+  const addSelectedHouse = selectedAddService?.houseConfigs.find(hc => hc.id === addFormData.houseConfigId);
+  const addBasePrice = addSelectedHouse?.basePrice || 0;
+  const addExtraWorkerPriceTotal = (addFormData.extraWorkers || 0) * (selectedAddService?.extraWorkerPrice || 0);
+  const addUseMaterials = addFormData.useMaterials || selectedAddService?.materialsMandatory;
+  const addMaterialsPrice = addUseMaterials ? (selectedAddService?.materialPrice || 0) : 0;
+  let addProductsPrice = 0;
+  if (addFormData.productOrigin === 'LOCAL' || (selectedAddService?.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE'))) {
+    addProductsPrice = selectedAddService?.localProductPrice || 0;
+  } else if (addFormData.productOrigin === 'IMPORTED') {
+    addProductsPrice = selectedAddService?.importedProductPrice || 0;
+  }
+  const addFinalTotal = addBasePrice + addExtraWorkerPriceTotal + addMaterialsPrice + addProductsPrice;
+
+  return (
+    <div className="space-y-10 font-gilmer max-w-7xl mx-auto">
+
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 bg-primary/5 px-4 py-2 rounded-full border border-primary/10">
+            <ClipboardList size={14} className="text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Order Control Center</span>
+          </div>
+          <h1 className="text-4xl font-black tracking-tighter text-slate-800 uppercase italic">
+            Client <span className="text-primary">Commands</span> Table
+          </h1>
+          <p className="text-sm text-slate-400 font-medium">
+            Live orders from the backend. Status updates sync immediately to the database.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-[0_4px_15px_-3px_rgba(37,99,235,0.4)] hover:shadow-[0_8px_20px_-3px_rgba(37,99,235,0.5)] hover:-translate-y-0.5 transition-all cursor-pointer"
+          >
+            <Plus size={14} /> Add Command
+          </button>
+          <button
+            onClick={fetchOrders}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* ── Error state ────────────────────────────────────────────────────── */}
+      {error && (
+        <div className="bg-rose-50 border border-rose-100 rounded-3xl p-6 flex items-center gap-4">
+          <AlertCircle size={20} className="text-rose-500 shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-rose-700">{error}</p>
+            <p className="text-xs text-rose-500 mt-1">Make sure the backend is running on port 5001.</p>
+          </div>
+          <button onClick={fetchOrders} className="ml-auto px-4 py-2 bg-rose-500 text-white rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer hover:bg-rose-600 transition-all">
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ── Stats Dashboard ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm flex flex-col justify-between">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Bookings</p>
+          <p className="text-3xl font-black text-slate-800 mt-2">{orders.length}</p>
+        </div>
+        {(['PENDING','ASSIGNED','COMPLETED','CANCELLED'] as ApiOrder['status'][]).map(s => (
+          <div key={s} className={`border p-6 rounded-3xl shadow-sm flex flex-col justify-between ${STATUS_STYLES[s].replace('text-', 'border-').split('border-')[1] ? '' : ''} bg-white border-slate-100`}>
+            <p className={`text-[9px] font-black uppercase tracking-widest ${STATUS_STYLES[s].split(' ')[1]}`}>
+              {STATUS_LABELS[s]}
+            </p>
+            <p className={`text-3xl font-black mt-2 ${STATUS_STYLES[s].split(' ')[1]}`}>{countByStatus(s)}</p>
+            <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]} mt-2`} />
+          </div>
+        ))}
+      </div>
+
+      {/* ── Search & Filter ────────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="relative w-full md:max-w-sm group">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+          <input
+            type="text"
+            placeholder="Search by name, email, CMD ID, service..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-primary/20 outline-none transition-all"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 w-full md:w-auto shrink-0 justify-end">
+          {([
+            { id: 'all', label: 'All Orders' },
+            { id: 'PENDING', label: 'En Attente' },
+            { id: 'ASSIGNED', label: 'Assigned' },
+            { id: 'IN_PROGRESS', label: 'In Progress' },
+            { id: 'COMPLETED', label: 'Completed' },
+            { id: 'CANCELLED', label: 'Cancelled' },
+          ] as { id: FilterStatus; label: string }[]).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setStatusFilter(tab.id)}
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                statusFilter === tab.id
+                  ? 'bg-primary text-white border-primary shadow-md shadow-primary/10'
+                  : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Table ─────────────────────────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="min-h-[30vh] flex items-center justify-center gap-4 flex-col">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 animate-pulse">Loading orders from API...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 bg-white border border-slate-100 rounded-[3rem] shadow-sm max-w-xl mx-auto space-y-6">
+          <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center text-primary mx-auto">
+            <ClipboardList size={36} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-black uppercase tracking-tight text-slate-800">No Commands Found</h3>
+            <p className="text-sm text-slate-400 font-semibold max-w-xs mx-auto">
+              {searchQuery ? 'No orders match your search query.' : error ? 'Backend error — check connection.' : 'No orders yet in the system.'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left min-w-[1100px]">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                  <th className="pb-4 pl-4">Command ID</th>
+                  <th className="pb-4">Client</th>
+                  <th className="pb-4">Contact</th>
+                  <th className="pb-4">Location</th>
+                  <th className="pb-4">Service</th>
+                  <th className="pb-4">Scheduled</th>
+                  <th className="pb-4">Total</th>
+                  <th className="pb-4">Status</th>
+                  <th className="pb-4 pr-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                <AnimatePresence mode="popLayout">
+                  {filtered.map(order => (
+                    <motion.tr
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      key={order.id}
+                      className="group hover:bg-slate-50/50 transition-colors font-semibold"
+                    >
+                      {/* CMD ID */}
+                      <td className="py-5 pl-4 font-mono text-[10px] text-slate-400 font-black uppercase tracking-wider">
+                        {shortId(order.id)}
+                      </td>
+
+                      {/* Client */}
+                      <td className="py-5">
+                        <span className="text-sm font-bold uppercase tracking-tight text-slate-800 block">
+                          {order.user?.fullName ?? '—'}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                          {order.user?.email ?? ''}
+                        </span>
+                      </td>
+
+                      {/* Phone */}
+                      <td className="py-5 text-xs text-slate-600 font-bold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Phone size={12} className="text-slate-400" />
+                          {order.user?.phone ?? '—'}
+                        </span>
+                      </td>
+
+                      {/* Location */}
+                      <td className="py-5">
+                        {order.latitude && order.longitude ? (
+                          <button
+                            onClick={() => handleOpenGoogleMaps(order.latitude, order.longitude)}
+                            className="px-2.5 py-1.5 bg-rose-50/50 hover:bg-rose-50 text-rose-600 border border-rose-100/50 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95"
+                          >
+                            <MapPin size={11} className="fill-rose-100" />
+                            View Map
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleOpenGoogleMaps(null, null, order.address)}
+                            className="text-[10px] text-slate-500 font-bold uppercase truncate max-w-[120px] block hover:text-primary hover:underline cursor-pointer text-left" title={order.address}
+                          >
+                            {order.address?.slice(0, 20) || '—'}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Service */}
+                      <td className="py-5 max-w-[180px]">
+                        <span className="text-xs font-bold text-primary block leading-none">{order.service?.name ?? '—'}</span>
+                        <span className="text-[9px] text-slate-400 block mt-1 uppercase">
+                          {order.houseConfig?.type?.toUpperCase() ?? ''} • {order.productOrigin}
+                        </span>
+                      </td>
+
+                      {/* Scheduled */}
+                      <td className="py-5">
+                        <span className="text-xs text-slate-700 block font-bold">{formatDate(order.scheduledDate)}</span>
+                        <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                          {order.service?.durationHours ?? '?'}h clean
+                        </span>
+                      </td>
+
+                      {/* Total */}
+                      <td className="py-5 text-sm font-black text-emerald-500">
+                        {order.totalPrice.toLocaleString('fr-DZ')} DA
+                      </td>
+
+                      {/* Status dropdown */}
+                      <td className="py-5">
+                        <div className="relative inline-block">
+                          <select
+                            value={order.status}
+                            onChange={e => handleUpdateStatus(order.id, e.target.value as ApiOrder['status'])}
+                            disabled={updatingId === order.id}
+                            className={`pl-3 pr-8 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest outline-none border cursor-pointer appearance-none disabled:opacity-60 ${STATUS_STYLES[order.status]}`}
+                          >
+                            {(Object.keys(STATUS_LABELS) as ApiOrder['status'][]).map(s => (
+                              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-70" />
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-5 pr-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => { setSelectedOrder(order); setIsDetailsModalOpen(true); }}
+                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-primary/10 hover:text-primary text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
+                            title="View details"
+                          >
+                            <Eye size={13} />
+                          </button>
+                          <button
+                            onClick={() => router.push(`/admin/commands/${order.id}`)}
+                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
+                            title="Edit order"
+                          >
+                            <Wrench size={13} />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); setOrderToDelete(order); setIsDeleteModalOpen(true); }}
+                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-400 border border-slate-100 flex items-center justify-center transition-all cursor-pointer"
+                            title="Delete order"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Details Modal ─────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isDetailsModalOpen && selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsDetailsModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-[620px] bg-white rounded-[3rem] shadow-2xl border border-slate-100 relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="h-2 bg-gradient-to-r from-primary via-primary to-emerald-500 shrink-0" />
+              <button
+                onClick={() => setIsDetailsModalOpen(false)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 border border-slate-100 transition-all cursor-pointer z-20"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex-1 overflow-y-auto p-8 lg:p-10 space-y-8">
+                {/* Header */}
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{shortId(selectedOrder.id)}</span>
+                    <h2 className="text-2xl font-black uppercase italic tracking-tight text-slate-800">Clean Reservation</h2>
+                    <p className="text-xs text-slate-400 font-semibold">Created {formatDate(selectedOrder.createdAt)}</p>
+                  </div>
+                  <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mt-1 inline-flex items-center gap-1.5 border ${STATUS_STYLES[selectedOrder.status]}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[selectedOrder.status]}`} />
+                    {STATUS_LABELS[selectedOrder.status]}
+                  </span>
+                </div>
+
+                {/* Client */}
+                <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
+                  <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-2">
+                    <User size={12} /> Client Details
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
+                    <div className="space-y-1">
+                      <span className="text-slate-400 block text-[9px] font-black uppercase">Full Name</span>
+                      <span className="text-slate-800 text-sm font-bold">{selectedOrder.user?.fullName ?? '—'}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-slate-400 block text-[9px] font-black uppercase">Email</span>
+                      <span className="text-slate-800 text-sm font-bold">{selectedOrder.user?.email ?? '—'}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-slate-400 block text-[9px] font-black uppercase">Phone</span>
+                      <span className="text-slate-800 text-sm font-bold flex items-center gap-1">
+                        <Phone size={12} className="text-primary" />
+                        {selectedOrder.user?.phone ?? '—'}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-slate-400 block text-[9px] font-black uppercase">Scheduled Date</span>
+                      <span className="text-slate-800 text-sm font-bold flex items-center gap-1.5">
+                        <Calendar size={12} className="text-primary" />
+                        {formatDate(selectedOrder.scheduledDate)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-4 space-y-2">
+                    <span className="text-slate-400 block text-[9px] font-black uppercase">Address</span>
+                    <p className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                      <MapPin size={14} className="text-rose-500 fill-rose-100 shrink-0" />
+                      {selectedOrder.address || '—'}
+                    </p>
+                    {selectedOrder.latitude && selectedOrder.longitude && (
+                      <button
+                        onClick={() => handleOpenGoogleMaps(selectedOrder.latitude, selectedOrder.longitude)}
+                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all"
+                      >
+                        <Navigation size={12} className="fill-white/10" />
+                        Open Google Maps
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Service / Order Details */}
+                <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
+                  <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-2">
+                    <Wrench size={12} /> Service Details
+                  </h3>
+                  <div className="divide-y divide-slate-100 text-xs font-semibold">
+                    {[
+                      ['Service', selectedOrder.service?.name ?? '—'],
+                      ['House Config', `${selectedOrder.houseConfig?.type?.toUpperCase() ?? '—'} (${selectedOrder.houseConfig?.workers ?? '?'} workers)`],
+                      ['Extra Workers', selectedOrder.extraWorkers > 0 ? `+${selectedOrder.extraWorkers}` : 'None'],
+                      ['Materials', selectedOrder.useMaterials ? 'Nadif materials included' : 'Client provides'],
+                      ['Products', selectedOrder.productOrigin === 'NONE' ? 'Client own' : `Nadif ${selectedOrder.productOrigin.toLowerCase()}`],
+                      ['Duration', `${selectedOrder.service?.durationHours ?? '?'}h`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex justify-between py-2">
+                        <span className="text-slate-400">{label}:</span>
+                        <span className="text-slate-800 font-bold">{value}</span>
+                      </div>
+                    ))}
+                    {selectedOrder.promo && (
+                      <div className="flex justify-between py-2">
+                        <span className="text-slate-400">Promo Code:</span>
+                        <span className="text-emerald-600 font-bold">{selectedOrder.promo.code} (−{selectedOrder.promo.discountPercent}%)</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-2 border-t border-slate-200 pt-3">
+                      <span className="text-slate-600 font-bold">Total Bill:</span>
+                      <span className="text-emerald-500 font-black text-base">{selectedOrder.totalPrice.toLocaleString('fr-DZ')} DA</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status actions */}
+                <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
+                  <h3 className="text-xs font-black uppercase text-slate-800">Update Status</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {(Object.keys(STATUS_LABELS) as ApiOrder['status'][]).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => handleUpdateStatus(selectedOrder.id, s)}
+                        disabled={updatingId === selectedOrder.id}
+                        className={`py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 disabled:opacity-50 ${
+                          selectedOrder.status === s
+                            ? `${STATUS_STYLES[s]} shadow-md`
+                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {s === 'PENDING' && <Clock3 size={14} />}
+                        {s === 'ASSIGNED' && <Sparkles size={14} />}
+                        {s === 'IN_PROGRESS' && <Wrench size={14} />}
+                        {s === 'COMPLETED' && <CheckCircle size={14} />}
+                        {s === 'CANCELLED' && <XCircle size={14} />}
+                        {STATUS_LABELS[s]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 border-t border-slate-100 bg-slate-50 shrink-0">
+                <button
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Close Command File
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Delete Confirm Modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isDeleteModalOpen && orderToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-md bg-white rounded-[3rem] p-10 shadow-2xl border border-slate-100 relative z-10 space-y-8 text-center"
+            >
+              <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800">Delete Order?</h2>
+                <p className="text-sm text-slate-400 font-medium">
+                  This will permanently remove order <span className="font-black text-slate-600">{shortId(orderToDelete.id)}</span> from{' '}
+                  <span className="font-bold text-slate-600">{orderToDelete.user?.fullName ?? 'the client'}</span>.
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={isDeleting}
+                  className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="flex-1 py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={14} />
+                      Confirm Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Add Command Modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl relative z-10 max-h-[90vh] flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                    <Plus size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Add Command (Manual)</h2>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Guest Customer Creation</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-white">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left Side: Form */}
+                  <form id="add-command-form" onSubmit={handleAddSubmit} className="lg:col-span-7 space-y-8">
+                    
+                    {/* Customer Profile */}
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Customer Profile</h4>
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Full Name</label>
+                          <input 
+                            type="text" 
+                            value={addFormData.fullName}
+                            onChange={e => setAddFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            placeholder="e.g. John Doe (Optional)"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
+                          <input 
+                            type="tel" 
+                            required 
+                            value={addFormData.phone}
+                            onChange={e => setAddFormData(prev => ({ ...prev, phone: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            placeholder="e.g. 0555 12 34 56"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Service Package */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Service Package</h4>
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Service Type</label>
+                          <select 
+                            required 
+                            value={addFormData.serviceId}
+                            onChange={e => setAddFormData(prev => ({ ...prev, serviceId: e.target.value, houseConfigId: '' }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="">Select Service...</option>
+                            {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Layout</label>
+                          <select 
+                            required 
+                            value={addFormData.houseConfigId}
+                            onChange={e => setAddFormData(prev => ({ ...prev, houseConfigId: e.target.value }))}
+                            disabled={!selectedAddService}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+                          >
+                            <option value="">Select Layout...</option>
+                            {selectedAddService?.houseConfigs.map((hc: any) => (
+                              <option key={hc.id} value={hc.id}>{hc.type} - {hc.basePrice} DA</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Scheduled Date</label>
+                          <input 
+                            type="datetime-local" 
+                            required 
+                            value={addFormData.scheduledDate}
+                            onChange={e => setAddFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Customization */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Service Configuration</h4>
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Extra Workers</label>
+                          <div className="flex items-center gap-3 w-full bg-slate-50 border border-slate-200 rounded-xl p-1">
+                            <button type="button" onClick={() => setAddFormData(prev => ({ ...prev, extraWorkers: Math.max(0, prev.extraWorkers - 1) }))} className="flex-1 h-10 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center font-bold cursor-pointer text-slate-500 hover:text-slate-800 transition-colors">-</button>
+                            <div className="flex-1 text-center font-black text-lg text-primary">{addFormData.extraWorkers}</div>
+                            <button type="button" onClick={() => setAddFormData(prev => ({ ...prev, extraWorkers: prev.extraWorkers + 1 }))} className="flex-1 h-10 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center font-bold cursor-pointer text-slate-500 hover:text-slate-800 transition-colors">+</button>
+                          </div>
+                        </div>
+
+                        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                          selectedAddService?.materialsMandatory ? 'border-primary/30 bg-primary/5 text-slate-800' : 'border-slate-200 bg-slate-50 text-slate-800'
+                        }`}>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF MATERIALS</p>
+                              <p className="text-xs font-bold mt-1">Use our clean equipment</p>
+                              {selectedAddService && <p className="text-[9px] font-bold text-primary mt-0.5">+{selectedAddService.materialPrice} DA</p>}
+                            </div>
+                            {selectedAddService?.materialsMandatory ? (
+                              <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                <Lock size={8} /> Forced
+                              </div>
+                            ) : (
+                              <button 
+                                type="button"
+                                disabled={!selectedAddService}
+                                onClick={() => setAddFormData(prev => ({ ...prev, useMaterials: !prev.useMaterials }))}
+                                className={`w-10 h-6 rounded-full p-0.5 transition-colors cursor-pointer shadow-inner disabled:opacity-50 ${addFormData.useMaterials ? 'bg-primary' : 'bg-slate-300'}`}
+                              >
+                                <div className={`w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${addFormData.useMaterials ? 'translate-x-4' : 'translate-x-0'}`} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                          selectedAddService?.productsMandatory ? 'border-primary/30 bg-primary/5 text-slate-800' : 'border-slate-200 bg-slate-50 text-slate-800'
+                        }`}>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF PRODUCTS</p>
+                              <p className="text-xs font-bold mt-1 font-inter">Chemical Products Source</p>
+                            </div>
+                            {selectedAddService?.productsMandatory && (
+                              <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                <Lock size={8} /> Forced
+                              </div>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-3 gap-1 mt-3">
+                            {!selectedAddService?.productsMandatory && (
+                              <button
+                                type="button"
+                                disabled={!selectedAddService}
+                                onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'NONE' }))}
+                                className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
+                                  addFormData.productOrigin === 'NONE' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                                }`}
+                              >
+                                <span className="block">Own</span>
+                                <span className="block text-[7px] font-bold opacity-70 mt-0.5">(0 DA)</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={!selectedAddService}
+                              onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }))}
+                              className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
+                                selectedAddService?.productsMandatory ? 'col-span-1.5' : ''
+                              } ${
+                                (addFormData.productOrigin === 'LOCAL' || (selectedAddService?.productsMandatory && addFormData.productOrigin === 'NONE'))
+                                  ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                              }`}
+                            >
+                              <span className="block">Local</span>
+                              {selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.localProductPrice} DA)</span>}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!selectedAddService}
+                              onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'IMPORTED' }))}
+                              className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
+                                selectedAddService?.productsMandatory ? 'col-span-1.5' : ''
+                              } ${
+                                addFormData.productOrigin === 'IMPORTED' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                              }`}
+                            >
+                              <span className="block">Imported</span>
+                              {selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.importedProductPrice} DA)</span>}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Location */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Location</h4>
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Address</label>
+                          <input 
+                            type="text" 
+                            required 
+                            value={addFormData.address}
+                            onChange={e => setAddFormData(prev => ({ ...prev, address: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            placeholder="Full Address"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Map Location</label>
+                          <LocationPicker 
+                            latitude={addFormData.latitude}
+                            longitude={addFormData.longitude}
+                            onChange={(lat, lng) => setAddFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+
+                  {/* Right Side: Bill & Actions */}
+                  <div className="lg:col-span-5">
+                    <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 lg:p-8 flex flex-col justify-between shadow-sm sticky top-0">
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 border-b border-slate-200 pb-3">
+                          Bill Calculations
+                        </h4>
+                        
+                        <div className="space-y-3 font-semibold text-xs text-slate-600">
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Layout Base Rate ({addSelectedHouse?.type.toUpperCase() || '-'}):</span>
+                            <span className="text-slate-800">{addSelectedHouse?.basePrice || 0} DA</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Default Labor:</span>
+                            <span className="text-slate-800">{addSelectedHouse?.workers || 0} Workers</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Extra Labor Added:</span>
+                            <span className="text-primary">+{addFormData.extraWorkers || 0} Worker(s)</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Extra Labor Price:</span>
+                            <span className="text-slate-800">{addExtraWorkerPriceTotal} DA</span>
+                          </div>
+                          <div className="flex justify-between border-t border-slate-200 pt-2">
+                            <span className="text-slate-500">Nadif Materials:</span>
+                            <span className={addUseMaterials ? 'text-primary' : 'text-slate-400'}>
+                              {addUseMaterials ? `+${selectedAddService?.materialPrice || 0} DA` : 'Excluded'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">Nadif Products:</span>
+                            <span className={addProductsPrice > 0 ? 'text-primary' : 'text-slate-400'}>
+                              {addProductsPrice > 0 ? `+${addProductsPrice} DA` : 'Excluded'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6 mt-8">
+                        <div className="border-t border-slate-200 pt-4 flex items-end justify-between">
+                          <div>
+                            <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">Final Total</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-4xl font-black text-emerald-500">{addFinalTotal}</span>
+                              <span className="text-sm font-black text-emerald-500 uppercase">DA</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          form="add-command-form"
+                          type="submit"
+                          className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Plus size={16} /> Create Order
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddModalOpen(false)}
+                          className="w-full py-3 bg-transparent text-slate-500 hover:text-slate-800 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}
