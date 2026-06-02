@@ -89,6 +89,7 @@ export interface ApiHouseConfig {
   type: string;
   workers: number;
   basePrice: number;
+  durationHours: number;
 }
 
 export interface ApiService {
@@ -112,13 +113,15 @@ export interface ApiOrder {
   id: string;
   userId: string;
   cleanerId?: string;
-  serviceId: string;
-  houseConfigId: string;
+  serviceId?: string | null;
+  houseConfigId?: string | null;
+  categoryId?: string | null;
+  categoryServiceId?: string | null;
   promoId?: string;
   extraWorkers: number;
   useMaterials: boolean;
   productOrigin: 'NONE' | 'LOCAL' | 'IMPORTED';
-  status: 'PENDING' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   totalPrice: number;
   scheduledDate: string;
   address: string;
@@ -128,8 +131,10 @@ export interface ApiOrder {
   updatedAt: string;
   user?: { id: string; email: string; fullName: string; phone: string };
   cleaner?: ApiCleaner;
-  service?: ApiService;
-  houseConfig?: ApiHouseConfig;
+  service?: ApiService | null;
+  houseConfig?: ApiHouseConfig | null;
+  category?: ApiCategory | null;
+  categoryService?: ApiCategoryService | null;
   promo?: ApiPromo;
 }
 
@@ -181,13 +186,13 @@ export const servicesApi = {
 
   getOne: (id: string) => apiFetch<ApiService>(`/api/services/${id}`, {}, false),
 
-  create: (data: Partial<ApiService> & { houseConfigs?: any[] }) =>
+  create: (data: Omit<Partial<ApiService>, 'houseConfigs'> & { houseConfigs?: any[] }) =>
     apiFetch<ApiService>('/api/admin/services', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  update: (id: string, data: Partial<ApiService>) =>
+  update: (id: string, data: Omit<Partial<ApiService>, 'houseConfigs'> & { houseConfigs?: any[] }) =>
     apiFetch<ApiService>(`/api/admin/services/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -244,3 +249,112 @@ export const promosApi = {
   delete: (id: string) =>
     apiFetch<{ success: boolean }>(`/api/admin/promos/${id}`, { method: 'DELETE' }),
 };
+
+// ─── Types: Categories ────────────────────────────────────────────────────────
+export interface ApiCategoryService {
+  id: string;
+  categoryId: string;
+  name: string;
+  workers: number;
+  basePrice: number;
+  durationHours: number;
+}
+
+export interface ApiCategory {
+  id: string;
+  name: string;
+  description: string;
+  picture: string;
+  materialPrice: number;
+  materialsMandatory: boolean;
+  localProductPrice: number;
+  importedProductPrice: number;
+  productsMandatory: boolean;
+  isActive: boolean;
+  createdAt: string;
+  categoryServices: ApiCategoryService[];
+}
+
+// ─── Admin: Categories ────────────────────────────────────────────────────────
+export const categoriesApi = {
+  getAll: () => apiFetch<ApiCategory[]>('/api/admin/categories'),
+
+  create: (data: Omit<Partial<ApiCategory>, 'categoryServices'> & { categoryServices?: any[] }) =>
+    apiFetch<ApiCategory>('/api/admin/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Omit<Partial<ApiCategory>, 'categoryServices'> & { categoryServices?: any[] }) =>
+    apiFetch<ApiCategory>(`/api/admin/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/admin/categories/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Types: Pages / CMS ──────────────────────────────────────────────────────
+export interface ApiFaq {
+  id: string;
+  question: string;
+  answer: string;
+  order: number;
+  createdAt: string;
+}
+
+export interface ApiAboutUs {
+  vision: string;
+  hotline: string;
+  email: string;
+  website: string;
+  facebook: string;
+  instagram: string;
+  wilayaCenter: string;
+}
+
+// ─── Admin/Public: Pages / CMS ───────────────────────────────────────────────
+export const pagesApi = {
+  faqs: {
+    getAll: () => apiFetch<ApiFaq[]>('/api/admin/pages/faqs'),
+    create: (data: Partial<ApiFaq>) =>
+      apiFetch<ApiFaq>('/api/admin/pages/faqs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<ApiFaq>) =>
+      apiFetch<ApiFaq>(`/api/admin/pages/faqs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: string) =>
+      apiFetch<{ success: boolean }>(`/api/admin/pages/faqs/${id}`, { method: 'DELETE' }),
+  },
+  privacy: {
+    get: () => apiFetch<{ privacyPolicy: string }>('/api/pages/privacy', {}, false),
+    update: (privacyPolicy: string) =>
+      apiFetch<{ privacyPolicy: string }>('/api/admin/pages/privacy', {
+        method: 'POST',
+        body: JSON.stringify({ privacyPolicy }),
+      }),
+  },
+  about: {
+    get: () => apiFetch<ApiAboutUs | null>('/api/pages/about', {}, false),
+    update: (data: ApiAboutUs) =>
+      apiFetch<ApiAboutUs>('/api/admin/pages/about', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+};
+
+export const lockedDaysApi = {
+  getAll: () => apiFetch<string[]>('/api/admin/locked-days'),
+  update: (lockedDays: string[]) => 
+    apiFetch<string[]>('/api/admin/locked-days', {
+      method: 'POST',
+      body: JSON.stringify({ lockedDays }),
+    }),
+};
+

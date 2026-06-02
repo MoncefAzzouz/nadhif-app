@@ -14,7 +14,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, type ApiOrder, type ApiService, type ApiCleaner } from '../../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService } from '../../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../../components/LocationPicker'), { 
   ssr: false, 
@@ -29,8 +29,11 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [services, setServices] = useState<ApiService[]>([]);
   const [cleaners, setCleaners] = useState<ApiCleaner[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [allOrders, setAllOrders] = useState<ApiOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lockedDays, setLockedDays] = useState<string[]>([]);
   
   const [editFormData, setEditFormData] = useState<Partial<ApiOrder>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -40,19 +43,27 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [fetchedOrder, fetchedServices, fetchedCleaners] = await Promise.all([
+      const [fetchedOrder, fetchedServices, fetchedCleaners, fetchedCategories, fetchedAllOrders, fetchedLockedDays] = await Promise.all([
         ordersApi.getOne(orderId),
         servicesApi.getAll(),
-        cleanersApi.getAll()
+        cleanersApi.getAll(),
+        categoriesApi.getAll(),
+        ordersApi.getAll().catch(() => [] as ApiOrder[]),
+        lockedDaysApi.getAll().catch(() => [] as string[])
       ]);
       setOrder(fetchedOrder);
       setServices(fetchedServices);
       setCleaners(fetchedCleaners);
+      setCategories(fetchedCategories);
+      setAllOrders(fetchedAllOrders);
+      setLockedDays(fetchedLockedDays);
       
       // Initialize form
       setEditFormData({
         serviceId: fetchedOrder.serviceId,
         houseConfigId: fetchedOrder.houseConfigId,
+        categoryId: fetchedOrder.categoryId,
+        categoryServiceId: fetchedOrder.categoryServiceId,
         extraWorkers: fetchedOrder.extraWorkers,
         useMaterials: fetchedOrder.useMaterials,
         productOrigin: fetchedOrder.productOrigin,
@@ -62,7 +73,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
         longitude: fetchedOrder.longitude,
         totalPrice: fetchedOrder.totalPrice,
         status: fetchedOrder.status,
-        cleanerId: fetchedOrder.cleanerId,
+        cleanerId: fetchedOrder.cleanerId || '',
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load order');
@@ -75,35 +86,200 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
     fetchData();
   }, [fetchData]);
 
+  // ─── Cleaner Availability Calculation ──────────────────────────────────────
+  const getRequiredCleanersCount = () => {
+    if (editFormData.serviceId) {
+      const service = services.find(s => s.id === editFormData.serviceId);
+      const hc = service?.houseConfigs?.find(hc => hc.id === editFormData.houseConfigId);
+      return (hc?.workers || 1) + (editFormData.extraWorkers || 0);
+    } else {
+      const category = categories.find(c => c.id === editFormData.categoryId);
+      const cs = category?.categoryServices?.find(cs => cs.id === editFormData.categoryServiceId);
+      return cs?.workers || 1;
+    }
+  };
+
+  const isDateLocked = (dateVal: string) => {
+    if (!dateVal) return false;
+    try {
+      const scheduled = new Date(dateVal);
+      const offset = scheduled.getTimezoneOffset();
+      const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
+      const dateString = localDate.toISOString().slice(0, 10);
+      return lockedDays.includes(dateString);
+    } catch {
+      return false;
+    }
+  };
+
+  const getAvailableSlots = (requiredCount: number) => {
+    if (!editFormData.scheduledDate) return [];
+
+    const date = new Date(editFormData.scheduledDate);
+    const slots = [
+      "08:00", "09:00", "10:00", "11:00", "12:00", 
+      "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
+    ];
+
+    const freeSlots: string[] = [];
+
+    slots.forEach(timeStr => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const testDate = new Date(date);
+      testDate.setHours(hours, minutes, 0, 0);
+      const testTime = testDate.getTime();
+
+      const service = services.find(s => s.id === editFormData.serviceId);
+      const category = categories.find(c => c.id === editFormData.categoryId);
+      const hc = service?.houseConfigs?.find(h => h.id === editFormData.houseConfigId);
+      const cs = category?.categoryServices?.find(c => c.id === editFormData.categoryServiceId);
+      const durationHours = hc?.durationHours ?? cs?.durationHours ?? service?.durationHours ?? 3;
+      const end1 = testTime + durationHours * 60 * 60 * 1000;
+
+      const busyCleanerIds = new Set<string>();
+      allOrders.forEach(other => {
+        if (other.id === orderId || !other.cleanerId || other.status === 'CANCELLED') return;
+        const start2 = new Date(other.scheduledDate).getTime();
+        const durationHours2 = other.houseConfig?.durationHours ?? other.categoryService?.durationHours ?? other.service?.durationHours ?? 3;
+        const end2 = start2 + durationHours2 * 60 * 60 * 1000;
+
+        if (testTime < end2 && start2 < end1) {
+          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+        }
+      });
+
+      const activeCount = cleaners.filter(c => c.isActive).length;
+      const availableCount = activeCount - busyCleanerIds.size;
+
+      if (availableCount >= requiredCount) {
+        freeSlots.push(timeStr);
+      }
+    });
+
+    return freeSlots;
+  };
+
+  const handleSelectSlot = (timeStr: string) => {
+    if (!editFormData.scheduledDate) return;
+    const scheduled = new Date(editFormData.scheduledDate);
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    scheduled.setHours(hours, minutes, 0, 0);
+
+    setEditFormData(prev => ({ ...prev, scheduledDate: scheduled.toISOString(), cleanerId: '' }));
+  };
+
+  const handleToggleCleaner = (cleanerId: string) => {
+    const selectedCleanerIds = editFormData.cleanerId ? editFormData.cleanerId.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const isSel = selectedCleanerIds.includes(cleanerId);
+    const reqCount = getRequiredCleanersCount();
+    let newIds: string[];
+    if (isSel) {
+      newIds = selectedCleanerIds.filter(id => id !== cleanerId);
+    } else {
+      if (reqCount === 1) {
+        newIds = [cleanerId];
+      } else if (selectedCleanerIds.length < reqCount) {
+        newIds = [...selectedCleanerIds, cleanerId];
+      } else {
+        alert(`Vous ne pouvez pas sélectionner plus de ${reqCount} cleaner(s).`);
+        return;
+      }
+    }
+    setEditFormData(prev => ({ ...prev, cleanerId: newIds.join(',') }));
+  };
+
+  const getAvailableCleaners = () => {
+    if (!editFormData.scheduledDate) return [];
+
+    const start1 = new Date(editFormData.scheduledDate).getTime();
+    const service = services.find(s => s.id === editFormData.serviceId);
+    const category = categories.find(c => c.id === editFormData.categoryId);
+    const hc = service?.houseConfigs?.find(h => h.id === editFormData.houseConfigId);
+    const cs = category?.categoryServices?.find(c => c.id === editFormData.categoryServiceId);
+    const durationHours1 = hc?.durationHours ?? cs?.durationHours ?? service?.durationHours ?? 3;
+    const end1 = start1 + durationHours1 * 60 * 60 * 1000;
+
+    const activeCleaners = cleaners.filter(c => c.isActive);
+    const busyCleanerIds = new Set<string>();
+
+    allOrders.forEach(other => {
+      if (other.id === orderId || !other.cleanerId || other.status === 'CANCELLED') return;
+      const start2 = new Date(other.scheduledDate).getTime();
+      const durationHours2 = other.houseConfig?.durationHours ?? other.categoryService?.durationHours ?? other.service?.durationHours ?? 3;
+      const end2 = start2 + durationHours2 * 60 * 60 * 1000;
+
+      if (start1 < end2 && start2 < end1) {
+        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+      }
+    });
+
+    const available = activeCleaners.filter(c => !busyCleanerIds.has(c.id));
+    const serviceName = service?.name || category?.name || '';
+
+    return [...available].sort((a, b) => {
+      const hasA = a.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+      const hasB = b.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
+      return 0;
+    });
+  };
+
   // Recalculate Logic
   const calculateNewPrice = () => {
-    if (!editFormData.serviceId || !editFormData.houseConfigId) return;
-    const service = services.find(s => s.id === editFormData.serviceId);
-    if (!service) return;
-    const houseConfig = service.houseConfigs?.find(hc => hc.id === editFormData.houseConfigId);
-    if (!houseConfig) return;
+    if (editFormData.serviceId && editFormData.houseConfigId) {
+      const service = services.find(s => s.id === editFormData.serviceId);
+      if (!service) return;
+      const houseConfig = service.houseConfigs?.find(hc => hc.id === editFormData.houseConfigId);
+      if (!houseConfig) return;
 
-    let base = houseConfig.basePrice;
-    let extraWorkers = (editFormData.extraWorkers || 0) * service.extraWorkerPrice;
-    let materials = (editFormData.useMaterials || service.materialsMandatory) ? service.materialPrice : 0;
-    
-    let products = 0;
-    const origin = editFormData.productOrigin || 'NONE';
-    if (service.productsMandatory && origin === 'NONE') {
-      // Logic handles this visually, but if recalced in an invalid state:
-      products = service.localProductPrice || 0;
-    } else {
-      if (origin === 'LOCAL') products = service.localProductPrice || 0;
-      else if (origin === 'IMPORTED') products = service.importedProductPrice || 0;
+      let base = houseConfig.basePrice;
+      let extraWorkers = (editFormData.extraWorkers || 0) * service.extraWorkerPrice;
+      let materials = (editFormData.useMaterials || service.materialsMandatory) ? service.materialPrice : 0;
+      
+      let products = 0;
+      const origin = editFormData.productOrigin || 'NONE';
+      if (service.productsMandatory && origin === 'NONE') {
+        products = service.localProductPrice || 0;
+      } else {
+        if (origin === 'LOCAL') products = service.localProductPrice || 0;
+        else if (origin === 'IMPORTED') products = service.importedProductPrice || 0;
+      }
+
+      let calculated = base + extraWorkers + materials + products;
+      
+      if (order?.promo) {
+        calculated = calculated * (1 - order.promo.discountPercent / 100);
+      }
+
+      setEditFormData(prev => ({ ...prev, totalPrice: calculated }));
+    } else if (editFormData.categoryId && editFormData.categoryServiceId) {
+      const category = categories.find(c => c.id === editFormData.categoryId);
+      if (!category) return;
+      const categoryService = category.categoryServices?.find(cs => cs.id === editFormData.categoryServiceId);
+      if (!categoryService) return;
+
+      let base = categoryService.basePrice;
+      let extraWorkers = 0;
+      let materials = (editFormData.useMaterials || category.materialsMandatory) ? category.materialPrice : 0;
+      
+      let products = 0;
+      const origin = editFormData.productOrigin || 'NONE';
+      if (category.productsMandatory && origin === 'NONE') {
+        products = category.localProductPrice || 0;
+      } else {
+        if (origin === 'LOCAL') products = category.localProductPrice || 0;
+        else if (origin === 'IMPORTED') products = category.importedProductPrice || 0;
+      }
+
+      let calculated = base + extraWorkers + materials + products;
+      
+      if (order?.promo) {
+        calculated = calculated * (1 - order.promo.discountPercent / 100);
+      }
+
+      setEditFormData(prev => ({ ...prev, totalPrice: calculated }));
     }
-
-    let calculated = base + extraWorkers + materials + products;
-    
-    if (order?.promo) {
-      calculated = calculated * (1 - order.promo.discountPercent / 100);
-    }
-
-    setEditFormData(prev => ({ ...prev, totalPrice: calculated }));
   };
 
   const handleSave = async (e?: React.FormEvent) => {
@@ -112,13 +288,46 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
     setSaveSuccess(false);
 
     // Apply Forced Logic before saving
-    const service = services.find(s => s.id === editFormData.serviceId);
     const payload = { ...editFormData };
-    if (service) {
-      if (service.materialsMandatory) payload.useMaterials = true;
-      if (service.productsMandatory && (!payload.productOrigin || payload.productOrigin === 'NONE')) {
-        payload.productOrigin = 'LOCAL';
+    if (editFormData.serviceId) {
+      const service = services.find(s => s.id === editFormData.serviceId);
+      if (service) {
+        if (service.materialsMandatory) payload.useMaterials = true;
+        if (service.productsMandatory && (!payload.productOrigin || payload.productOrigin === 'NONE')) {
+          payload.productOrigin = 'LOCAL';
+        }
       }
+      payload.categoryId = null;
+      payload.categoryServiceId = null;
+    } else if (editFormData.categoryId) {
+      const category = categories.find(c => c.id === editFormData.categoryId);
+      if (category) {
+        if (category.materialsMandatory) payload.useMaterials = true;
+        if (category.productsMandatory && (!payload.productOrigin || payload.productOrigin === 'NONE')) {
+          payload.productOrigin = 'LOCAL';
+        }
+      }
+      payload.serviceId = null;
+      payload.houseConfigId = null;
+      payload.extraWorkers = 0;
+    }
+
+    // Validate that if status is CONFIRMED, IN_PROGRESS, or COMPLETED, correct number of cleaners are assigned
+    const status = payload.status || order?.status;
+    if (status && ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(status)) {
+      const reqCount = getRequiredCleanersCount();
+      const currentCleanerIds = payload.cleanerId ? payload.cleanerId.split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (currentCleanerIds.length !== reqCount) {
+        alert(`Veuillez assigner exactement ${reqCount} cleaner(s) pour le statut "${status}".`);
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    if (isDateLocked(payload.scheduledDate || '')) {
+      alert("Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour.");
+      setIsSaving(false);
+      return;
     }
 
     try {
@@ -157,6 +366,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
 
   const selectedService = services.find(s => s.id === editFormData.serviceId);
   const selectedHouse = selectedService?.houseConfigs?.find(hc => hc.id === editFormData.houseConfigId);
+  const selectedCategory = categories.find(c => c.id === editFormData.categoryId);
 
   return (
     <div className="space-y-8 font-gilmer max-w-7xl mx-auto pb-20">
@@ -219,7 +429,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 shadow-sm"
                     >
                       <option value="PENDING">Pending</option>
-                      <option value="ASSIGNED">Assigned</option>
+                      <option value="CONFIRMED">Confirmé</option>
                       <option value="IN_PROGRESS">In Progress</option>
                       <option value="COMPLETED">Completed</option>
                       <option value="CANCELLED">Cancelled</option>
@@ -230,72 +440,266 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Scheduled Time</label>
                     <input 
                       type="datetime-local"
-                      value={editFormData.scheduledDate ? new Date(editFormData.scheduledDate).toISOString().slice(0, 16) : ''}
-                      onChange={(e) => setEditFormData({ ...editFormData, scheduledDate: new Date(e.target.value).toISOString() })}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-primary/50 shadow-sm"
+                      value={editFormData.scheduledDate ? (() => {
+                        const d = new Date(editFormData.scheduledDate);
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        return `${year}-${month}-${day}T${hours}:${minutes}`;
+                      })() : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        setEditFormData({ ...editFormData, scheduledDate: new Date(val).toISOString() });
+                      }}
+                      className={`w-full bg-white border rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-primary/50 shadow-sm ${
+                        isDateLocked(editFormData.scheduledDate || '')
+                          ? 'border-rose-500 bg-rose-50/10 focus:border-rose-500'
+                          : 'border-slate-200'
+                      }`}
                     />
+                    {isDateLocked(editFormData.scheduledDate || '') && (
+                      <p className="text-[10px] text-rose-500 font-bold mt-1">
+                        ⚠️ Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">
+                        Assign Cleaners (Available Only)
+                      </label>
+                      <span className="text-[10px] font-black text-primary uppercase tracking-wider">
+                        {editFormData.cleanerId ? editFormData.cleanerId.split(',').map(s => s.trim()).filter(Boolean).length : 0} / {getRequiredCleanersCount()} Sélectionné(s)
+                      </span>
+                    </div>
+                    
+                    {(() => {
+                      const requiredCount = getRequiredCleanersCount();
+                      const availableCleaners = getAvailableCleaners();
+                      
+                      if (availableCleaners.length < requiredCount) {
+                        return (
+                          <div className="space-y-4">
+                            <div className="border border-rose-100 bg-rose-50/40 p-5 rounded-2xl text-center text-rose-600 space-y-2">
+                              <AlertCircle className="mx-auto text-rose-500" size={24} />
+                              <p className="text-xs font-black uppercase tracking-wider">Créneau Impossible (Pas assez d'agents)</p>
+                              <p className="text-[10px] font-bold text-rose-500">
+                                Requis: {requiredCount} cleaner(s) • Disponibles: {availableCleaners.length} à {editFormData.scheduledDate ? new Date(editFormData.scheduledDate).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' }) : ''}.
+                              </p>
+                            </div>
+
+                            {/* Alternative suggestions */}
+                            <div className="space-y-2 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">
+                                Créneaux alternatifs disponibles ce jour ({requiredCount} agents requis) :
+                              </h4>
+                              {getAvailableSlots(requiredCount).length === 0 ? (
+                                <p className="text-[10px] font-bold text-slate-400 pl-1">
+                                  Aucun autre créneau disponible sur cette journée avec {requiredCount} agents libres.
+                                </p>
+                              ) : (
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                  {getAvailableSlots(requiredCount).map(timeStr => (
+                                    <button
+                                      key={timeStr}
+                                      type="button"
+                                      onClick={() => handleSelectSlot(timeStr)}
+                                      className="px-3 py-1.5 bg-white border border-slate-200 hover:border-primary/50 text-slate-700 hover:text-primary rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
+                                    >
+                                      {timeStr}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1 border border-slate-100 rounded-2xl p-2.5 bg-white">
+                          {availableCleaners.map(cleaner => {
+                            const selectedCleanerIds = editFormData.cleanerId ? editFormData.cleanerId.split(',').map(s => s.trim()).filter(Boolean) : [];
+                            const isSelected = selectedCleanerIds.includes(cleaner.id);
+                            const service = services.find(s => s.id === editFormData.serviceId);
+                            const category = categories.find(c => c.id === editFormData.categoryId);
+                            const serviceName = service?.name || category?.name || '';
+                            const hasMatchingSkill = cleaner.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+
+                            return (
+                              <button
+                                key={cleaner.id}
+                                type="button"
+                                onClick={() => handleToggleCleaner(cleaner.id)}
+                                className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                                  isSelected
+                                    ? 'bg-primary border-primary text-white shadow-md shadow-primary/10'
+                                    : 'bg-slate-50/60 border-slate-100 hover:border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="text-xs font-black uppercase tracking-tight">
+                                    {cleaner.fullName}
+                                  </span>
+                                  {hasMatchingSkill && (
+                                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                                      isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                                    }`}>
+                                      Compétence Validée
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={`text-[9px] font-bold ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                                  Tél: {cleaner.phone} • {cleaner.skills.length > 0 ? `Skills: ${cleaner.skills.join(', ')}` : 'Aucun skill'}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
 
               {/* Selectors */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Selected Service Package</label>
-                  <select 
-                    value={editFormData.serviceId || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, serviceId: e.target.value, houseConfigId: undefined })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 transition-colors hover:bg-white"
-                  >
-                    <option value="" disabled className="text-slate-400">Select a service</option>
-                    {services.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">House Layout</label>
-                  <select 
-                    value={editFormData.houseConfigId || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, houseConfigId: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 transition-colors hover:bg-white"
-                  >
-                    <option value="" disabled className="text-slate-400">Select layout</option>
-                    {selectedService?.houseConfigs?.map(config => (
-                      <option key={config.id} value={config.id}>
-                        {config.type.toUpperCase()} layout (Base: {config.basePrice} DA)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                    Add Extra Workers
-                  </label>
-                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 transition-colors hover:bg-white">
-                    <button 
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Command Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
                       type="button"
-                      onClick={() => setEditFormData(prev => ({ ...prev, extraWorkers: Math.max(0, (prev.extraWorkers || 0) - 1) }))}
-                      className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center font-bold text-slate-400 hover:text-slate-800"
+                      onClick={() => {
+                        setEditFormData(prev => ({ 
+                          ...prev, 
+                          serviceId: services[0]?.id || '', 
+                          houseConfigId: services[0]?.houseConfigs[0]?.id || '',
+                          categoryId: null,
+                          categoryServiceId: null
+                        }));
+                      }}
+                      className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
+                        editFormData.serviceId ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                      }`}
                     >
-                      -
+                      Service Booking
                     </button>
-                    <span className="flex-1 text-center text-xs font-black text-slate-800">{editFormData.extraWorkers || 0}</span>
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => setEditFormData(prev => ({ ...prev, extraWorkers: (prev.extraWorkers || 0) + 1 }))}
-                      className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center font-bold text-slate-400 hover:text-slate-800"
+                      onClick={() => {
+                        setEditFormData(prev => ({ 
+                          ...prev, 
+                          categoryId: categories[0]?.id || '', 
+                          categoryServiceId: categories[0]?.categoryServices[0]?.id || '',
+                          serviceId: null,
+                          houseConfigId: null
+                        }));
+                      }}
+                      className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
+                        editFormData.categoryId ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                      }`}
                     >
-                      +
+                      Category Booking
                     </button>
                   </div>
                 </div>
+
+                {editFormData.serviceId ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Selected Service Package</label>
+                      <select 
+                        value={editFormData.serviceId || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, serviceId: e.target.value, houseConfigId: undefined })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 transition-colors hover:bg-white"
+                      >
+                        <option value="" disabled className="text-slate-400">Select a service</option>
+                        {services.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">House Layout</label>
+                      <select 
+                        value={editFormData.houseConfigId || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, houseConfigId: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 transition-colors hover:bg-white"
+                      >
+                        <option value="" disabled className="text-slate-400">Select layout</option>
+                        {selectedService?.houseConfigs?.map(config => (
+                          <option key={config.id} value={config.id}>
+                            {config.type.toUpperCase()} layout (Base: {config.basePrice} DA)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        Add Extra Workers
+                      </label>
+                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 transition-colors hover:bg-white max-w-[200px]">
+                        <button 
+                          type="button"
+                          onClick={() => setEditFormData(prev => ({ ...prev, extraWorkers: Math.max(0, (prev.extraWorkers || 0) - 1) }))}
+                          className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center font-bold text-slate-400 hover:text-slate-800"
+                        >
+                          -
+                        </button>
+                        <span className="flex-1 text-center text-xs font-black text-slate-800">{editFormData.extraWorkers || 0}</span>
+                        <button 
+                          type="button"
+                          onClick={() => setEditFormData(prev => ({ ...prev, extraWorkers: (prev.extraWorkers || 0) + 1 }))}
+                          className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center font-bold text-slate-400 hover:text-slate-800"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Selected Category</label>
+                      <select 
+                        value={editFormData.categoryId || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, categoryId: e.target.value, categoryServiceId: undefined })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 transition-colors hover:bg-white"
+                      >
+                        <option value="" disabled className="text-slate-400">Select a category</option>
+                        {categories.map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Category Service Layout</label>
+                      <select 
+                        value={editFormData.categoryServiceId || ''}
+                        onChange={(e) => setEditFormData({ ...editFormData, categoryServiceId: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 transition-colors hover:bg-white"
+                      >
+                        <option value="" disabled className="text-slate-400">Select layout</option>
+                        {categories.find(c => c.id === editFormData.categoryId)?.categoryServices?.map(config => (
+                          <option key={config.id} value={config.id}>
+                            {config.name} (Base: {config.basePrice} DA)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Addons */}
-              {selectedService && (
+              {editFormData.serviceId && selectedService && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className={`p-4 rounded-xl border flex flex-col justify-between ${
                     selectedService.materialsMandatory 
@@ -388,6 +792,99 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                 </div>
               )}
 
+              {editFormData.categoryId && selectedCategory && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                    selectedCategory.materialsMandatory 
+                      ? 'border-primary/30 bg-primary/5 text-slate-800' 
+                      : 'border-slate-200 bg-slate-50 text-slate-800'
+                  }`}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF MATERIALS</p>
+                        <p className="text-xs font-bold mt-1">Use our clean equipment</p>
+                        <p className="text-[9px] font-bold text-primary mt-0.5">+{selectedCategory.materialPrice} DA</p>
+                      </div>
+                      {selectedCategory.materialsMandatory ? (
+                        <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                          <Lock size={8} /> Forced
+                        </div>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={() => setEditFormData(prev => ({ ...prev, useMaterials: !prev.useMaterials }))}
+                          className={`w-10 h-6 rounded-full p-0.5 transition-colors cursor-pointer shadow-inner ${editFormData.useMaterials ? 'bg-primary' : 'bg-slate-300'}`}
+                        >
+                          <div className={`w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${editFormData.useMaterials ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+                    selectedCategory.productsMandatory 
+                      ? 'border-primary/30 bg-primary/5 text-slate-800' 
+                      : 'border-slate-200 bg-slate-50 text-slate-800'
+                  }`}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF PRODUCTS</p>
+                        <p className="text-xs font-bold mt-1 font-inter">Chemical Products Source</p>
+                      </div>
+                      {selectedCategory.productsMandatory && (
+                        <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                          <Lock size={8} /> Forced
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 mt-3">
+                      {!selectedCategory.productsMandatory && (
+                        <button
+                          type="button"
+                          onClick={() => setEditFormData(prev => ({ ...prev, productOrigin: 'NONE' }))}
+                          className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
+                            editFormData.productOrigin === 'NONE' 
+                              ? 'bg-primary text-white border-primary shadow' 
+                              : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                          }`}
+                        >
+                          <span className="block">Own</span>
+                          <span className="block text-[7px] font-bold opacity-70 mt-0.5">(0 DA)</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }))}
+                        className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
+                          selectedCategory.productsMandatory ? 'col-span-1.5' : ''
+                        } ${
+                          (editFormData.productOrigin === 'LOCAL' || (selectedCategory.productsMandatory && editFormData.productOrigin === 'NONE'))
+                            ? 'bg-primary text-white border-primary shadow' 
+                            : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                        }`}
+                        >
+                        <span className="block">Local</span>
+                        <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedCategory.localProductPrice} DA)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditFormData(prev => ({ ...prev, productOrigin: 'IMPORTED' }))}
+                        className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
+                          selectedCategory.productsMandatory ? 'col-span-1.5' : ''
+                        } ${
+                          editFormData.productOrigin === 'IMPORTED' 
+                            ? 'bg-primary text-white border-primary shadow' 
+                            : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                        }`}
+                        >
+                        <span className="block">Imported</span>
+                        <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedCategory.importedProductPrice} DA)</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Location */}
               <div className="space-y-4 pt-6 border-t border-slate-100">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Location & Map</h4>
@@ -433,36 +930,65 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
               </h4>
               
               <div className="space-y-3 font-semibold text-xs text-slate-600">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Layout Base Rate ({selectedHouse?.type.toUpperCase() || '-'}):</span>
-                  <span className="text-slate-800">{selectedHouse?.basePrice || 0} DA</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Default Labor:</span>
-                  <span className="text-slate-800">{selectedHouse?.workers || 0} Workers</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Extra Labor Added:</span>
-                  <span className="text-primary">+{editFormData.extraWorkers || 0} Worker(s)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Extra Labor Price:</span>
-                  <span className="text-slate-800">{((editFormData.extraWorkers || 0) * (selectedService?.extraWorkerPrice || 0))} DA</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-200 pt-2">
-                  <span className="text-slate-500">Nadif Materials:</span>
-                  <span className={editFormData.useMaterials || selectedService?.materialsMandatory ? 'text-primary' : 'text-slate-400'}>
-                    {editFormData.useMaterials || selectedService?.materialsMandatory ? `+${selectedService?.materialPrice || 0} DA` : 'Excluded'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Nadif Products:</span>
-                  <span className={(editFormData.productOrigin !== 'NONE' && editFormData.productOrigin) || selectedService?.productsMandatory ? 'text-primary' : 'text-slate-400'}>
-                    {(editFormData.productOrigin === 'LOCAL' || (selectedService?.productsMandatory && (!editFormData.productOrigin || editFormData.productOrigin === 'NONE'))) && `+${selectedService?.localProductPrice || 0} DA (Local)`}
-                    {editFormData.productOrigin === 'IMPORTED' && `+${selectedService?.importedProductPrice || 0} DA (Imported)`}
-                    {!selectedService?.productsMandatory && (!editFormData.productOrigin || editFormData.productOrigin === 'NONE') && 'Excluded'}
-                  </span>
-                </div>
+                {editFormData.serviceId ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Layout Base Rate ({selectedHouse?.type.toUpperCase() || '-'}):</span>
+                      <span className="text-slate-800">{selectedHouse?.basePrice || 0} DA</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Default Labor:</span>
+                      <span className="text-slate-800">{selectedHouse?.workers || 0} Workers</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Extra Labor Added:</span>
+                      <span className="text-primary">+{editFormData.extraWorkers || 0} Worker(s)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Extra Labor Price:</span>
+                      <span className="text-slate-800">{((editFormData.extraWorkers || 0) * (selectedService?.extraWorkerPrice || 0))} DA</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 pt-2">
+                      <span className="text-slate-500">Nadif Materials:</span>
+                      <span className={editFormData.useMaterials || selectedService?.materialsMandatory ? 'text-primary' : 'text-slate-400'}>
+                        {editFormData.useMaterials || selectedService?.materialsMandatory ? `+${selectedService?.materialPrice || 0} DA` : 'Excluded'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Nadif Products:</span>
+                      <span className={(editFormData.productOrigin !== 'NONE' && editFormData.productOrigin) || selectedService?.productsMandatory ? 'text-primary' : 'text-slate-400'}>
+                        {(editFormData.productOrigin === 'LOCAL' || (selectedService?.productsMandatory && (!editFormData.productOrigin || editFormData.productOrigin === 'NONE'))) && `+${selectedService?.localProductPrice || 0} DA (Local)`}
+                        {editFormData.productOrigin === 'IMPORTED' && `+${selectedService?.importedProductPrice || 0} DA (Imported)`}
+                        {!selectedService?.productsMandatory && (!editFormData.productOrigin || editFormData.productOrigin === 'NONE') && 'Excluded'}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Category Layout Base Rate ({selectedCategory?.categoryServices.find(cs => cs.id === editFormData.categoryServiceId)?.name || '-'}):</span>
+                      <span className="text-slate-800">{selectedCategory?.categoryServices.find(cs => cs.id === editFormData.categoryServiceId)?.basePrice || 0} DA</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Labor:</span>
+                      <span className="text-slate-800">{selectedCategory?.categoryServices.find(cs => cs.id === editFormData.categoryServiceId)?.workers || 0} Workers</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 pt-2">
+                      <span className="text-slate-500">Nadif Materials:</span>
+                      <span className={editFormData.useMaterials || selectedCategory?.materialsMandatory ? 'text-primary' : 'text-slate-400'}>
+                        {editFormData.useMaterials || selectedCategory?.materialsMandatory ? `+${selectedCategory?.materialPrice || 0} DA` : 'Excluded'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Nadif Products:</span>
+                      <span className={(editFormData.productOrigin !== 'NONE' && editFormData.productOrigin) || selectedCategory?.productsMandatory ? 'text-primary' : 'text-slate-400'}>
+                        {(editFormData.productOrigin === 'LOCAL' || (selectedCategory?.productsMandatory && (!editFormData.productOrigin || editFormData.productOrigin === 'NONE'))) && `+${selectedCategory?.localProductPrice || 0} DA (Local)`}
+                        {editFormData.productOrigin === 'IMPORTED' && `+${selectedCategory?.importedProductPrice || 0} DA (Imported)`}
+                        {!selectedCategory?.productsMandatory && (!editFormData.productOrigin || editFormData.productOrigin === 'NONE') && 'Excluded'}
+                      </span>
+                    </div>
+                  </>
+                )}
                 {order.promo && (
                   <div className="flex justify-between border-t border-slate-200 pt-2 text-rose-500">
                     <span>Promo Applied ({order.promo.code}):</span>
@@ -490,8 +1016,8 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
 
               <button 
                 onClick={handleSave}
-                disabled={isSaving}
-                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                disabled={isSaving || isDateLocked(editFormData.scheduledDate || '') || (['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(editFormData.status || '') && getAvailableCleaners().length < getRequiredCleanersCount())}
+                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSaving ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

@@ -342,7 +342,14 @@ export default function CleanersManager() {
                   </div>
                   <div>
                     <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Phone Number</label>
-                    <input type="tel" required value={createForm.phone} onChange={(e) => setCreateForm({...createForm, phone: e.target.value})} className="w-full px-4 py-3.5 bg-slate-50 rounded-2xl text-xs font-bold text-slate-800 font-mono" />
+                    <input 
+                      type="tel" 
+                      required 
+                      value={createForm.phone} 
+                      onChange={(e) => setCreateForm({...createForm, phone: e.target.value.replace(/\D/g, '')})} 
+                      className="w-full px-4 py-3.5 bg-slate-50 rounded-2xl text-xs font-bold text-slate-800 font-mono" 
+                      placeholder="e.g. 0555123456"
+                    />
                   </div>
                   <div>
                     <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Bio / Description</label>
@@ -382,7 +389,13 @@ export default function CleanersManager() {
                   </div>
                   <div>
                     <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Phone Number</label>
-                    <input type="tel" required value={editingCleaner.phone} onChange={(e) => setEditingCleaner({...editingCleaner, phone: e.target.value})} className="w-full px-4 py-3.5 bg-slate-50 rounded-2xl text-xs font-bold font-mono" />
+                    <input 
+                      type="tel" 
+                      required 
+                      value={editingCleaner.phone} 
+                      onChange={(e) => setEditingCleaner({...editingCleaner, phone: e.target.value.replace(/\D/g, '')})} 
+                      className="w-full px-4 py-3.5 bg-slate-50 rounded-2xl text-xs font-bold font-mono" 
+                    />
                   </div>
                   <div>
                     <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Bio</label>

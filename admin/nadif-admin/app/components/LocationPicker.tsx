@@ -40,9 +40,8 @@ function LocationMarker({ latitude, longitude, onChange }: LocationPickerProps) 
 }
 
 export default function LocationPicker({ latitude, longitude, onChange }: LocationPickerProps) {
-  // Default to Algiers if no coordinates are provided
-  const defaultCenter: [number, number] = [36.7538, 3.0588]; 
-
+  // Default to Sétif if no coordinates are provided
+  const defaultCenter: [number, number] = [36.1911, 5.4137]; 
   return (
     <div className="h-[250px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-inner z-0 relative">
       <MapContainer

@@ -28,7 +28,7 @@ import {
   Lock
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, type ApiOrder, type ApiService } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), { 
   ssr: false, 
@@ -38,7 +38,7 @@ const LocationPicker = dynamic(() => import('../../components/LocationPicker'), 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_LABELS: Record<ApiOrder['status'], string> = {
   PENDING:     'En Attente',
-  ASSIGNED:    'Assigned',
+  CONFIRMED:   'Confirmé',
   IN_PROGRESS: 'In Progress',
   COMPLETED:   'Completed',
   CANCELLED:   'Cancelled',
@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<ApiOrder['status'], string> = {
 
 const STATUS_STYLES: Record<ApiOrder['status'], string> = {
   PENDING:     'bg-amber-50 text-amber-600 border-amber-100',
-  ASSIGNED:    'bg-blue-50 text-blue-600 border-blue-100',
+  CONFIRMED:   'bg-blue-50 text-blue-600 border-blue-100',
   IN_PROGRESS: 'bg-violet-50 text-violet-600 border-violet-100',
   COMPLETED:   'bg-emerald-50 text-emerald-600 border-emerald-100',
   CANCELLED:   'bg-rose-50 text-rose-600 border-rose-100',
@@ -54,7 +54,7 @@ const STATUS_STYLES: Record<ApiOrder['status'], string> = {
 
 const STATUS_DOT: Record<ApiOrder['status'], string> = {
   PENDING:     'bg-amber-500 animate-pulse',
-  ASSIGNED:    'bg-blue-500',
+  CONFIRMED:   'bg-blue-500',
   IN_PROGRESS: 'bg-violet-500',
   COMPLETED:   'bg-emerald-500',
   CANCELLED:   'bg-rose-500',
@@ -68,10 +68,14 @@ export default function CommandsPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [services, setServices] = useState<ApiService[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [cleaners, setCleaners] = useState<ApiCleaner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState<'all' | 'service' | 'category'>('all');
+  const [addFormType, setAddFormType] = useState<'service' | 'category'>('service');
   
   const [selectedOrder, setSelectedOrder] = useState<ApiOrder | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -79,18 +83,27 @@ export default function CommandsPage() {
   const [orderToDelete, setOrderToDelete] = useState<ApiOrder | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [lockedDays, setLockedDays] = useState<string[]>([]);
+
+  // Assign Cleaner Modal States
+  const [orderToConfirm, setOrderToConfirm] = useState<ApiOrder | null>(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedCleanerIds, setSelectedCleanerIds] = useState<string[]>([]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
-    fullName: '', phone: '', address: '', serviceId: '', houseConfigId: '', 
+    fullName: '', phone: '', address: '', 
+    serviceId: '' as string | null, houseConfigId: '' as string | null, 
+    categoryId: '' as string | null, categoryServiceId: '' as string | null,
     scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
     latitude: undefined as number | undefined, longitude: undefined as number | undefined
   });
   
   const selectedAddService = services.find(s => s.id === addFormData.serviceId);
+  const selectedAddCategory = categories.find(c => c.id === addFormData.categoryId);
 
   useEffect(() => {
-    if (selectedAddService) {
+    if (addFormType === 'service' && selectedAddService) {
       if (selectedAddService.materialsMandatory) {
         setAddFormData(prev => ({ ...prev, useMaterials: true }));
       }
@@ -98,23 +111,61 @@ export default function CommandsPage() {
         setAddFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }));
       }
     }
-  }, [addFormData.serviceId, selectedAddService]);
+  }, [addFormData.serviceId, selectedAddService, addFormType]);
+
+  useEffect(() => {
+    if (addFormType === 'category' && selectedAddCategory) {
+      if (selectedAddCategory.materialsMandatory) {
+        setAddFormData(prev => ({ ...prev, useMaterials: true }));
+      }
+      if (selectedAddCategory.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE')) {
+        setAddFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }));
+      }
+    }
+  }, [addFormData.categoryId, selectedAddCategory, addFormType]);
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addFormData.phone || !addFormData.address || !addFormData.serviceId || !addFormData.houseConfigId || !addFormData.scheduledDate) {
-      alert('Please fill out all required fields.');
+    if (addFormType === 'service') {
+      if (!addFormData.phone || !addFormData.address || !addFormData.serviceId || !addFormData.houseConfigId || !addFormData.scheduledDate) {
+        alert('Please fill out all required fields.');
+        return;
+      }
+    } else {
+      if (!addFormData.phone || !addFormData.address || !addFormData.categoryId || !addFormData.categoryServiceId || !addFormData.scheduledDate) {
+        alert('Please fill out all required fields.');
+        return;
+      }
+    }
+    if (isDateLocked(addFormData.scheduledDate)) {
+      alert("Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour.");
+      return;
+    }
+    if (isAddCleanersShort) {
+      alert("Créneau Impossible: Pas assez d'agents disponibles à cette heure.");
       return;
     }
     try {
-      await ordersApi.createAdminOrder(addFormData);
+      const payload = {
+        ...addFormData,
+        scheduledDate: new Date(addFormData.scheduledDate).toISOString(),
+        serviceId: addFormType === 'service' ? addFormData.serviceId : null,
+        houseConfigId: addFormType === 'service' ? addFormData.houseConfigId : null,
+        categoryId: addFormType === 'category' ? addFormData.categoryId : null,
+        categoryServiceId: addFormType === 'category' ? addFormData.categoryServiceId : null,
+        extraWorkers: addFormType === 'service' ? addFormData.extraWorkers : 0,
+      };
+      await ordersApi.createAdminOrder(payload);
       setIsAddModalOpen(false);
       fetchOrders();
       setAddFormData({
-        fullName: '', phone: '', address: '', serviceId: '', houseConfigId: '', 
+        fullName: '', phone: '', address: '', 
+        serviceId: '', houseConfigId: '', 
+        categoryId: '', categoryServiceId: '',
         scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
         latitude: undefined, longitude: undefined
       });
+      setAddFormType('service');
     } catch (err: any) {
       alert(`Failed to create command: ${err.message}`);
     }
@@ -125,12 +176,18 @@ export default function CommandsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [data, srvData] = await Promise.all([
+      const [data, srvData, catData, clnData, lockedDaysData] = await Promise.all([
         ordersApi.getAll(),
-        servicesApi.getAll()
+        servicesApi.getAll(),
+        categoriesApi.getAll(),
+        cleanersApi.getAll().catch(() => [] as ApiCleaner[]),
+        lockedDaysApi.getAll().catch(() => [] as string[])
       ]);
       setOrders(data);
       setServices(srvData);
+      setCategories(catData);
+      setCleaners(clnData);
+      setLockedDays(lockedDaysData);
     } catch (err: any) {
       setError(err.message || 'Failed to load orders. Is the backend running?');
     } finally {
@@ -151,6 +208,155 @@ export default function CommandsPage() {
       }
     } catch (err: any) {
       alert(`Status update failed: ${err.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // ─── Cleaner Availability Calculation ──────────────────────────────────────
+  const getRequiredCleanersCount = (order: ApiOrder | null) => {
+    if (!order) return 0;
+    if (order.serviceId) {
+      return (order.houseConfig?.workers || 1) + (order.extraWorkers || 0);
+    } else {
+      return order.categoryService?.workers || 1;
+    }
+  };
+
+  const isDateLocked = (dateVal: string) => {
+    if (!dateVal) return false;
+    try {
+      const scheduled = new Date(dateVal);
+      const offset = scheduled.getTimezoneOffset();
+      const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
+      const dateString = localDate.toISOString().slice(0, 10);
+      return lockedDays.includes(dateString);
+    } catch {
+      return false;
+    }
+  };
+
+  const getCleanerNames = (cleanerIdStr?: string | null) => {
+    if (!cleanerIdStr) return 'Aucun';
+    return cleanerIdStr.split(',')
+      .map(id => cleaners.find(c => c.id === id.trim())?.fullName || 'Inconnu')
+      .join(', ');
+  };
+
+  const getAvailableCleaners = (order: ApiOrder | null) => {
+    if (!order || !order.scheduledDate) return [];
+
+    const start1 = new Date(order.scheduledDate).getTime();
+    const durationHours1 = order.houseConfig?.durationHours ?? order.categoryService?.durationHours ?? order.service?.durationHours ?? 3;
+    const end1 = start1 + durationHours1 * 60 * 60 * 1000;
+
+    const activeCleaners = cleaners.filter(c => c.isActive);
+    const busyCleanerIds = new Set<string>();
+
+    orders.forEach(other => {
+      if (other.id === order.id || !other.cleanerId || other.status === 'CANCELLED') return;
+      const start2 = new Date(other.scheduledDate).getTime();
+      const durationHours2 = other.houseConfig?.durationHours ?? other.categoryService?.durationHours ?? other.service?.durationHours ?? 3;
+      const end2 = start2 + durationHours2 * 60 * 60 * 1000;
+
+      if (start1 < end2 && start2 < end1) {
+        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+      }
+    });
+
+    const available = activeCleaners.filter(c => !busyCleanerIds.has(c.id));
+    const serviceName = order.service?.name || order.category?.name || '';
+
+    return [...available].sort((a, b) => {
+      const hasA = a.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+      const hasB = b.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
+      return 0;
+    });
+  };
+
+  const getAvailableSlots = (order: ApiOrder | null, requiredCount: number) => {
+    if (!order || !order.scheduledDate) return [];
+
+    const date = new Date(order.scheduledDate);
+    const slots = [
+      "08:00", "09:00", "10:00", "11:00", "12:00", 
+      "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
+    ];
+
+    const freeSlots: string[] = [];
+
+    slots.forEach(timeStr => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const testDate = new Date(date);
+      testDate.setHours(hours, minutes, 0, 0);
+      const testTime = testDate.getTime();
+
+      const durationHours = order.houseConfig?.durationHours ?? order.categoryService?.durationHours ?? order.service?.durationHours ?? 3;
+      const end1 = testTime + durationHours * 60 * 60 * 1000;
+
+      const busyCleanerIds = new Set<string>();
+      orders.forEach(other => {
+        if (other.id === order.id || !other.cleanerId || other.status === 'CANCELLED') return;
+        const start2 = new Date(other.scheduledDate).getTime();
+        const durationHours2 = other.houseConfig?.durationHours ?? other.categoryService?.durationHours ?? other.service?.durationHours ?? 3;
+        const end2 = start2 + durationHours2 * 60 * 60 * 1000;
+
+        if (testTime < end2 && start2 < end1) {
+          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+        }
+      });
+
+      const activeCount = cleaners.filter(c => c.isActive).length;
+      const availableCount = activeCount - busyCleanerIds.size;
+
+      if (availableCount >= requiredCount) {
+        freeSlots.push(timeStr);
+      }
+    });
+
+    return freeSlots;
+  };
+
+  const handleSelectSlot = async (order: ApiOrder, timeStr: string) => {
+    try {
+      const scheduled = new Date(order.scheduledDate);
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      scheduled.setHours(hours, minutes, 0, 0);
+
+      await ordersApi.update(order.id, { scheduledDate: scheduled.toISOString() });
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, scheduledDate: scheduled.toISOString() } : o));
+      setOrderToConfirm(prev => prev ? { ...prev, scheduledDate: scheduled.toISOString() } : null);
+      setSelectedCleanerIds([]);
+      alert(`La commande a été déplacée à ${timeStr} avec succès!`);
+    } catch (err: any) {
+      alert(`Erreur lors du déplacement de la commande: ${err.message || 'Inconnue'}`);
+    }
+  };
+
+  const handleConfirmAndAssign = async () => {
+    if (!orderToConfirm) return;
+    const reqCount = getRequiredCleanersCount(orderToConfirm);
+    if (selectedCleanerIds.length !== reqCount) {
+      alert(`Veuillez sélectionner exactement ${reqCount} cleaner(s).`);
+      return;
+    }
+    setUpdatingId(orderToConfirm.id);
+    try {
+      const updated = await ordersApi.update(orderToConfirm.id, {
+        status: 'CONFIRMED',
+        cleanerId: selectedCleanerIds.join(',')
+      });
+      setOrders(prev => prev.map(o => o.id === orderToConfirm.id ? { ...o, ...updated } : o));
+      if (selectedOrder?.id === orderToConfirm.id) {
+        setSelectedOrder(prev => prev ? { ...prev, ...updated } : null);
+      }
+      setIsAssignModalOpen(false);
+      setOrderToConfirm(null);
+      setSelectedCleanerIds([]);
+    } catch (err: any) {
+      alert(`Assign update failed: ${err.message}`);
     } finally {
       setUpdatingId(null);
     }
@@ -186,16 +392,21 @@ export default function CommandsPage() {
 
   // ─── Filter ───────────────────────────────────────────────────────────────
   const filtered = orders.filter(order => {
+    if (bookingTypeFilter === 'service' && !order.serviceId) return false;
+    if (bookingTypeFilter === 'category' && !order.categoryId) return false;
+
     const fullName = order.user?.fullName ?? '';
     const phone = order.user?.phone ?? '';
     const email = order.user?.email ?? '';
     const service = order.service?.name ?? '';
+    const category = order.category?.name ?? '';
     const matchSearch =
       fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       phone.includes(searchQuery) ||
       email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.toLowerCase().includes(searchQuery.toLowerCase());
+      service.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -205,21 +416,140 @@ export default function CommandsPage() {
     try { return new Date(iso).toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short', year: 'numeric' }); } 
     catch { return iso; }
   };
+  const formatTime = (iso: string) => {
+    try { return new Date(iso).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' }); }
+    catch { return ''; }
+  };
   const shortId = (id: string) => `CMD-${id.slice(0, 6).toUpperCase()}`;
 
   // Dynamic price calculation for Add Modal
-  const addSelectedHouse = selectedAddService?.houseConfigs.find(hc => hc.id === addFormData.houseConfigId);
-  const addBasePrice = addSelectedHouse?.basePrice || 0;
-  const addExtraWorkerPriceTotal = (addFormData.extraWorkers || 0) * (selectedAddService?.extraWorkerPrice || 0);
-  const addUseMaterials = addFormData.useMaterials || selectedAddService?.materialsMandatory;
-  const addMaterialsPrice = addUseMaterials ? (selectedAddService?.materialPrice || 0) : 0;
+  const selectedAddCategoryService = selectedAddCategory?.categoryServices.find(cs => cs.id === addFormData.categoryServiceId);
+
+  let addBasePrice = 0;
+  let addExtraWorkerPriceTotal = 0;
+  let addUseMaterials = false;
+  let addMaterialsPrice = 0;
   let addProductsPrice = 0;
-  if (addFormData.productOrigin === 'LOCAL' || (selectedAddService?.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE'))) {
-    addProductsPrice = selectedAddService?.localProductPrice || 0;
-  } else if (addFormData.productOrigin === 'IMPORTED') {
-    addProductsPrice = selectedAddService?.importedProductPrice || 0;
+  let addFinalTotal = 0;
+
+  if (addFormType === 'service') {
+    const addSelectedHouse = selectedAddService?.houseConfigs.find(hc => hc.id === addFormData.houseConfigId);
+    addBasePrice = addSelectedHouse?.basePrice || 0;
+    addExtraWorkerPriceTotal = (addFormData.extraWorkers || 0) * (selectedAddService?.extraWorkerPrice || 0);
+    addUseMaterials = addFormData.useMaterials || selectedAddService?.materialsMandatory || false;
+    addMaterialsPrice = addUseMaterials ? (selectedAddService?.materialPrice || 0) : 0;
+    if (addFormData.productOrigin === 'LOCAL' || (selectedAddService?.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE'))) {
+      addProductsPrice = selectedAddService?.localProductPrice || 0;
+    } else if (addFormData.productOrigin === 'IMPORTED') {
+      addProductsPrice = selectedAddService?.importedProductPrice || 0;
+    }
+    addFinalTotal = addBasePrice + addExtraWorkerPriceTotal + addMaterialsPrice + addProductsPrice;
+  } else {
+    addBasePrice = selectedAddCategoryService?.basePrice || 0;
+    addExtraWorkerPriceTotal = 0;
+    addUseMaterials = addFormData.useMaterials || selectedAddCategory?.materialsMandatory || false;
+    addMaterialsPrice = addUseMaterials ? (selectedAddCategory?.materialPrice || 0) : 0;
+    if (addFormData.productOrigin === 'LOCAL' || (selectedAddCategory?.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE'))) {
+      addProductsPrice = selectedAddCategory?.localProductPrice || 0;
+    } else if (addFormData.productOrigin === 'IMPORTED') {
+      addProductsPrice = selectedAddCategory?.importedProductPrice || 0;
+    }
+    addFinalTotal = addBasePrice + addMaterialsPrice + addProductsPrice;
   }
-  const addFinalTotal = addBasePrice + addExtraWorkerPriceTotal + addMaterialsPrice + addProductsPrice;
+
+  // Dynamic cleaner availability check for Add modal
+  const getAddFormTempOrder = (): ApiOrder | null => {
+    if (!addFormData.scheduledDate) return null;
+    try {
+      const service = services.find(s => s.id === addFormData.serviceId);
+      const houseConfig = service?.houseConfigs.find(hc => hc.id === addFormData.houseConfigId);
+      const category = categories.find(c => c.id === addFormData.categoryId);
+      const categoryService = category?.categoryServices.find(cs => cs.id === addFormData.categoryServiceId);
+
+      return {
+        id: 'temp-add',
+        userId: '',
+        serviceId: addFormType === 'service' ? addFormData.serviceId : null,
+        houseConfigId: addFormType === 'service' ? addFormData.houseConfigId : null,
+        categoryId: addFormType === 'category' ? addFormData.categoryId : null,
+        categoryServiceId: addFormType === 'category' ? addFormData.categoryServiceId : null,
+        extraWorkers: addFormType === 'service' ? (addFormData.extraWorkers || 0) : 0,
+        useMaterials: addFormData.useMaterials,
+        productOrigin: addFormData.productOrigin as any,
+        scheduledDate: new Date(addFormData.scheduledDate).toISOString(),
+        address: addFormData.address,
+        latitude: addFormData.latitude,
+        longitude: addFormData.longitude,
+        totalPrice: 0,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        service: service || undefined,
+        houseConfig: houseConfig || undefined,
+        category: category || undefined,
+        categoryService: categoryService || undefined,
+        cleanerId: undefined
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const tempOrderForAdd = getAddFormTempOrder();
+  const addRequiredCount = tempOrderForAdd ? getRequiredCleanersCount(tempOrderForAdd) : 0;
+  const addAvailableCleanersCount = tempOrderForAdd ? getAvailableCleaners(tempOrderForAdd).length : 0;
+  const isAddCleanersShort = !!(tempOrderForAdd && addAvailableCleanersCount < addRequiredCount);
+  const addAvailableSlots = tempOrderForAdd ? getAvailableSlots(tempOrderForAdd, addRequiredCount) : [];
+  const addFormattedTime = tempOrderForAdd ? new Date(tempOrderForAdd.scheduledDate).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  const handleSelectSlotForAdd = (timeStr: string) => {
+    if (!addFormData.scheduledDate) return;
+    const datePart = addFormData.scheduledDate.split('T')[0];
+    setAddFormData(prev => ({
+      ...prev,
+      scheduledDate: `${datePart}T${timeStr}`
+    }));
+  };
+
+  const renderAddCleanerWarnings = () => {
+    if (!isAddCleanersShort) return null;
+    return (
+      <div className="space-y-4 mt-3">
+        <div className="border border-rose-100 bg-rose-50/40 p-5 rounded-2xl text-center text-rose-600 space-y-2">
+          <AlertCircle className="mx-auto" size={24} />
+          <p className="text-xs font-black uppercase tracking-wider">Créneau Impossible (Pas assez d'agents)</p>
+          <p className="text-[10px] font-bold text-rose-500">
+            Requis: {addRequiredCount} cleaner(s) • Disponibles: {addAvailableCleanersCount} à {addFormattedTime}.
+          </p>
+        </div>
+
+        {/* Alternative suggestions */}
+        <div className="space-y-2 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">
+            Créneaux alternatifs disponibles ce jour ({addRequiredCount} agents requis) :
+          </h4>
+          {addAvailableSlots.length === 0 ? (
+            <p className="text-[10px] font-bold text-slate-400 pl-1">
+              Aucun autre créneau disponible sur cette journée avec {addRequiredCount} agents libres.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2 pt-1.5">
+              {addAvailableSlots.map(timeStr => (
+                <button
+                  key={timeStr}
+                  type="button"
+                  onClick={() => handleSelectSlotForAdd(timeStr)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 hover:border-primary/50 text-slate-700 hover:text-primary rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
+                >
+                  {timeStr}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-10 font-gilmer max-w-7xl mx-auto">
@@ -276,7 +606,7 @@ export default function CommandsPage() {
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Bookings</p>
           <p className="text-3xl font-black text-slate-800 mt-2">{orders.length}</p>
         </div>
-        {(['PENDING','ASSIGNED','COMPLETED','CANCELLED'] as ApiOrder['status'][]).map(s => (
+        {(['PENDING','CONFIRMED','COMPLETED','CANCELLED'] as ApiOrder['status'][]).map(s => (
           <div key={s} className={`border p-6 rounded-3xl shadow-sm flex flex-col justify-between ${STATUS_STYLES[s].replace('text-', 'border-').split('border-')[1] ? '' : ''} bg-white border-slate-100`}>
             <p className={`text-[9px] font-black uppercase tracking-widest ${STATUS_STYLES[s].split(' ')[1]}`}>
               {STATUS_LABELS[s]}
@@ -285,6 +615,40 @@ export default function CommandsPage() {
             <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]} mt-2`} />
           </div>
         ))}
+      </div>
+
+      {/* ── Booking Type Tabs ────────────────────────────────────────────── */}
+      <div className="flex border-b border-slate-100 gap-4">
+        <button
+          onClick={() => setBookingTypeFilter('all')}
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer ${
+            bookingTypeFilter === 'all' 
+              ? 'text-primary border-primary' 
+              : 'text-slate-400 border-transparent hover:text-slate-600'
+          }`}
+        >
+          All Commands ({orders.length})
+        </button>
+        <button
+          onClick={() => setBookingTypeFilter('service')}
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer ${
+            bookingTypeFilter === 'service' 
+              ? 'text-primary border-primary' 
+              : 'text-slate-400 border-transparent hover:text-slate-600'
+          }`}
+        >
+          Service Commands ({orders.filter(o => o.serviceId).length})
+        </button>
+        <button
+          onClick={() => setBookingTypeFilter('category')}
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer ${
+            bookingTypeFilter === 'category' 
+              ? 'text-primary border-primary' 
+              : 'text-slate-400 border-transparent hover:text-slate-600'
+          }`}
+        >
+          Category Commands ({orders.filter(o => o.categoryId).length})
+        </button>
       </div>
 
       {/* ── Search & Filter ────────────────────────────────────────────────── */}
@@ -303,7 +667,7 @@ export default function CommandsPage() {
           {([
             { id: 'all', label: 'All Orders' },
             { id: 'PENDING', label: 'En Attente' },
-            { id: 'ASSIGNED', label: 'Assigned' },
+            { id: 'CONFIRMED', label: 'Confirmé' },
             { id: 'IN_PROGRESS', label: 'In Progress' },
             { id: 'COMPLETED', label: 'Completed' },
             { id: 'CANCELLED', label: 'Cancelled' },
@@ -414,17 +778,25 @@ export default function CommandsPage() {
 
                       {/* Service */}
                       <td className="py-5 max-w-[180px]">
-                        <span className="text-xs font-bold text-primary block leading-none">{order.service?.name ?? '—'}</span>
-                        <span className="text-[9px] text-slate-400 block mt-1 uppercase">
-                          {order.houseConfig?.type?.toUpperCase() ?? ''} • {order.productOrigin}
+                        <span className="text-xs font-bold text-primary block leading-none">
+                          {order.service?.name || order.category?.name || '—'}
                         </span>
+                        <span className="text-[9px] text-slate-400 block mt-1 uppercase">
+                          {order.houseConfig?.type?.toUpperCase() || order.categoryService?.name?.toUpperCase() || ''} • {order.productOrigin}
+                        </span>
+                        {order.cleanerId && (
+                          <span className="text-[9px] text-emerald-600 font-black block mt-1 uppercase tracking-wider">
+                            Cleaners: {getCleanerNames(order.cleanerId)}
+                          </span>
+                        )}
                       </td>
 
                       {/* Scheduled */}
                       <td className="py-5">
                         <span className="text-xs text-slate-700 block font-bold">{formatDate(order.scheduledDate)}</span>
+                        <span className="text-xs text-primary font-black block mt-0.5">{formatTime(order.scheduledDate)}</span>
                         <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                          {order.service?.durationHours ?? '?'}h clean
+                          {`${order.houseConfig?.durationHours ?? order.categoryService?.durationHours ?? order.service?.durationHours ?? 3}h clean`}
                         </span>
                       </td>
 
@@ -438,7 +810,16 @@ export default function CommandsPage() {
                         <div className="relative inline-block">
                           <select
                             value={order.status}
-                            onChange={e => handleUpdateStatus(order.id, e.target.value as ApiOrder['status'])}
+                            onChange={e => {
+                              const val = e.target.value as ApiOrder['status'];
+                              if (val === 'CONFIRMED') {
+                                setOrderToConfirm(order);
+                                setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
+                                setIsAssignModalOpen(true);
+                              } else {
+                                handleUpdateStatus(order.id, val);
+                              }
+                            }}
                             disabled={updatingId === order.id}
                             className={`pl-3 pr-8 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest outline-none border cursor-pointer appearance-none disabled:opacity-60 ${STATUS_STYLES[order.status]}`}
                           >
@@ -575,23 +956,46 @@ export default function CommandsPage() {
                     <Wrench size={12} /> Service Details
                   </h3>
                   <div className="divide-y divide-slate-100 text-xs font-semibold">
-                    {[
-                      ['Service', selectedOrder.service?.name ?? '—'],
-                      ['House Config', `${selectedOrder.houseConfig?.type?.toUpperCase() ?? '—'} (${selectedOrder.houseConfig?.workers ?? '?'} workers)`],
-                      ['Extra Workers', selectedOrder.extraWorkers > 0 ? `+${selectedOrder.extraWorkers}` : 'None'],
-                      ['Materials', selectedOrder.useMaterials ? 'Nadif materials included' : 'Client provides'],
-                      ['Products', selectedOrder.productOrigin === 'NONE' ? 'Client own' : `Nadif ${selectedOrder.productOrigin.toLowerCase()}`],
-                      ['Duration', `${selectedOrder.service?.durationHours ?? '?'}h`],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between py-2">
-                        <span className="text-slate-400">{label}:</span>
-                        <span className="text-slate-800 font-bold">{value}</span>
-                      </div>
-                    ))}
+                    {selectedOrder.serviceId ? (
+                      [
+                        ['Type', 'Service Booking'],
+                        ['Service', selectedOrder.service?.name ?? '—'],
+                        ['House Config', `${selectedOrder.houseConfig?.type?.toUpperCase() ?? '—'} (${selectedOrder.houseConfig?.workers ?? '?'} workers)`],
+                        ['Extra Workers', selectedOrder.extraWorkers > 0 ? `+${selectedOrder.extraWorkers}` : 'None'],
+                        ['Materials', selectedOrder.useMaterials ? 'Nadif materials included' : 'Client provides'],
+                        ['Products', selectedOrder.productOrigin === 'NONE' ? 'Client own' : `Nadif ${selectedOrder.productOrigin.toLowerCase()}`],
+                        ['Duration', `${selectedOrder.houseConfig?.durationHours ?? selectedOrder.service?.durationHours ?? '?'}h`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="flex justify-between py-2">
+                          <span className="text-slate-400">{label}:</span>
+                          <span className="text-slate-800 font-bold">{value}</span>
+                        </div>
+                      ))
+                    ) : (
+                      [
+                        ['Type', 'Category Booking'],
+                        ['Category', selectedOrder.category?.name ?? '—'],
+                        ['Category Config', `${selectedOrder.categoryService?.name ?? '—'} (${selectedOrder.categoryService?.workers ?? '?'} workers)`],
+                        ['Materials', selectedOrder.useMaterials ? 'Nadif materials included' : 'Client provides'],
+                        ['Products', selectedOrder.productOrigin === 'NONE' ? 'Client own' : `Nadif ${selectedOrder.productOrigin.toLowerCase()}`],
+                        ['Duration', `${selectedOrder.categoryService?.durationHours ?? '?'}h`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="flex justify-between py-2">
+                          <span className="text-slate-400">{label}:</span>
+                          <span className="text-slate-800 font-bold">{value}</span>
+                        </div>
+                      ))
+                    )}
                     {selectedOrder.promo && (
                       <div className="flex justify-between py-2">
                         <span className="text-slate-400">Promo Code:</span>
                         <span className="text-emerald-600 font-bold">{selectedOrder.promo.code} (−{selectedOrder.promo.discountPercent}%)</span>
+                      </div>
+                    )}
+                    {selectedOrder.cleanerId && (
+                      <div className="flex justify-between py-2">
+                        <span className="text-slate-400">Cleaners Assignés:</span>
+                        <span className="text-slate-800 font-bold">{getCleanerNames(selectedOrder.cleanerId)}</span>
                       </div>
                     )}
                     <div className="flex justify-between py-2 border-t border-slate-200 pt-3">
@@ -608,7 +1012,15 @@ export default function CommandsPage() {
                     {(Object.keys(STATUS_LABELS) as ApiOrder['status'][]).map(s => (
                       <button
                         key={s}
-                        onClick={() => handleUpdateStatus(selectedOrder.id, s)}
+                        onClick={() => {
+                          if (s === 'CONFIRMED') {
+                            setOrderToConfirm(selectedOrder);
+                            setSelectedCleanerIds(selectedOrder.cleanerId ? selectedOrder.cleanerId.split(',') : []);
+                            setIsAssignModalOpen(true);
+                          } else {
+                            handleUpdateStatus(selectedOrder.id, s);
+                          }
+                        }}
                         disabled={updatingId === selectedOrder.id}
                         className={`py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 disabled:opacity-50 ${
                           selectedOrder.status === s
@@ -617,7 +1029,7 @@ export default function CommandsPage() {
                         }`}
                       >
                         {s === 'PENDING' && <Clock3 size={14} />}
-                        {s === 'ASSIGNED' && <Sparkles size={14} />}
+                        {s === 'CONFIRMED' && <Sparkles size={14} />}
                         {s === 'IN_PROGRESS' && <Wrench size={14} />}
                         {s === 'COMPLETED' && <CheckCircle size={14} />}
                         {s === 'CANCELLED' && <XCircle size={14} />}
@@ -698,6 +1110,177 @@ export default function CommandsPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Assign Cleaner Modal ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isAssignModalOpen && orderToConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsAssignModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-[500px] bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="h-2 bg-gradient-to-r from-blue-500 to-indigo-500 shrink-0" />
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 border border-slate-100 transition-all cursor-pointer z-20"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="p-8 space-y-6">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                    Confirmation de Commande
+                  </span>
+                  <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                    Assigner un Cleaner
+                  </h2>
+                  <p className="text-xs text-slate-400 font-bold">
+                    Sélectionnez un agent disponible pour le {formatDate(orderToConfirm.scheduledDate)} à {formatTime(orderToConfirm.scheduledDate)}.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">
+                      Cleaners Disponibles
+                    </label>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-wider">
+                      {selectedCleanerIds.length} / {getRequiredCleanersCount(orderToConfirm)} Sélectionné(s)
+                    </span>
+                  </div>
+                  
+                  {(() => {
+                    const requiredCount = getRequiredCleanersCount(orderToConfirm);
+                    const availableCleaners = getAvailableCleaners(orderToConfirm);
+                    
+                    if (availableCleaners.length < requiredCount) {
+                      return (
+                        <div className="space-y-4">
+                          <div className="border border-rose-100 bg-rose-50/40 p-5 rounded-2xl text-center text-rose-600 space-y-2">
+                            <AlertCircle className="mx-auto" size={24} />
+                            <p className="text-xs font-black uppercase tracking-wider">Créneau Impossible (Pas assez d'agents)</p>
+                            <p className="text-[10px] font-bold text-rose-500">
+                              Requis: {requiredCount} cleaner(s) • Disponibles: {availableCleaners.length} à {new Date(orderToConfirm.scheduledDate).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}.
+                            </p>
+                          </div>
+
+                          {/* Alternative suggestions */}
+                          <div className="space-y-2 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">
+                              Créneaux alternatifs disponibles ce jour ({requiredCount} agents requis) :
+                            </h4>
+                            {getAvailableSlots(orderToConfirm, requiredCount).length === 0 ? (
+                              <p className="text-[10px] font-bold text-slate-400 pl-1">
+                                Aucun autre créneau disponible sur cette journée avec {requiredCount} agents libres.
+                              </p>
+                            ) : (
+                              <div className="flex flex-wrap gap-2 pt-1.5">
+                                {getAvailableSlots(orderToConfirm, requiredCount).map(timeStr => (
+                                  <button
+                                    key={timeStr}
+                                    type="button"
+                                    onClick={() => handleSelectSlot(orderToConfirm, timeStr)}
+                                    className="px-3 py-1.5 bg-white border border-slate-200 hover:border-primary/50 text-slate-700 hover:text-primary rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
+                                  >
+                                    {timeStr}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                        {availableCleaners.map(cleaner => {
+                          const isSelected = selectedCleanerIds.includes(cleaner.id);
+                          const serviceName = orderToConfirm.service?.name || orderToConfirm.category?.name || '';
+                          const hasMatchingSkill = cleaner.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+
+                          return (
+                            <button
+                              key={cleaner.id}
+                              type="button"
+                              onClick={() => {
+                                const isSel = selectedCleanerIds.includes(cleaner.id);
+                                const reqCount = getRequiredCleanersCount(orderToConfirm);
+                                if (isSel) {
+                                  setSelectedCleanerIds(prev => prev.filter(id => id !== cleaner.id));
+                                } else {
+                                  if (reqCount === 1) {
+                                    setSelectedCleanerIds([cleaner.id]);
+                                  } else if (selectedCleanerIds.length < reqCount) {
+                                    setSelectedCleanerIds(prev => [...prev, cleaner.id]);
+                                  } else {
+                                    alert(`Vous ne pouvez pas sélectionner plus de ${reqCount} cleaner(s).`);
+                                  }
+                                }
+                              }}
+                              className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
+                                isSelected
+                                  ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
+                                  : 'bg-slate-50/60 border-slate-100 hover:border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-xs font-black uppercase tracking-tight">
+                                  {cleaner.fullName}
+                                </span>
+                                {hasMatchingSkill && (
+                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                                    isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                                  }`}>
+                                    Compétence Validée
+                                  </span>
+                                )}
+                              </div>
+                              <div className={`text-[9px] font-bold leading-relaxed ${isSelected ? 'text-white/80' : 'text-slate-400'}`}>
+                                Tél: {cleaner.phone} • {cleaner.skills.length > 0 ? `Skills: ${cleaner.skills.join(', ')}` : 'Aucun skill spécifié'}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignModalOpen(false)}
+                    className="flex-1 py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-wider text-[10px] transition-all cursor-pointer border border-slate-100"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selectedCleanerIds.length !== getRequiredCleanersCount(orderToConfirm) || updatingId === orderToConfirm.id}
+                    onClick={handleConfirmAndAssign}
+                    className="flex-1 py-3.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                  >
+                    {updatingId === orderToConfirm.id ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      'Confirmer & Assigner'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Add Command Modal ──────────────────────────────────────────── */}
       <AnimatePresence>
         {isAddModalOpen && (
@@ -758,88 +1341,190 @@ export default function CommandsPage() {
                             type="tel" 
                             required 
                             value={addFormData.phone}
-                            onChange={e => setAddFormData(prev => ({ ...prev, phone: e.target.value }))}
+                            onChange={e => setAddFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                            placeholder="e.g. 0555 12 34 56"
+                            placeholder="e.g. 0555123456"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Service Package */}
+                    {/* Command Booking Type Switcher */}
                     <div className="space-y-4 pt-6 border-t border-slate-100">
-                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Service Package</h4>
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Service Type</label>
-                          <select 
-                            required 
-                            value={addFormData.serviceId}
-                            onChange={e => setAddFormData(prev => ({ ...prev, serviceId: e.target.value, houseConfigId: '' }))}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          >
-                            <option value="">Select Service...</option>
-                            {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Layout</label>
-                          <select 
-                            required 
-                            value={addFormData.houseConfigId}
-                            onChange={e => setAddFormData(prev => ({ ...prev, houseConfigId: e.target.value }))}
-                            disabled={!selectedAddService}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
-                          >
-                            <option value="">Select Layout...</option>
-                            {selectedAddService?.houseConfigs.map((hc: any) => (
-                              <option key={hc.id} value={hc.id}>{hc.type} - {hc.basePrice} DA</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Scheduled Date</label>
-                          <input 
-                            type="datetime-local" 
-                            required 
-                            value={addFormData.scheduledDate}
-                            onChange={e => setAddFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          />
-                        </div>
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Booking Type</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddFormType('service');
+                            setAddFormData(prev => ({ ...prev, categoryId: null, categoryServiceId: null }));
+                          }}
+                          className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
+                            addFormType === 'service' ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                          }`}
+                        >
+                          Service Package
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddFormType('category');
+                            setAddFormData(prev => ({ ...prev, serviceId: null, houseConfigId: null }));
+                          }}
+                          className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
+                            addFormType === 'category' ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                          }`}
+                        >
+                          Category Layout
+                        </button>
                       </div>
                     </div>
+
+                    {/* Service Package */}
+                    {addFormType === 'service' ? (
+                      <div className="space-y-4 pt-6 border-t border-slate-100">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Service Package Details</h4>
+                        <div className="space-y-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Service Type</label>
+                            <select 
+                              required 
+                              value={addFormData.serviceId || ''}
+                              onChange={e => setAddFormData(prev => ({ ...prev, serviceId: e.target.value, houseConfigId: '' }))}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            >
+                              <option value="">Select Service...</option>
+                              {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Layout</label>
+                            <select 
+                              required 
+                              value={addFormData.houseConfigId || ''}
+                              onChange={e => setAddFormData(prev => ({ ...prev, houseConfigId: e.target.value }))}
+                              disabled={!selectedAddService}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+                            >
+                              <option value="">Select Layout...</option>
+                              {selectedAddService?.houseConfigs.map((hc: any) => (
+                                <option key={hc.id} value={hc.id}>{hc.type} - {hc.basePrice} DA</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Scheduled Date</label>
+                            <input 
+                              type="datetime-local" 
+                              required 
+                              value={addFormData.scheduledDate}
+                              onChange={e => setAddFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                              className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${
+                                isDateLocked(addFormData.scheduledDate) || isAddCleanersShort
+                                  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/10'
+                                  : 'border-slate-200 focus:border-primary focus:ring-primary'
+                              }`}
+                            />
+                            {isDateLocked(addFormData.scheduledDate) && (
+                              <p className="text-[10px] text-rose-500 font-bold mt-1">
+                                ⚠️ Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour.
+                              </p>
+                            )}
+                            {renderAddCleanerWarnings()}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 pt-6 border-t border-slate-100">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Category Layout Details</h4>
+                        <div className="space-y-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Category</label>
+                            <select 
+                              required 
+                              value={addFormData.categoryId || ''}
+                              onChange={e => setAddFormData(prev => ({ ...prev, categoryId: e.target.value, categoryServiceId: '' }))}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                            >
+                              <option value="">Select Category...</option>
+                              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Category Service Layout</label>
+                            <select 
+                              required 
+                              value={addFormData.categoryServiceId || ''}
+                              onChange={e => setAddFormData(prev => ({ ...prev, categoryServiceId: e.target.value }))}
+                              disabled={!selectedAddCategory}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+                            >
+                              <option value="">Select Layout...</option>
+                              {selectedAddCategory?.categoryServices.map((cs: any) => (
+                                <option key={cs.id} value={cs.id}>{cs.name} - {cs.basePrice} DA</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Scheduled Date</label>
+                            <input 
+                              type="datetime-local" 
+                              required 
+                              value={addFormData.scheduledDate}
+                              onChange={e => setAddFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                              className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${
+                                isDateLocked(addFormData.scheduledDate) || isAddCleanersShort
+                                  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/10'
+                                  : 'border-slate-200 focus:border-primary focus:ring-primary'
+                              }`}
+                            />
+                            {isDateLocked(addFormData.scheduledDate) && (
+                              <p className="text-[10px] text-rose-500 font-bold mt-1">
+                                ⚠️ Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour.
+                              </p>
+                            )}
+                            {renderAddCleanerWarnings()}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Customization */}
                     <div className="space-y-4 pt-6 border-t border-slate-100">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Service Configuration</h4>
                       <div className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Extra Workers</label>
-                          <div className="flex items-center gap-3 w-full bg-slate-50 border border-slate-200 rounded-xl p-1">
-                            <button type="button" onClick={() => setAddFormData(prev => ({ ...prev, extraWorkers: Math.max(0, prev.extraWorkers - 1) }))} className="flex-1 h-10 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center font-bold cursor-pointer text-slate-500 hover:text-slate-800 transition-colors">-</button>
-                            <div className="flex-1 text-center font-black text-lg text-primary">{addFormData.extraWorkers}</div>
-                            <button type="button" onClick={() => setAddFormData(prev => ({ ...prev, extraWorkers: prev.extraWorkers + 1 }))} className="flex-1 h-10 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center font-bold cursor-pointer text-slate-500 hover:text-slate-800 transition-colors">+</button>
+                        {addFormType === 'service' && (
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Extra Workers</label>
+                            <div className="flex items-center gap-3 w-full bg-slate-50 border border-slate-200 rounded-xl p-1">
+                              <button type="button" onClick={() => setAddFormData(prev => ({ ...prev, extraWorkers: Math.max(0, prev.extraWorkers - 1) }))} className="flex-1 h-10 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center font-bold cursor-pointer text-slate-500 hover:text-slate-800 transition-colors">-</button>
+                              <div className="flex-1 text-center font-black text-lg text-primary">{addFormData.extraWorkers}</div>
+                              <button type="button" onClick={() => setAddFormData(prev => ({ ...prev, extraWorkers: prev.extraWorkers + 1 }))} className="flex-1 h-10 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center font-bold cursor-pointer text-slate-500 hover:text-slate-800 transition-colors">+</button>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
+                        {/* Materials */}
                         <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                          selectedAddService?.materialsMandatory ? 'border-primary/30 bg-primary/5 text-slate-800' : 'border-slate-200 bg-slate-50 text-slate-800'
+                          (addFormType === 'service' ? selectedAddService?.materialsMandatory : selectedAddCategory?.materialsMandatory)
+                            ? 'border-primary/30 bg-primary/5 text-slate-800' 
+                            : 'border-slate-200 bg-slate-50 text-slate-800'
                         }`}>
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF MATERIALS</p>
                               <p className="text-xs font-bold mt-1">Use our clean equipment</p>
-                              {selectedAddService && <p className="text-[9px] font-bold text-primary mt-0.5">+{selectedAddService.materialPrice} DA</p>}
+                              {addFormType === 'service' && selectedAddService && <p className="text-[9px] font-bold text-primary mt-0.5">+{selectedAddService.materialPrice} DA</p>}
+                              {addFormType === 'category' && selectedAddCategory && <p className="text-[9px] font-bold text-primary mt-0.5">+{selectedAddCategory.materialPrice} DA</p>}
                             </div>
-                            {selectedAddService?.materialsMandatory ? (
+                            {(addFormType === 'service' ? selectedAddService?.materialsMandatory : selectedAddCategory?.materialsMandatory) ? (
                               <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
                                 <Lock size={8} /> Forced
                               </div>
                             ) : (
                               <button 
                                 type="button"
-                                disabled={!selectedAddService}
+                                disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                                 onClick={() => setAddFormData(prev => ({ ...prev, useMaterials: !prev.useMaterials }))}
                                 className={`w-10 h-6 rounded-full p-0.5 transition-colors cursor-pointer shadow-inner disabled:opacity-50 ${addFormData.useMaterials ? 'bg-primary' : 'bg-slate-300'}`}
                               >
@@ -849,25 +1534,28 @@ export default function CommandsPage() {
                           </div>
                         </div>
 
+                        {/* Products */}
                         <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                          selectedAddService?.productsMandatory ? 'border-primary/30 bg-primary/5 text-slate-800' : 'border-slate-200 bg-slate-50 text-slate-800'
+                          (addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory)
+                            ? 'border-primary/30 bg-primary/5 text-slate-800' 
+                            : 'border-slate-200 bg-slate-50 text-slate-800'
                         }`}>
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF PRODUCTS</p>
                               <p className="text-xs font-bold mt-1 font-inter">Chemical Products Source</p>
                             </div>
-                            {selectedAddService?.productsMandatory && (
+                            {(addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) && (
                               <div className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
                                 <Lock size={8} /> Forced
                               </div>
                             )}
                           </div>
                           <div className="grid grid-cols-3 gap-1 mt-3">
-                            {!selectedAddService?.productsMandatory && (
+                            {!(addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) && (
                               <button
                                 type="button"
-                                disabled={!selectedAddService}
+                                disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                                 onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'NONE' }))}
                                 className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
                                   addFormData.productOrigin === 'NONE' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
@@ -879,33 +1567,36 @@ export default function CommandsPage() {
                             )}
                             <button
                               type="button"
-                              disabled={!selectedAddService}
+                              disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                               onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }))}
                               className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
-                                selectedAddService?.productsMandatory ? 'col-span-1.5' : ''
+                                (addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) ? 'col-span-1.5' : ''
                               } ${
-                                (addFormData.productOrigin === 'LOCAL' || (selectedAddService?.productsMandatory && addFormData.productOrigin === 'NONE'))
+                                (addFormData.productOrigin === 'LOCAL' || ((addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) && addFormData.productOrigin === 'NONE'))
                                   ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
                               }`}
                             >
                               <span className="block">Local</span>
-                              {selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.localProductPrice} DA)</span>}
+                              {addFormType === 'service' && selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.localProductPrice} DA)</span>}
+                              {addFormType === 'category' && selectedAddCategory && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddCategory.localProductPrice} DA)</span>}
                             </button>
                             <button
                               type="button"
-                              disabled={!selectedAddService}
+                              disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                               onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'IMPORTED' }))}
                               className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
-                                selectedAddService?.productsMandatory ? 'col-span-1.5' : ''
+                                (addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) ? 'col-span-1.5' : ''
                               } ${
                                 addFormData.productOrigin === 'IMPORTED' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
                               }`}
                             >
                               <span className="block">Imported</span>
-                              {selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.importedProductPrice} DA)</span>}
+                              {addFormType === 'service' && selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.importedProductPrice} DA)</span>}
+                              {addFormType === 'category' && selectedAddCategory && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddCategory.importedProductPrice} DA)</span>}
                             </button>
                           </div>
                         </div>
+
                       </div>
                     </div>
 
@@ -945,26 +1636,41 @@ export default function CommandsPage() {
                         </h4>
                         
                         <div className="space-y-3 font-semibold text-xs text-slate-600">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Layout Base Rate ({addSelectedHouse?.type.toUpperCase() || '-'}):</span>
-                            <span className="text-slate-800">{addSelectedHouse?.basePrice || 0} DA</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Default Labor:</span>
-                            <span className="text-slate-800">{addSelectedHouse?.workers || 0} Workers</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Extra Labor Added:</span>
-                            <span className="text-primary">+{addFormData.extraWorkers || 0} Worker(s)</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Extra Labor Price:</span>
-                            <span className="text-slate-800">{addExtraWorkerPriceTotal} DA</span>
-                          </div>
+                          {addFormType === 'service' ? (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Layout Base Rate ({selectedAddService?.houseConfigs.find((hc: any) => hc.id === addFormData.houseConfigId)?.type.toUpperCase() || '-'}):</span>
+                                <span className="text-slate-800">{addBasePrice} DA</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Default Labor:</span>
+                                <span className="text-slate-800">{selectedAddService?.houseConfigs.find((hc: any) => hc.id === addFormData.houseConfigId)?.workers || 0} Workers</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Extra Labor Added:</span>
+                                <span className="text-primary">+{addFormData.extraWorkers || 0} Worker(s)</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Extra Labor Price:</span>
+                                <span className="text-slate-800">{addExtraWorkerPriceTotal} DA</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Category Layout Base Rate ({selectedAddCategoryService?.name || '-'}):</span>
+                                <span className="text-slate-800">{addBasePrice} DA</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Labor:</span>
+                                <span className="text-slate-800">{selectedAddCategoryService?.workers || 0} Workers</span>
+                              </div>
+                            </>
+                          )}
                           <div className="flex justify-between border-t border-slate-200 pt-2">
                             <span className="text-slate-500">Nadif Materials:</span>
                             <span className={addUseMaterials ? 'text-primary' : 'text-slate-400'}>
-                              {addUseMaterials ? `+${selectedAddService?.materialPrice || 0} DA` : 'Excluded'}
+                              {addUseMaterials ? `+${addMaterialsPrice} DA` : 'Excluded'}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -990,7 +1696,8 @@ export default function CommandsPage() {
                         <button 
                           form="add-command-form"
                           type="submit"
-                          className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer"
+                          disabled={isDateLocked(addFormData.scheduledDate) || isAddCleanersShort}
+                          className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Plus size={16} /> Create Order
                         </button>

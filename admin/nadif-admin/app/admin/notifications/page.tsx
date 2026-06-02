@@ -248,7 +248,7 @@ export default function NotificationsPage() {
                     required
                     placeholder="e.g. 0555667788"
                     value={notificationForm.specificClientPhone}
-                    onChange={(e) => handleInputChange('specificClientPhone', e.target.value)}
+                    onChange={(e) => handleInputChange('specificClientPhone', e.target.value.replace(/\D/g, ''))}
                     className="w-full px-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl text-xs font-bold text-slate-800 focus:bg-white focus:border-primary/20 outline-none transition-all font-mono"
                   />
                 </div>

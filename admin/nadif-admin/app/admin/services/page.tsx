@@ -66,6 +66,8 @@ export default function ServicesPage() {
   const [newHouseType, setNewHouseType] = useState('');
   const [newHouseWorkers, setNewHouseWorkers] = useState<number>(3);
   const [newHouseBasePrice, setNewHouseBasePrice] = useState<number>(3000);
+  const [newHouseDuration, setNewHouseDuration] = useState<number>(3);
+  const [editingHouseType, setEditingHouseType] = useState<string | null>(null);
 
   const [formError, setFormError] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -143,13 +145,15 @@ export default function ServicesPage() {
     
     setIsActive(true);
     setHouseConfigs([
-      { type: 'f2', workers: 3, basePrice: 3000 },
-      { type: 'f3', workers: 4, basePrice: 4000 },
-      { type: 'f4', workers: 5, basePrice: 5000 }
+      { type: 'f2', workers: 3, basePrice: 3000, durationHours: 3 },
+      { type: 'f3', workers: 4, basePrice: 4000, durationHours: 3 },
+      { type: 'f4', workers: 5, basePrice: 5000, durationHours: 3 }
     ]);
     setNewHouseType('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
+    setNewHouseDuration(3);
+    setEditingHouseType(null);
     setFormError('');
     setIsFormModalOpen(true);
   };
@@ -175,6 +179,8 @@ export default function ServicesPage() {
     setNewHouseType('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
+    setNewHouseDuration(3);
+    setEditingHouseType(null);
     setFormError('');
     setIsFormModalOpen(true);
   };
@@ -215,31 +221,60 @@ export default function ServicesPage() {
     if (file) processFile(file);
   };
 
-  // House configs adding inside modal sub-form
+  // House configs adding/editing inside modal sub-form
+  const handleEditHouseConfig = (config: any) => {
+    setNewHouseType(config.type);
+    setNewHouseWorkers(config.workers);
+    setNewHouseBasePrice(config.basePrice);
+    setNewHouseDuration(config.durationHours ?? 3);
+    setEditingHouseType(config.type);
+  };
+
   const handleAddHouseConfig = () => {
     const typeCleaned = newHouseType.trim().toLowerCase();
     if (!typeCleaned) return;
-
-    if (houseConfigs.some((config: any) => config.type === typeCleaned)) {
-      setFormError(`Configuration for '${typeCleaned}' already exists.`);
-      return;
-    }
 
     if (newHouseBasePrice <= 0) {
       setFormError(`Base price must be a positive rate.`);
       return;
     }
 
-    setHouseConfigs(prev => [...prev, { type: typeCleaned, workers: newHouseWorkers, basePrice: newHouseBasePrice }]);
+    if (editingHouseType) {
+      if (editingHouseType !== typeCleaned && houseConfigs.some((config: any) => config.type === typeCleaned)) {
+        setFormError(`Configuration for '${typeCleaned}' already exists.`);
+        return;
+      }
+      setHouseConfigs(prev => prev.map((config: any) => 
+        config.type === editingHouseType 
+          ? { ...config, type: typeCleaned, workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration } 
+          : config
+      ));
+      setEditingHouseType(null);
+    } else {
+      if (houseConfigs.some((config: any) => config.type === typeCleaned)) {
+        setFormError(`Configuration for '${typeCleaned}' already exists.`);
+        return;
+      }
+      setHouseConfigs(prev => [...prev, { type: typeCleaned, workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration }]);
+    }
+
     setNewHouseType('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
+    setNewHouseDuration(3);
     setFormError('');
   };
 
   // House configs removal inside modal sub-form
   const handleRemoveHouseConfig = (type: string) => {
     setHouseConfigs(prev => prev.filter((c: any) => c.type !== type));
+    if (editingHouseType === type) {
+      setEditingHouseType(null);
+      setNewHouseType('');
+      setNewHouseWorkers(3);
+      setNewHouseBasePrice(3000);
+      setNewHouseDuration(3);
+    }
   };
 
   // Submit Save or Create
@@ -305,8 +340,6 @@ export default function ServicesPage() {
     } catch (err: any) {
       setFormError(err.message || 'Failed to save service');
     }
-
-    setIsFormModalOpen(false);
   };
 
   // Delete handlers
@@ -533,7 +566,7 @@ export default function ServicesPage() {
                   >
                     {selectedSimService.houseConfigs.map((config: HouseConfig) => (
                       <option key={config.type} value={config.type} className="bg-slate-900 text-white font-bold">
-                        {config.type.toUpperCase()} layout (Default: {config.workers} workers, Base: {config.basePrice} DA)
+                        {config.type.toUpperCase()} layout (Default: {config.workers} workers, Base: {config.basePrice} DA, Duration: {config.durationHours}h)
                       </option>
                     ))}
                   </select>
@@ -814,6 +847,14 @@ export default function ServicesPage() {
                 {searchQuery ? "No matching services. Try modifying your search criteria." : "Define your first service structure to publish offerings immediately."}
               </p>
             </div>
+            {!searchQuery && (
+              <button 
+                onClick={handleOpenCreate}
+                className="px-6 py-4 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-lg mx-auto block mt-4"
+              >
+                Add New Service
+              </button>
+            )}
           </div>
         ) : viewMode === 'grid' ? (
           /* Grid View */
@@ -871,7 +912,7 @@ export default function ServicesPage() {
                       <div className="flex flex-wrap gap-2">
                         {service.houseConfigs.map((config: HouseConfig) => (
                           <span key={config.type} className="px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[9px] font-bold text-slate-500 uppercase">
-                            {config.type}: <strong className="text-slate-800">{config.basePrice} DA</strong> ({config.workers}W)
+                            {config.type}: <strong className="text-slate-800">{config.basePrice} DA</strong> ({config.workers}W, {config.durationHours}h)
                           </span>
                         ))}
                       </div>
@@ -978,7 +1019,7 @@ export default function ServicesPage() {
                           <div className="flex flex-wrap gap-1 max-w-[180px]">
                             {service.houseConfigs.map((c: HouseConfig) => (
                               <span key={c.type} className="px-1.5 py-0.5 bg-slate-100 text-[8px] font-black text-slate-600 rounded uppercase">
-                                {c.type}: {c.basePrice} DA ({c.workers}W)
+                                {c.type}: {c.basePrice} DA ({c.workers}W, {c.durationHours}h)
                               </span>
                             ))}
                           </div>
@@ -1416,10 +1457,18 @@ export default function ServicesPage() {
                           <div key={config.type} className="flex justify-between items-center py-3 text-xs">
                             <div>
                               <span className="font-black uppercase text-slate-800">{config.type} Layout</span>
-                              <span className="text-[9px] text-slate-400 font-bold ml-2">({config.workers} Workers)</span>
+                              <span className="text-[9px] text-slate-400 font-bold ml-2">({config.workers} Workers, {config.durationHours ?? 3}h)</span>
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="font-black text-primary">{config.basePrice} DA Base</span>
+                              <button 
+                                type="button"
+                                onClick={() => handleEditHouseConfig(config)}
+                                className="text-blue-500 hover:text-blue-700 p-1 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                                title="Edit config"
+                              >
+                                <Edit2 size={14} />
+                              </button>
                               <button 
                                 type="button"
                                 onClick={() => handleRemoveHouseConfig(config.type)}
@@ -1436,7 +1485,7 @@ export default function ServicesPage() {
 
                     {/* Add layout controls */}
                     <div className="space-y-2">
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         <div className="space-y-1">
                           <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Layout</label>
                           <input 
@@ -1467,13 +1516,23 @@ export default function ServicesPage() {
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-center"
                           />
                         </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Duration (H)</label>
+                          <input 
+                            type="number"
+                            placeholder="Hours"
+                            value={newHouseDuration || ''}
+                            onChange={(e) => setNewHouseDuration(Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-center"
+                          />
+                        </div>
                       </div>
                       <button
                         type="button"
                         onClick={handleAddHouseConfig}
                         className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold uppercase transition-all cursor-pointer mt-1"
                       >
-                        Add Layout Configuration
+                        {editingHouseType ? 'Update Layout Configuration' : 'Add Layout Configuration'}
                       </button>
                     </div>
                   </div>
