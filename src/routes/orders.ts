@@ -16,6 +16,8 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
   const {
     serviceId,
     houseConfigId,
+    categoryId,
+    categoryServiceId,
     promoCode,
     extraWorkers,
     useMaterials,
@@ -26,55 +28,93 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
     longitude
   } = req.body;
 
-  if (!serviceId || !houseConfigId || !scheduledDate || !address) {
+  if ((!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate || !address) {
     res.status(400).json({ error: 'Missing required fields' });
     return;
   }
 
   try {
-    // 1. Fetch service and house config
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      include: { houseConfigs: true }
-    });
-
-    if (!service) {
-      res.status(404).json({ error: 'Service not found' });
-      return;
-    }
-
-    const houseConfig = service.houseConfigs.find(hc => hc.id === houseConfigId);
-    if (!houseConfig) {
-      res.status(404).json({ error: 'House config not found for this service' });
-      return;
-    }
-
-    // 2. Compute dynamic base price
-    const basePrice = houseConfig.basePrice;
-    
-    // Extra workers cost
+    let calculatedTotal = 0;
+    let basePrice = 0;
     const workersCount = extraWorkers ? parseInt(extraWorkers.toString()) : 0;
-    const extraWorkersPrice = workersCount * service.extraWorkerPrice;
-
-    // Materials cost
-    const materialsFlag = useMaterials === true || service.materialsMandatory;
-    const materialsPrice = materialsFlag ? service.materialPrice : 0;
-
-    // Products cost
-    let productsPrice = 0;
+    let extraWorkersPrice = 0;
+    let materialsFlag = false;
+    let materialsPrice = 0;
     const origin = (productOrigin as ProductOrigin) || ProductOrigin.NONE;
-    if (service.productsMandatory && origin === ProductOrigin.NONE) {
-      res.status(400).json({ error: 'Product origin selection is mandatory for this service' });
-      return;
-    }
+    let productsPrice = 0;
 
-    if (origin === ProductOrigin.LOCAL) {
-      productsPrice = service.localProductPrice;
-    } else if (origin === ProductOrigin.IMPORTED) {
-      productsPrice = service.importedProductPrice;
-    }
+    if (serviceId && houseConfigId) {
+      // 1. Fetch service and house config
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+        include: { houseConfigs: true }
+      });
 
-    let calculatedTotal = basePrice + extraWorkersPrice + materialsPrice + productsPrice;
+      if (!service) {
+        res.status(404).json({ error: 'Service not found' });
+        return;
+      }
+
+      const houseConfig = service.houseConfigs.find(hc => hc.id === houseConfigId);
+      if (!houseConfig) {
+        res.status(404).json({ error: 'House config not found for this service' });
+        return;
+      }
+
+      // 2. Compute dynamic base price
+      basePrice = houseConfig.basePrice;
+      extraWorkersPrice = workersCount * service.extraWorkerPrice;
+      materialsFlag = useMaterials === true || service.materialsMandatory;
+      materialsPrice = materialsFlag ? service.materialPrice : 0;
+
+      if (service.productsMandatory && origin === ProductOrigin.NONE) {
+        res.status(400).json({ error: 'Product origin selection is mandatory for this service' });
+        return;
+      }
+
+      if (origin === ProductOrigin.LOCAL) {
+        productsPrice = service.localProductPrice;
+      } else if (origin === ProductOrigin.IMPORTED) {
+        productsPrice = service.importedProductPrice;
+      }
+
+      calculatedTotal = basePrice + extraWorkersPrice + materialsPrice + productsPrice;
+    } else if (categoryId && categoryServiceId) {
+      // 1. Fetch category and category service
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        include: { categoryServices: true }
+      });
+
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      const categoryService = category.categoryServices.find(cs => cs.id === categoryServiceId);
+      if (!categoryService) {
+        res.status(404).json({ error: 'Category service not found' });
+        return;
+      }
+
+      // 2. Compute category base price
+      basePrice = categoryService.basePrice;
+      materialsFlag = useMaterials === true || category.materialsMandatory;
+      materialsPrice = materialsFlag ? category.materialPrice : 0;
+
+      if (category.productsMandatory && origin === ProductOrigin.NONE) {
+        res.status(400).json({ error: 'Product origin selection is mandatory for this category' });
+        return;
+      }
+
+      if (origin === ProductOrigin.LOCAL) {
+        productsPrice = category.localProductPrice;
+      } else if (origin === ProductOrigin.IMPORTED) {
+        productsPrice = category.importedProductPrice;
+      }
+
+      calculatedTotal = basePrice + materialsPrice + productsPrice;
+    }
 
     // 3. Handle Promo Code if provided
     let promoId: string | null = null;
@@ -98,12 +138,27 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
       calculatedTotal = calculatedTotal * (1 - promo.discountPercent / 100);
     }
 
+    // Check if scheduled date falls on a locked day
+    const scheduled = new Date(scheduledDate);
+    const offset = scheduled.getTimezoneOffset();
+    const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
+    const dateString = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const lockedSetting = await prisma.appSetting.findUnique({ where: { key: 'locked_days' } });
+    const lockedDays = lockedSetting ? JSON.parse(lockedSetting.value) : [];
+    if (lockedDays.includes(dateString)) {
+      res.status(400).json({ error: "Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour." });
+      return;
+    }
+
     // 4. Create the Order
     const order = await prisma.order.create({
       data: {
         userId,
-        serviceId,
-        houseConfigId,
+        serviceId: serviceId || null,
+        houseConfigId: houseConfigId || null,
+        categoryId: categoryId || null,
+        categoryServiceId: categoryServiceId || null,
         promoId,
         extraWorkers: workersCount,
         useMaterials: materialsFlag,
@@ -118,6 +173,8 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
       include: {
         service: true,
         houseConfig: true,
+        category: true,
+        categoryService: true,
         promo: true
       }
     });
@@ -148,6 +205,8 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
           cleaner: true,
           service: true,
           houseConfig: true,
+          category: true,
+          categoryService: true,
           promo: true
         },
         orderBy: { createdAt: 'desc' }
@@ -159,6 +218,8 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
           cleaner: true,
           service: true,
           houseConfig: true,
+          category: true,
+          categoryService: true,
           promo: true
         },
         orderBy: { createdAt: 'desc' }
@@ -191,6 +252,8 @@ router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         cleaner: true,
         service: true,
         houseConfig: true,
+        category: true,
+        categoryService: true,
         promo: true
       }
     });
@@ -239,7 +302,7 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
       const updated = await prisma.order.update({
         where: { id },
         data: { status: newStatus },
-        include: { service: true, houseConfig: true }
+        include: { service: true, houseConfig: true, category: true, categoryService: true }
       });
       res.json(updated);
       return;
@@ -262,7 +325,7 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
       const updated = await prisma.order.update({
         where: { id },
         data: { status: OrderStatus.CANCELLED },
-        include: { service: true, houseConfig: true }
+        include: { service: true, houseConfig: true, category: true, categoryService: true }
       });
       res.json(updated);
       return;
@@ -285,13 +348,27 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
     return;
   }
 
-  const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId } = req.body;
+  const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId } = req.body;
 
   try {
     const order = await prisma.order.findUnique({ where: { id } });
     if (!order) {
       res.status(404).json({ error: 'Order not found' });
       return;
+    }
+
+    if (scheduledDate !== undefined) {
+      const scheduled = new Date(scheduledDate);
+      const offset = scheduled.getTimezoneOffset();
+      const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
+      const dateString = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
+
+      const lockedSetting = await prisma.appSetting.findUnique({ where: { key: 'locked_days' } });
+      const lockedDays = lockedSetting ? JSON.parse(lockedSetting.value) : [];
+      if (lockedDays.includes(dateString)) {
+        res.status(400).json({ error: "Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour." });
+        return;
+      }
     }
 
     const updated = await prisma.order.update({
@@ -307,6 +384,8 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         ...(status !== undefined && { status }),
         ...(serviceId !== undefined && { serviceId }),
         ...(houseConfigId !== undefined && { houseConfigId }),
+        ...(categoryId !== undefined && { categoryId }),
+        ...(categoryServiceId !== undefined && { categoryServiceId }),
         ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude.toString()) : null }),
         ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude.toString()) : null }),
       },
@@ -315,6 +394,8 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         cleaner: true,
         service: true,
         houseConfig: true,
+        category: true,
+        categoryService: true,
         promo: true
       }
     });

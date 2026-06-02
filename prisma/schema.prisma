@@ -15,7 +15,7 @@ enum Role {
 
 enum OrderStatus {
   PENDING
-  ASSIGNED
+  CONFIRMED
   IN_PROGRESS
   COMPLETED
   CANCELLED
@@ -80,8 +80,41 @@ model HouseConfig {
   type          String    // e.g., f2, f3, f4
   workers       Int
   basePrice     Float
+  durationHours Int       @default(3)
 
   service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  orders        Order[]
+}
+
+model Category {
+  id                    String              @id @default(uuid())
+  name                  String
+  description           String
+  picture               String
+  
+  materialPrice         Float               @default(0)
+  materialsMandatory    Boolean             @default(false)
+  
+  localProductPrice     Float               @default(0)
+  importedProductPrice  Float               @default(0)
+  productsMandatory     Boolean             @default(false)
+  
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  
+  categoryServices      CategoryService[]
+  orders                Order[]
+}
+
+model CategoryService {
+  id            String    @id @default(uuid())
+  categoryId    String
+  name          String
+  workers       Int
+  basePrice     Float
+  durationHours Int       @default(3)
+
+  category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orders        Order[]
 }
 
@@ -101,8 +134,10 @@ model Order {
   id                String      @id @default(uuid())
   userId            String
   cleanerId         String?
-  serviceId         String
-  houseConfigId     String
+  serviceId         String?
+  houseConfigId     String?
+  categoryId        String?
+  categoryServiceId String?
   promoId           String?
   
   extraWorkers      Int         @default(0)
@@ -121,7 +156,22 @@ model Order {
   
   user              User        @relation(fields: [userId], references: [id])
   cleaner           Cleaner?    @relation(fields: [cleanerId], references: [id])
-  service           Service     @relation(fields: [serviceId], references: [id])
-  houseConfig       HouseConfig @relation(fields: [houseConfigId], references: [id])
+  service           Service?    @relation(fields: [serviceId], references: [id])
+  houseConfig       HouseConfig? @relation(fields: [houseConfigId], references: [id])
+  category          Category?   @relation(fields: [categoryId], references: [id])
+  categoryService   CategoryService? @relation(fields: [categoryServiceId], references: [id])
   promo             Promo?      @relation(fields: [promoId], references: [id])
+}
+
+model Faq {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model AppSetting {
+  key   String @id
+  value String
 }

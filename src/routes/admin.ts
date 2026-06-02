@@ -80,8 +80,12 @@ router.post('/cleaners', async (req: AuthenticatedRequest, res: Response) => {
       data: { fullName, phone, bio, isActive: isActive ?? true, skills: skills || [] },
     });
     res.status(201).json(cleaner);
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.code === 'P2002') {
+      res.status(409).json({ error: 'Ce numéro de téléphone est déjà enregistré pour un autre cleaner.' });
+      return;
+    }
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -96,8 +100,12 @@ router.put('/cleaners/:id', async (req: AuthenticatedRequest, res: Response) => 
       data: { fullName, phone, bio, isActive, rating, skills },
     });
     res.json(cleaner);
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    if (err.code === 'P2002') {
+      res.status(409).json({ error: 'Ce numéro de téléphone est déjà enregistré pour un autre cleaner.' });
+      return;
+    }
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -108,7 +116,7 @@ router.delete('/cleaners/:id', async (req: AuthenticatedRequest, res: Response) 
   try {
     await prisma.cleaner.delete({ where: { id } });
     res.json({ success: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
@@ -228,6 +236,7 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
                 type: hc.type,
                 workers: parseInt(hc.workers),
                 basePrice: parseFloat(hc.basePrice),
+                durationHours: parseInt(hc.durationHours ?? 3),
               })),
             }
           : undefined,
@@ -288,6 +297,7 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
               type: hc.type,
               workers: parseInt(hc.workers),
               basePrice: parseFloat(hc.basePrice),
+              durationHours: parseInt(hc.durationHours ?? 3),
             }
           });
         } else {
@@ -297,6 +307,7 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
               type: hc.type,
               workers: parseInt(hc.workers),
               basePrice: parseFloat(hc.basePrice),
+              durationHours: parseInt(hc.durationHours ?? 3),
             }
           });
         }
@@ -328,11 +339,11 @@ router.delete('/services/:id', async (req: AuthenticatedRequest, res: Response) 
 // POST /api/admin/orders (Manual Order Creation)
 router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
   const {
-    fullName, phone, address, latitude, longitude, serviceId, houseConfigId, scheduledDate,
+    fullName, phone, address, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, scheduledDate,
     extraWorkers, useMaterials, productOrigin, promoCode
   } = req.body;
 
-  if (!phone || !address || !serviceId || !houseConfigId || !scheduledDate) {
+  if (!phone || !address || (!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate) {
     res.status(400).json({ error: 'Missing required fields' });
     return;
   }
@@ -354,36 +365,72 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    // 2. Fetch service and house config
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      include: { houseConfigs: true }
-    });
-
-    if (!service) {
-      res.status(404).json({ error: 'Service not found' });
-      return;
-    }
-
-    const houseConfig = service.houseConfigs.find((hc: any) => hc.id === houseConfigId);
-    if (!houseConfig) {
-      res.status(404).json({ error: 'House config not found' });
-      return;
-    }
-
-    // 3. Pricing Calculation
-    const basePrice = houseConfig.basePrice;
+    let calculatedTotal = 0;
+    let basePrice = 0;
     const workersCount = extraWorkers ? parseInt(extraWorkers.toString()) : 0;
-    const extraWorkersPrice = workersCount * service.extraWorkerPrice;
-    const materialsFlag = useMaterials === true || service.materialsMandatory;
-    const materialsPrice = materialsFlag ? service.materialPrice : 0;
-    
+    let extraWorkersPrice = 0;
+    let materialsFlag = false;
+    let materialsPrice = 0;
     let productsPrice = 0;
     const origin = productOrigin || 'NONE';
-    if (origin === 'LOCAL') productsPrice = service.localProductPrice;
-    else if (origin === 'IMPORTED') productsPrice = service.importedProductPrice;
-    
-    let calculatedTotal = basePrice + extraWorkersPrice + materialsPrice + productsPrice;
+
+    if (serviceId && houseConfigId) {
+      // 2. Fetch service and house config
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+        include: { houseConfigs: true }
+      });
+
+      if (!service) {
+        res.status(404).json({ error: 'Service not found' });
+        return;
+      }
+
+      const houseConfig = service.houseConfigs.find((hc: any) => hc.id === houseConfigId);
+      if (!houseConfig) {
+        res.status(404).json({ error: 'House config not found' });
+        return;
+      }
+
+      // 3. Pricing Calculation
+      basePrice = houseConfig.basePrice;
+      extraWorkersPrice = workersCount * service.extraWorkerPrice;
+      materialsFlag = useMaterials === true || service.materialsMandatory;
+      materialsPrice = materialsFlag ? service.materialPrice : 0;
+      
+      if (origin === 'LOCAL') productsPrice = service.localProductPrice;
+      else if (origin === 'IMPORTED') productsPrice = service.importedProductPrice;
+      
+      calculatedTotal = basePrice + extraWorkersPrice + materialsPrice + productsPrice;
+    } else if (categoryId && categoryServiceId) {
+      // 2. Fetch category and category service
+      const category = await prisma.category.findUnique({
+        where: { id: categoryId },
+        include: { categoryServices: true }
+      });
+
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      const categoryService = category.categoryServices.find((cs: any) => cs.id === categoryServiceId);
+      if (!categoryService) {
+        res.status(404).json({ error: 'Category service config not found' });
+        return;
+      }
+
+      // 3. Pricing Calculation
+      basePrice = categoryService.basePrice;
+      materialsFlag = useMaterials === true || category.materialsMandatory;
+      materialsPrice = materialsFlag ? category.materialPrice : 0;
+      
+      if (origin === 'LOCAL') productsPrice = category.localProductPrice;
+      else if (origin === 'IMPORTED') productsPrice = category.importedProductPrice;
+      
+      calculatedTotal = basePrice + materialsPrice + productsPrice;
+    }
+
     let finalPromoId: string | undefined = undefined;
 
     // 4. Promo
@@ -398,12 +445,27 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       }
     }
 
+    // Check if scheduled date falls on a locked day
+    const scheduled = new Date(scheduledDate);
+    const offset = scheduled.getTimezoneOffset();
+    const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
+    const dateString = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const lockedSetting = await prisma.appSetting.findUnique({ where: { key: 'locked_days' } });
+    const lockedDays = lockedSetting ? JSON.parse(lockedSetting.value) : [];
+    if (lockedDays.includes(dateString)) {
+      res.status(400).json({ error: "Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour." });
+      return;
+    }
+
     // 5. Create Order
     const order = await prisma.order.create({
       data: {
         userId: user.id,
-        serviceId,
-        houseConfigId,
+        serviceId: serviceId || null,
+        houseConfigId: houseConfigId || null,
+        categoryId: categoryId || null,
+        categoryServiceId: categoryServiceId || null,
         status: 'PENDING',
         totalPrice: calculatedTotal,
         scheduledDate: new Date(scheduledDate),
@@ -419,11 +481,270 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
         user: { select: { id: true, fullName: true, phone: true } },
         service: { select: { id: true, name: true, picture: true } },
         houseConfig: true,
+        category: { select: { id: true, name: true, picture: true } },
+        categoryService: true,
         cleaner: true
       }
     });
 
     res.status(201).json(order);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── CATEGORIES ──────────────────────────────────────────────────────────────
+
+// GET /api/admin/categories
+router.get('/categories', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const categories = await prisma.category.findMany({
+      include: { categoryServices: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/categories
+router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
+  const {
+    name, description, picture,
+    materialPrice, materialsMandatory,
+    localProductPrice, importedProductPrice, productsMandatory,
+    isActive, categoryServices,
+  } = req.body;
+
+  if (!name || !description) {
+    res.status(400).json({ error: 'name and description are required' });
+    return;
+  }
+
+  try {
+    const category = await prisma.category.create({
+      data: {
+        name,
+        description,
+        picture: picture || '',
+        materialPrice: parseFloat(materialPrice ?? 0),
+        materialsMandatory: materialsMandatory ?? false,
+        localProductPrice: parseFloat(localProductPrice ?? 0),
+        importedProductPrice: parseFloat(importedProductPrice ?? 0),
+        productsMandatory: productsMandatory ?? false,
+        isActive: isActive ?? true,
+        categoryServices: categoryServices
+          ? {
+              create: categoryServices.map((cs: any) => ({
+                name: cs.name,
+                workers: parseInt(cs.workers),
+                basePrice: parseFloat(cs.basePrice),
+                durationHours: parseInt(cs.durationHours ?? 3),
+              })),
+            }
+          : undefined,
+      },
+      include: { categoryServices: true },
+    });
+    res.status(201).json(category);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/admin/categories/:id
+router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  const {
+    name, description, picture,
+    materialPrice, materialsMandatory,
+    localProductPrice, importedProductPrice, productsMandatory,
+    isActive, categoryServices,
+  } = req.body;
+
+  try {
+    // Delete existing sub-services then recreate
+    await prisma.categoryService.deleteMany({ where: { categoryId: id } });
+
+    const category = await prisma.category.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        picture: picture || '',
+        materialPrice: parseFloat(materialPrice ?? 0),
+        materialsMandatory: materialsMandatory ?? false,
+        localProductPrice: parseFloat(localProductPrice ?? 0),
+        importedProductPrice: parseFloat(importedProductPrice ?? 0),
+        productsMandatory: productsMandatory ?? false,
+        isActive: isActive ?? true,
+        categoryServices: categoryServices
+          ? {
+              create: categoryServices.map((cs: any) => ({
+                name: cs.name,
+                workers: parseInt(cs.workers),
+                basePrice: parseFloat(cs.basePrice),
+                durationHours: parseInt(cs.durationHours ?? 3),
+              })),
+            }
+          : undefined,
+      },
+      include: { categoryServices: true },
+    });
+    res.json(category);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/categories/:id
+router.delete('/categories/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    await prisma.category.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── PAGES / CMS ─────────────────────────────────────────────────────────────
+
+// GET /api/admin/pages/faqs
+router.get('/pages/faqs', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const faqs = await prisma.faq.findMany({
+      orderBy: { order: 'asc' }
+    });
+    res.json(faqs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/pages/faqs
+router.post('/pages/faqs', async (req: AuthenticatedRequest, res: Response) => {
+  const { question, answer, order } = req.body;
+  if (!question || !answer) {
+    res.status(400).json({ error: 'question and answer are required' });
+    return;
+  }
+  try {
+    const faq = await prisma.faq.create({
+      data: {
+        question,
+        answer,
+        order: parseInt(order ?? 0)
+      }
+    });
+    res.status(201).json(faq);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/admin/pages/faqs/:id
+router.put('/pages/faqs/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { question, answer, order } = req.body;
+  try {
+    const faq = await prisma.faq.update({
+      where: { id },
+      data: {
+        question,
+        answer,
+        order: order !== undefined ? parseInt(order) : undefined
+      }
+    });
+    res.json(faq);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/pages/faqs/:id
+router.delete('/pages/faqs/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    await prisma.faq.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/pages/privacy
+router.post('/pages/privacy', async (req: AuthenticatedRequest, res: Response) => {
+  const { privacyPolicy } = req.body;
+  if (privacyPolicy === undefined) {
+    res.status(400).json({ error: 'privacyPolicy text is required' });
+    return;
+  }
+  try {
+    const setting = await prisma.appSetting.upsert({
+      where: { key: 'privacy_policy' },
+      update: { value: privacyPolicy },
+      create: { key: 'privacy_policy', value: privacyPolicy }
+    });
+    res.json({ privacyPolicy: setting.value });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/pages/about
+router.post('/pages/about', async (req: AuthenticatedRequest, res: Response) => {
+  const aboutData = req.body;
+  try {
+    const setting = await prisma.appSetting.upsert({
+      where: { key: 'about_us' },
+      update: { value: JSON.stringify(aboutData) },
+      create: { key: 'about_us', value: JSON.stringify(aboutData) }
+    });
+    res.json(JSON.parse(setting.value));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/locked-days
+router.get('/locked-days', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const setting = await prisma.appSetting.findUnique({ where: { key: 'locked_days' } });
+    const days = setting ? JSON.parse(setting.value) : [];
+    res.json(days);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/locked-days
+router.post('/locked-days', async (req: AuthenticatedRequest, res: Response) => {
+  const { lockedDays } = req.body;
+  if (!Array.isArray(lockedDays)) {
+    res.status(400).json({ error: 'lockedDays must be an array of date strings' });
+    return;
+  }
+  try {
+    const setting = await prisma.appSetting.upsert({
+      where: { key: 'locked_days' },
+      update: { value: JSON.stringify(lockedDays) },
+      create: { key: 'locked_days', value: JSON.stringify(lockedDays) }
+    });
+    res.json(JSON.parse(setting.value));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
