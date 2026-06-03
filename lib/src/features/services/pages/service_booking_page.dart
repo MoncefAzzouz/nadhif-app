@@ -1,6 +1,7 @@
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
+import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
 import 'package:cleanapp/src/features/services/cubit/booking_cubit.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class ServiceBookingPage extends StatelessWidget {
   final String serviceName;
   final AppService? service;
+  final AppCategory? category;
   final String? serviceImage;
   final IconData? serviceIcon;
 
@@ -18,6 +20,7 @@ class ServiceBookingPage extends StatelessWidget {
     super.key,
     required this.serviceName,
     this.service,
+    this.category,
     this.serviceImage,
     this.serviceIcon,
   });
@@ -29,6 +32,7 @@ class ServiceBookingPage extends StatelessWidget {
       child: _ServiceBookingView(
         serviceName: serviceName,
         service: service,
+        category: category,
         serviceImage: serviceImage,
         serviceIcon: serviceIcon,
       ),
@@ -56,12 +60,14 @@ class _ServiceBookingView extends StatelessWidget {
 
   final String serviceName;
   final AppService? service;
+  final AppCategory? category;
   final String? serviceImage;
   final IconData? serviceIcon;
 
   const _ServiceBookingView({
     required this.serviceName,
     this.service,
+    this.category,
     this.serviceImage,
     this.serviceIcon,
   });
@@ -144,7 +150,11 @@ class _ServiceBookingView extends StatelessWidget {
               ],
             ),
           ),
-          _BottomAction(serviceName: serviceName, service: service),
+          _BottomAction(
+            serviceName: serviceName,
+            service: service,
+            category: category,
+          ),
         ],
       ),
     );
@@ -199,35 +209,19 @@ class _ServiceBookingView extends StatelessWidget {
                 border:
                     Border.all(color: Colors.white.withValues(alpha: 0.31)),
               ),
-              child: serviceImage != null &&
-                      serviceImage!.isNotEmpty &&
-                      !serviceImage!.startsWith('/')
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: serviceImage!.startsWith('http')
-                          ? Image.network(
-                              serviceImage!,
-                              width: double.infinity,
-                              height: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
-                                serviceIcon ?? Icons.cleaning_services_rounded,
-                                color: Colors.white,
-                                size: 35,
-                              ),
-                            )
-                          : Image.asset(
-                              serviceImage!,
-                              width: double.infinity,
-                              height: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
-                    )
-                  : Icon(
-                      serviceIcon ?? Icons.cleaning_services_rounded,
-                      color: Colors.white,
-                      size: 35,
-                    ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AppImage(
+                  source: serviceImage,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fallback: Icon(
+                    serviceIcon ?? Icons.cleaning_services_rounded,
+                    color: Colors.white,
+                    size: 35,
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 20),
@@ -768,7 +762,12 @@ class _BookingMaterialOption extends StatelessWidget {
 class _BottomAction extends StatelessWidget {
   final String serviceName;
   final AppService? service;
-  const _BottomAction({required this.serviceName, this.service});
+  final AppCategory? category;
+  const _BottomAction({
+    required this.serviceName,
+    this.service,
+    this.category,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -886,6 +885,8 @@ class _BottomAction extends StatelessWidget {
           serviceName: serviceName,
           serviceId: service?.id,
           houseConfigId: service?.defaultHouseConfig?.id,
+          categoryId: category?.id,
+          categoryServiceId: category?.defaultCategoryService?.id,
           scheduledDate: state.selectedDate,
           date: '${state.selectedDate.day}/${state.selectedDate.month}/${state.selectedDate.year}',
           time: state.selectedTimeSlot,

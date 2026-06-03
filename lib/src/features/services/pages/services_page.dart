@@ -2,6 +2,7 @@ import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
@@ -14,10 +15,11 @@ class ServicesPage extends StatefulWidget {
   State<ServicesPage> createState() => _ServicesPageState();
 }
 
-class _ServicesPageState extends State<ServicesPage> {
+class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver {
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
   List<AppService> _backendServices = const [];
+  List<AppCategory> _backendCategories = const [];
   bool _isLoading = true;
   String? _error;
 
@@ -83,7 +85,7 @@ class _ServicesPageState extends State<ServicesPage> {
       ];
 
   List<Map<String, dynamic>> _mapBackendServices(AppLocalizations l10n) {
-    return _backendServices.map((service) {
+    final serviceItems = _backendServices.map((service) {
       final config = service.defaultHouseConfig;
       return {
         "name": service.name,
@@ -94,13 +96,44 @@ class _ServicesPageState extends State<ServicesPage> {
         "price": l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
         "backendService": service,
       };
-    }).toList();
+    });
+
+    final categoryItems = _backendCategories.map((category) {
+      final config = category.defaultCategoryService;
+      return {
+        "name": category.name,
+        "icon": Icons.category_rounded,
+        "image": category.picture,
+        "desc": category.description,
+        "category": "Categories",
+        "price":
+            l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
+        "backendCategory": category,
+      };
+    });
+
+    return [...serviceItems, ...categoryItems];
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadServices();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadServices();
+    }
   }
 
   Future<void> _loadServices() async {
@@ -109,10 +142,14 @@ class _ServicesPageState extends State<ServicesPage> {
       _error = null;
     });
     try {
-      final services = await locator<ServicesApiService>().getServices();
+      final servicesFuture = locator<ServicesApiService>().getServices();
+      final categoriesFuture = locator<ServicesApiService>().getCategories();
+      final services = await servicesFuture;
+      final categories = await categoriesFuture;
       if (!mounted) return;
       setState(() {
         _backendServices = services;
+        _backendCategories = categories;
         _isLoading = false;
       });
     } catch (e) {
@@ -127,9 +164,16 @@ class _ServicesPageState extends State<ServicesPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final services =
-        _backendServices.isNotEmpty ? _mapBackendServices(l10n) : _getServices(l10n);
-    final categories = _getCategories(l10n);
+    final hasBackendData =
+        _backendServices.isNotEmpty || _backendCategories.isNotEmpty;
+    final services = hasBackendData ? _mapBackendServices(l10n) : _getServices(l10n);
+    final categories = hasBackendData
+        ? [
+            l10n.all,
+            l10n.cleaning,
+            if (_backendCategories.isNotEmpty) "Categories",
+          ]
+        : _getCategories(l10n);
 
     // Initial value for _selectedCategory if it's still 'All'
     if (_selectedCategory == 'All') {
@@ -262,7 +306,7 @@ class _ServicesPageState extends State<ServicesPage> {
                   child: Center(child: CircularProgressIndicator()),
                 ),
               )
-            else if (_error != null && _backendServices.isEmpty)
+            else if (_error != null && !hasBackendData)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -309,6 +353,8 @@ class _ServicesPageState extends State<ServicesPage> {
                               builder: (context) => ServiceBookingPage(
                                 serviceName: service["name"] as String,
                                 service: service["backendService"] as AppService?,
+                                category:
+                                    service["backendCategory"] as AppCategory?,
                                 serviceImage: service["image"] as String?,
                                 serviceIcon: service["icon"] as IconData?,
                               ),
@@ -338,35 +384,19 @@ class _ServicesPageState extends State<ServicesPage> {
                                 color: ColorApp.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: service['image'] != null &&
-                                      (service['image'] as String).isNotEmpty &&
-                                      !(service['image'] as String).startsWith('/')
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: (service['image'] as String).startsWith('http')
-                                          ? Image.network(
-                                              service['image'] as String,
-                                              width: double.infinity,
-                                              height: double.infinity,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => Icon(
-                                                service['icon'] as IconData,
-                                                color: ColorApp.primary,
-                                                size: 30,
-                                              ),
-                                            )
-                                          : Image.asset(
-                                        service['image'] as String,
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  : Icon(
-                                      service['icon'] as IconData,
-                                      color: ColorApp.primary,
-                                      size: 30,
-                                    ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: AppImage(
+                                  source: service['image'] as String?,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fallback: Icon(
+                                    service['icon'] as IconData,
+                                    color: ColorApp.primary,
+                                    size: 30,
+                                  ),
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 20),
                             // Details

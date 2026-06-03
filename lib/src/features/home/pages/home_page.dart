@@ -7,11 +7,14 @@ import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/features/home/cubit/home_tab_cubit.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
+import 'package:cleanapp/src/features/services/data/service_models.dart';
+import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:flutter/material.dart';
@@ -56,6 +59,7 @@ class _HomePageState extends State<HomePage>
   late String _currentLocation;
   UserProfile? _profile;
   int _activeOrdersCount = 0;
+  List<AppCategory> _backendCategories = const [];
 
   @override
   void initState() {
@@ -66,6 +70,7 @@ class _HomePageState extends State<HomePage>
     _currentLocation = 'Setif center ville';
     _loadProfile();
     _loadOrdersCount();
+    _loadCategories();
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
   }
@@ -99,6 +104,17 @@ class _HomePageState extends State<HomePage>
     }
   }
 
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await locator<ServicesApiService>().getCategories();
+      if (!mounted) return;
+      setState(() => _backendCategories = categories);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _backendCategories = const []);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final bool nextActive = state == AppLifecycleState.resumed;
@@ -106,6 +122,7 @@ class _HomePageState extends State<HomePage>
     _isAppActive = nextActive;
     if (_isAppActive) {
       _loadOrdersCount();
+      _loadCategories();
       _startAutoScrolls();
     } else {
       _cancelAutoScrolls();
@@ -388,6 +405,17 @@ class _HomePageState extends State<HomePage>
         icon: Icons.weekend_rounded,
       ),
     ];
+    final categoryTiles = _backendCategories
+        .map(
+          (category) => _ServiceTile(
+            name: category.name,
+            image: category.picture,
+            icon: Icons.category_rounded,
+            category: category,
+          ),
+        )
+        .toList();
+    final tiles = [...services, ...categoryTiles];
 
     return GridView.builder(
       shrinkWrap: true,
@@ -399,9 +427,9 @@ class _HomePageState extends State<HomePage>
         crossAxisSpacing: 16,
         childAspectRatio: 0.7,
       ),
-      itemCount: services.length,
+      itemCount: tiles.length,
       itemBuilder: (context, index) =>
-          _ServiceGridTile(service: services[index]),
+          _ServiceGridTile(service: tiles[index]),
     );
   }
 
@@ -721,11 +749,13 @@ class _ServiceTile {
   final String name;
   final String? image;
   final IconData icon;
+  final AppCategory? category;
 
   const _ServiceTile({
     required this.name,
     required this.icon,
     this.image,
+    this.category,
   });
 }
 
@@ -742,6 +772,7 @@ class _ServiceGridTile extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => ServiceBookingPage(
               serviceName: service.name,
+              category: service.category,
               serviceImage: service.image,
               serviceIcon: service.icon,
             ),
@@ -764,17 +795,19 @@ class _ServiceGridTile extends StatelessWidget {
                 ),
               ],
             ),
-            child: service.image != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.asset(
-                      service.image!,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Icon(service.icon, color: ColorApp.primary, size: 32),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AppImage(
+                source: service.image,
+                width: 48,
+                height: 48,
+                fallback: Icon(
+                  service.icon,
+                  color: ColorApp.primary,
+                  size: 32,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -875,8 +908,8 @@ class _BottomNavBar extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final selectedIndex = context.watch<HomeTabCubit>().state;
     return Container(
-      margin: const EdgeInsets.only(left: 20, right: 20, bottom: 24),
-      height: 80,
+      margin: const EdgeInsets.only(left: 22, right: 22, bottom: 18),
+      height: 70,
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.all(Radius.circular(32)),
@@ -938,7 +971,7 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
               ? ColorApp.primary.withValues(alpha: 0.12)
@@ -955,7 +988,7 @@ class _NavItem extends StatelessWidget {
                 Icon(
                   icon,
                   color: isActive ? ColorApp.primary : ColorApp.textGrey,
-                  size: 28,
+                  size: 24,
                 ),
                 if (badgeCount > 0)
                   Positioned(
@@ -992,7 +1025,7 @@ class _NavItem extends StatelessWidget {
               label,
               style: TextStyle(
                 color: isActive ? ColorApp.primary : ColorApp.textGrey,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
               ),
             ),

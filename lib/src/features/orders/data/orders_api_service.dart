@@ -46,4 +46,37 @@ class OrdersApiService extends BaseApiService {
       throw Exception(error['message'] ?? 'Failed to create order');
     }
   }
+
+  Future<void> createCategoryOrder({
+    required String categoryId,
+    required String categoryServiceId,
+    required bool useMaterials,
+    required BookingMaterial materialType,
+    required DateTime scheduledDate,
+    required String address,
+    String? promoCode,
+  }) async {
+    try {
+      await dio.post(
+        '/api/orders',
+        data: {
+          'categoryId': categoryId,
+          'categoryServiceId': categoryServiceId,
+          'extraWorkers': 0,
+          'useMaterials': useMaterials,
+          'productOrigin': useMaterials
+              ? (materialType == BookingMaterial.imported
+                  ? 'IMPORTED'
+                  : 'LOCAL')
+              : 'NONE',
+          'scheduledDate': scheduledDate.toIso8601String(),
+          'address': address,
+          if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
+        },
+      );
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to create order');
+    }
+  }
 }

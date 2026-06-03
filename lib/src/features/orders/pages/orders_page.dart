@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_repository.dart';
 import 'package:flutter/material.dart';
@@ -326,18 +326,14 @@ class _OrderThumb extends StatelessWidget {
         width: size,
         height: size,
         color: ColorApp.softGrey,
-        child: imageUrl.startsWith('http')
-            ? CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) =>
-                    const ColoredBox(color: ColorApp.softGrey),
-                errorWidget: (_, __, ___) => const Icon(
-                  Icons.image_not_supported,
-                  color: ColorApp.textGrey,
-                ),
-              )
-            : Image.asset(imageUrl, fit: BoxFit.cover),
+        child: AppImage(
+          source: imageUrl,
+          fit: BoxFit.cover,
+          fallback: const Icon(
+            Icons.image_not_supported,
+            color: ColorApp.textGrey,
+          ),
+        ),
       ),
     );
   }

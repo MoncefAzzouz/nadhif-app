@@ -11,6 +11,8 @@ class OrderSummaryPage extends StatefulWidget {
   final String serviceName;
   final String? serviceId;
   final String? houseConfigId;
+  final String? categoryId;
+  final String? categoryServiceId;
   final DateTime scheduledDate;
   final String date;
   final String time;
@@ -28,6 +30,8 @@ class OrderSummaryPage extends StatefulWidget {
     required this.serviceName,
     this.serviceId,
     this.houseConfigId,
+    this.categoryId,
+    this.categoryServiceId,
     required this.scheduledDate,
     required this.date,
     required this.time,
@@ -46,7 +50,7 @@ class OrderSummaryPage extends StatefulWidget {
 }
 
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
-  String _selectedPayment = '';
+  String _selectedPayment = 'Cash on Delivery';
   String? _appliedPromo;
   bool _isSubmitting = false;
 
@@ -246,23 +250,40 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   }
 
   Future<void> _confirmBooking() async {
-    if (widget.serviceId == null || widget.houseConfigId == null) {
+    final hasServiceOrder =
+        widget.serviceId != null && widget.houseConfigId != null;
+    final hasCategoryOrder =
+        widget.categoryId != null && widget.categoryServiceId != null;
+
+    if (!hasServiceOrder && !hasCategoryOrder) {
       _showSuccessAnimation(context);
       return;
     }
 
     setState(() => _isSubmitting = true);
     try {
-      await locator<OrdersApiService>().createServiceOrder(
-        serviceId: widget.serviceId!,
-        houseConfigId: widget.houseConfigId!,
-        cleaners: widget.cleaners,
-        useMaterials: widget.needMaterials,
-        materialType: widget.materialType,
-        scheduledDate: widget.scheduledDate,
-        address: widget.address,
-        promoCode: _appliedPromo,
-      );
+      if (hasServiceOrder) {
+        await locator<OrdersApiService>().createServiceOrder(
+          serviceId: widget.serviceId!,
+          houseConfigId: widget.houseConfigId!,
+          cleaners: widget.cleaners,
+          useMaterials: widget.needMaterials,
+          materialType: widget.materialType,
+          scheduledDate: widget.scheduledDate,
+          address: widget.address,
+          promoCode: _appliedPromo,
+        );
+      } else {
+        await locator<OrdersApiService>().createCategoryOrder(
+          categoryId: widget.categoryId!,
+          categoryServiceId: widget.categoryServiceId!,
+          useMaterials: widget.needMaterials,
+          materialType: widget.materialType,
+          scheduledDate: widget.scheduledDate,
+          address: widget.address,
+          promoCode: _appliedPromo,
+        );
+      }
       if (!mounted) return;
       _showSuccessAnimation(context);
     } catch (e) {
@@ -335,14 +356,12 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionCard(
-                  title: "Logistics",
-                  icon: Icons.local_shipping_outlined,
+                _buildPlainCard(
                   child: Column(
                     children: [
-                      _buildInfoRow(Icons.calendar_today_rounded, widget.date),
+                      _buildInfoRow(Icons.calendar_today_rounded, "Date", widget.date),
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.access_time_rounded, widget.time),
+                      _buildInfoRow(Icons.access_time_rounded, "Hour", widget.time),
                       const Divider(height: 32, thickness: 0.5),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,7 +417,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   icon: Icons.settings_outlined,
                   child: Column(
                     children: [
-                      _detailRow("Frequency", widget.frequency, Icons.repeat_rounded),
                       _detailRow("Duration", "${widget.duration} Hours", Icons.timer_outlined),
                       _detailRow("Cleaners", "${widget.cleaners} Professionals", Icons.people_outline_rounded),
                       _detailRow("Materials", widget.needMaterials ? "Provided" : "Not needed", Icons.inventory_2_outlined),
@@ -414,8 +432,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
                   ),
                 ),
-                _paymentOption(l10n.baridiMobCCP, Icons.account_balance_wallet_rounded),
-                const SizedBox(height: 12),
                 _paymentOption("Cash on Delivery", Icons.payments_outlined),
                 const SizedBox(height: 24),
                 _buildSectionCard(
@@ -440,10 +456,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, -5)),
                 ],
@@ -467,7 +483,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                         : _selectedPayment.isEmpty
                             ? "Select Payment Type"
                             : "Confirm Booking",
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: _selectedPayment.isEmpty
+                          ? ColorApp.textBlack
+                          : Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -514,11 +536,30 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
+  Widget _buildPlainCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String text) {
     return Row(
       children: [
         Icon(icon, size: 16, color: ColorApp.textGrey),
         const SizedBox(width: 8),
+        Text(
+          "$label: ",
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ColorApp.textGrey),
+        ),
         Text(
           text,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ColorApp.textBlack),
@@ -560,10 +601,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: ColorApp.softGrey, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                color: ColorApp.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Icon(
                 icon,
-                color: ColorApp.textBlack,
+                color: ColorApp.primary,
                 size: 20,
               ),
             ),

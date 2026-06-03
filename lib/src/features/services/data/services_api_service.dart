@@ -15,4 +15,17 @@ class ServicesApiService extends BaseApiService {
       throw Exception(error['message'] ?? 'Failed to load services');
     }
   }
+
+  Future<List<AppCategory>> getCategories() async {
+    try {
+      final response = await dio.get('/api/categories');
+      final items = response.data as List<dynamic>;
+      return items
+          .map((item) => AppCategory.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to load categories');
+    }
+  }
 }
