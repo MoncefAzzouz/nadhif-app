@@ -6,6 +6,8 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/features/home/cubit/home_tab_cubit.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
@@ -22,7 +24,7 @@ class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     this.initialIndex = 0,
-    this.profileRepository = const InMemoryProfileRepository(),
+    this.profileRepository = const ApiProfileRepository(),
   });
 
   @override
@@ -52,6 +54,8 @@ class _HomePageState extends State<HomePage>
   int _currentHeroIndex = 0;
   bool _isAppActive = true;
   late String _currentLocation;
+  UserProfile? _profile;
+  int _activeOrdersCount = 0;
 
   @override
   void initState() {
@@ -59,9 +63,40 @@ class _HomePageState extends State<HomePage>
     _tabCubit = HomeTabCubit(widget.initialIndex);
     _recommendedController = ScrollController();
     _heroPageController = PageController();
-    _currentLocation = widget.profileRepository.getCurrentUser().location;
+    _currentLocation = 'Setif center ville';
+    _loadProfile();
+    _loadOrdersCount();
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await widget.profileRepository.getCurrentUser();
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _currentLocation = profile.location;
+      });
+    } catch (_) {
+      // Keep the home header usable even if profile fetch fails.
+    }
+  }
+
+  Future<void> _loadOrdersCount() async {
+    try {
+      final orders = await locator<OrdersApiService>().getOrders();
+      if (!mounted) return;
+      setState(() {
+        _activeOrdersCount = orders.where((order) {
+          final status = order['status'] as String?;
+          return status != 'COMPLETED' && status != 'CANCELLED';
+        }).length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _activeOrdersCount = 0);
+    }
   }
 
   @override
@@ -70,6 +105,7 @@ class _HomePageState extends State<HomePage>
     if (nextActive == _isAppActive) return;
     _isAppActive = nextActive;
     if (_isAppActive) {
+      _loadOrdersCount();
       _startAutoScrolls();
     } else {
       _cancelAutoScrolls();
@@ -138,11 +174,11 @@ class _HomePageState extends State<HomePage>
                 ],
               ),
             ),
-            const Positioned(
+            Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: _BottomNavBar(),
+              child: _BottomNavBar(ordersCount: _activeOrdersCount),
             ),
           ],
         ),
@@ -179,7 +215,9 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildHeader(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final user = widget.profileRepository.getCurrentUser();
+    final firstName = (_profile?.fullName.trim().split(RegExp(r'\s+')).first ?? '').isEmpty
+        ? 'Customer'
+        : _profile!.fullName.trim().split(RegExp(r'\s+')).first;
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 50, 24, 12),
       decoration: const BoxDecoration(
@@ -226,7 +264,7 @@ class _HomePageState extends State<HomePage>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${l10n.hello}, ${user.firstName}',
+                  '${l10n.hello}, $firstName',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -828,7 +866,9 @@ class _BrandCard extends StatelessWidget {
 }
 
 class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar();
+  final int ordersCount;
+
+  const _BottomNavBar({required this.ordersCount});
 
   @override
   Widget build(BuildContext context) {
@@ -862,6 +902,7 @@ class _BottomNavBar extends StatelessWidget {
             label: l10n.ordersLabel,
             icon: Icons.receipt_long_rounded,
             isActive: selectedIndex == 2,
+            badgeCount: ordersCount,
           ),
           _NavItem(
             index: 3,
@@ -880,12 +921,14 @@ class _NavItem extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isActive;
+  final int badgeCount;
 
   const _NavItem({
     required this.index,
     required this.label,
     required this.icon,
     required this.isActive,
+    this.badgeCount = 0,
   });
 
   @override
@@ -906,10 +949,43 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isActive ? ColorApp.primary : ColorApp.textGrey,
-              size: 28,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: isActive ? ColorApp.primary : ColorApp.textGrey,
+                  size: 28,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Center(
+                        child: Text(
+                          badgeCount > 99 ? '99+' : '$badgeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(

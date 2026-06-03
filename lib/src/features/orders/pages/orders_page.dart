@@ -2,8 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 enum OrderFilter { active, scheduled, history }
 
@@ -28,8 +31,10 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> {
-  late final List<ActiveOrder> _activeOrders;
-  late final List<ScheduledOrder> _scheduledOrders;
+  List<ActiveOrder> _activeOrders = const [];
+  List<ScheduledOrder> _scheduledOrders = const [];
+  bool _isLoading = true;
+  String? _error;
   OrderFilter _activeFilter = OrderFilter.active;
 
   @override
@@ -37,6 +42,88 @@ class _OrdersPageState extends State<OrdersPage> {
     super.initState();
     _activeOrders = widget.repository.getActiveOrders();
     _scheduledOrders = widget.repository.getScheduledOrders();
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final orders = await locator<OrdersApiService>().getOrders();
+      if (!mounted) return;
+      setState(() {
+        _activeOrders = orders
+            .where((order) => !_isFinished(order['status'] as String?))
+            .map(_toActiveOrder)
+            .toList();
+        _scheduledOrders = orders
+            .where((order) => order['status'] == 'PENDING' || order['status'] == 'CONFIRMED')
+            .map(_toScheduledOrder)
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  bool _isFinished(String? status) => status == 'COMPLETED' || status == 'CANCELLED';
+
+  ActiveOrder _toActiveOrder(Map<String, dynamic> order) {
+    final service = order['service'] as Map<String, dynamic>?;
+    final category = order['category'] as Map<String, dynamic>?;
+    final status = order['status'] as String? ?? 'PENDING';
+    return ActiveOrder(
+      title: (service?['name'] ?? category?['name'] ?? 'Cleaning Service') as String,
+      subtitle: DateFormat('MMM d, h:mm a').format(DateTime.parse(order['scheduledDate'] as String).toLocal()),
+      status: status.replaceAll('_', ' '),
+      progress: _progressForStatus(status),
+      imageUrl: _imageForOrder(service, category),
+      price: (order['totalPrice'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  ScheduledOrder _toScheduledOrder(Map<String, dynamic> order) {
+    final service = order['service'] as Map<String, dynamic>?;
+    final category = order['category'] as Map<String, dynamic>?;
+    final date = DateTime.parse(order['scheduledDate'] as String).toLocal();
+    return ScheduledOrder(
+      title: (service?['name'] ?? category?['name'] ?? 'Cleaning Service') as String,
+      subtitle: (order['status'] as String? ?? 'PENDING').replaceAll('_', ' '),
+      date: DateFormat('MMM d, yyyy').format(date),
+      time: DateFormat('h:mm a').format(date),
+      imageUrl: _imageForOrder(service, category),
+    );
+  }
+
+  String _imageForOrder(Map<String, dynamic>? service, Map<String, dynamic>? category) {
+    final picture = (service?['picture'] ?? category?['picture']) as String?;
+    if (picture != null && picture.isNotEmpty && !picture.startsWith('/')) {
+      return picture;
+    }
+    return 'assets/images/urgent.png';
+  }
+
+  double _progressForStatus(String status) {
+    switch (status) {
+      case 'CONFIRMED':
+        return 0.35;
+      case 'IN_PROGRESS':
+        return 0.7;
+      case 'COMPLETED':
+        return 1;
+      case 'CANCELLED':
+        return 0;
+      default:
+        return 0.15;
+    }
   }
 
   @override
@@ -62,7 +149,26 @@ class _OrdersPageState extends State<OrdersPage> {
               children: [
                 _buildHeader(context),
                 _buildFilterBar(filters),
-                Expanded(child: _buildOrderList(context)),
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        TextButton(onPressed: _loadOrders, child: const Text('Retry')),
+                      ],
+                    ),
+                  ),
+                Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _buildOrderList(context)),
               ],
             ),
           ),
@@ -97,7 +203,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   shape: BoxShape.circle,
                   boxShadow: AppShadows.card,
                 ),
-                child: const Icon(Icons.search_rounded,
+                child: const Icon(Icons.refresh_rounded,
                     color: ColorApp.textBlack, size: 22),
               ),
             ],
@@ -288,8 +394,8 @@ class _ActiveOrderCard extends StatelessWidget {
                   color: ColorApp.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'DA 88',
+                child: Text(
+                  'DA ${order.price.toStringAsFixed(0)}',
                   style: TextStyle(
                       color: ColorApp.primary,
                       fontWeight: FontWeight.w900,

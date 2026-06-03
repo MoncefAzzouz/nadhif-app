@@ -1,10 +1,9 @@
-// import 'dart:io';
-// import 'package:dio/dio.dart';
-// import '../utils/dependency_injection.dart';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import '../utils/dependency_injection.dart';
 
 /// Base API service class that provides common functionality for all API services
 abstract class BaseApiService {
-  /*
   late final Dio dio;
 
   BaseApiService() {
@@ -94,5 +93,4 @@ abstract class BaseApiService {
       return handleError(e);
     }
   }
-  */
 }

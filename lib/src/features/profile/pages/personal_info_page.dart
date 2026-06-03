@@ -1,20 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 
 class PersonalInfoPage extends StatefulWidget {
-  const PersonalInfoPage({super.key});
+  const PersonalInfoPage({super.key, required this.profile});
+
+  final UserProfile profile;
 
   @override
   State<PersonalInfoPage> createState() => _PersonalInfoPageState();
 }
 
 class _PersonalInfoPageState extends State<PersonalInfoPage> {
-  final _firstNameController = TextEditingController(text: "Moncef");
-  final _lastNameController = TextEditingController(text: "az");
-  final _emailController = TextEditingController(text: "Moncefaz@nadhif.com");
-  final _phoneController = TextEditingController(text: "+213 555 123 456");
+  late final TextEditingController _firstNameController;
+  late final TextEditingController _lastNameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
   final _passwordController = TextEditingController(text: "********");
+
+  @override
+  void initState() {
+    super.initState();
+    final names = widget.profile.fullName.trim().split(RegExp(r'\s+'));
+    _firstNameController = TextEditingController(
+      text: names.isEmpty ? widget.profile.fullName : names.first,
+    );
+    _lastNameController = TextEditingController(
+      text: names.length > 1 ? names.skip(1).join(' ') : '',
+    );
+    _emailController = TextEditingController(text: widget.profile.email);
+    _phoneController = TextEditingController(text: widget.profile.phone);
+  }
 
   @override
   void dispose() {

@@ -1,15 +1,21 @@
 import 'package:get_it/get_it.dart';
-// import 'package:dio/dio.dart';
-// import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-// import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:cleanapp/src/core/config/app_config.dart';
+import 'package:cleanapp/src/core/services/auth_token_store.dart';
+import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
+import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
+import 'package:cleanapp/src/features/services/data/services_api_service.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 final locator = GetIt.instance;
 
 void setupLocator() {
-  // Core services
-  /*
+  if (locator.isRegistered<Dio>()) return;
+
   locator.registerLazySingleton<Dio>(() => Dio(
         BaseOptions(
+          baseUrl: AppConfig.apiBaseUrl,
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 30),
           sendTimeout: const Duration(seconds: 30),
@@ -18,7 +24,17 @@ void setupLocator() {
             'Accept': 'application/json',
           },
         ),
-      )..interceptors.add(PrettyDioLogger(
+      )
+        ..interceptors.add(InterceptorsWrapper(
+          onRequest: (options, handler) async {
+            final token = await locator<AuthTokenStore>().readToken();
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
+            handler.next(options);
+          },
+        ))
+        ..interceptors.add(PrettyDioLogger(
           requestHeader: true,
           requestBody: true,
           responseBody: true,
@@ -32,9 +48,11 @@ void setupLocator() {
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
     ),
   );
-  */
 
-  // Add more services and repositories here as they are created
-  // Example:
-  // locator.registerLazySingleton<AuthService>(() => AuthService());
+  locator.registerLazySingleton<AuthTokenStore>(
+    () => AuthTokenStore(locator<FlutterSecureStorage>()),
+  );
+  locator.registerLazySingleton<AuthApiService>(() => AuthApiService());
+  locator.registerLazySingleton<ServicesApiService>(() => ServicesApiService());
+  locator.registerLazySingleton<OrdersApiService>(() => OrdersApiService());
 }

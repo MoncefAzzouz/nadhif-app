@@ -1,4 +1,7 @@
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
+import 'package:cleanapp/src/features/services/booking_pricing.dart';
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
@@ -6,6 +9,9 @@ import 'dart:ui';
 
 class OrderSummaryPage extends StatefulWidget {
   final String serviceName;
+  final String? serviceId;
+  final String? houseConfigId;
+  final DateTime scheduledDate;
   final String date;
   final String time;
   final String address;
@@ -14,11 +20,15 @@ class OrderSummaryPage extends StatefulWidget {
   final int cleaners;
   final bool needMaterials;
   final bool needEquipment;
+  final BookingMaterial materialType;
   final double subtotal;
 
   const OrderSummaryPage({
     super.key,
     required this.serviceName,
+    this.serviceId,
+    this.houseConfigId,
+    required this.scheduledDate,
     required this.date,
     required this.time,
     required this.address,
@@ -27,6 +37,7 @@ class OrderSummaryPage extends StatefulWidget {
     required this.cleaners,
     required this.needMaterials,
     required this.needEquipment,
+    required this.materialType,
     required this.subtotal,
   });
 
@@ -37,6 +48,7 @@ class OrderSummaryPage extends StatefulWidget {
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
   String _selectedPayment = '';
   String? _appliedPromo;
+  bool _isSubmitting = false;
 
   void _showPromoBottomSheet(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -233,6 +245,39 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     });
   }
 
+  Future<void> _confirmBooking() async {
+    if (widget.serviceId == null || widget.houseConfigId == null) {
+      _showSuccessAnimation(context);
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await locator<OrdersApiService>().createServiceOrder(
+        serviceId: widget.serviceId!,
+        houseConfigId: widget.houseConfigId!,
+        cleaners: widget.cleaners,
+        useMaterials: widget.needMaterials,
+        materialType: widget.materialType,
+        scheduledDate: widget.scheduledDate,
+        address: widget.address,
+        promoCode: _appliedPromo,
+      );
+      if (!mounted) return;
+      _showSuccessAnimation(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -407,7 +452,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: _selectedPayment.isEmpty ? null : () => _showSuccessAnimation(context),
+                  onPressed: _selectedPayment.isEmpty || _isSubmitting
+                      ? null
+                      : _confirmBooking,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ColorApp.primary,
                     disabledBackgroundColor: ColorApp.softGrey,
@@ -415,7 +462,11 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     elevation: 0,
                   ),
                   child: Text(
-                    _selectedPayment.isEmpty ? "Select Payment Type" : "Confirm Booking",
+                    _isSubmitting
+                        ? "Creating Booking..."
+                        : _selectedPayment.isEmpty
+                            ? "Select Payment Type"
+                            : "Confirm Booking",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white),
                   ),
                 ),

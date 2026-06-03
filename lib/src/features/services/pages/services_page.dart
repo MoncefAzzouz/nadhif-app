@@ -1,8 +1,11 @@
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:flutter/material.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
+import 'package:cleanapp/src/features/services/data/service_models.dart';
+import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -14,6 +17,9 @@ class ServicesPage extends StatefulWidget {
 class _ServicesPageState extends State<ServicesPage> {
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
+  List<AppService> _backendServices = const [];
+  bool _isLoading = true;
+  String? _error;
 
   List<String> _getCategories(AppLocalizations l10n) => 
       [l10n.all, l10n.cleaning, l10n.repair, l10n.laundry, l10n.maintenance];
@@ -76,16 +82,53 @@ class _ServicesPageState extends State<ServicesPage> {
         },
       ];
 
+  List<Map<String, dynamic>> _mapBackendServices(AppLocalizations l10n) {
+    return _backendServices.map((service) {
+      final config = service.defaultHouseConfig;
+      return {
+        "name": service.name,
+        "icon": Icons.cleaning_services_rounded,
+        "image": service.picture,
+        "desc": service.description,
+        "category": l10n.cleaning,
+        "price": l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
+        "backendService": service,
+      };
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
-    // We'll set the default category after l10n is available in build
+    _loadServices();
+  }
+
+  Future<void> _loadServices() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final services = await locator<ServicesApiService>().getServices();
+      if (!mounted) return;
+      setState(() {
+        _backendServices = services;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final services = _getServices(l10n);
+    final services =
+        _backendServices.isNotEmpty ? _mapBackendServices(l10n) : _getServices(l10n);
     final categories = _getCategories(l10n);
 
     // Initial value for _selectedCategory if it's still 'All'
@@ -212,6 +255,44 @@ class _ServicesPageState extends State<ServicesPage> {
             ),
 
             // Services List
+            if (_isLoading)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              )
+            else if (_error != null && _backendServices.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.cloud_off_rounded, color: Color(0xFFDC2626)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: ColorApp.textGrey,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        TextButton(onPressed: _loadServices, child: const Text('Retry')),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
               sliver: SliverList(
@@ -227,6 +308,7 @@ class _ServicesPageState extends State<ServicesPage> {
                             MaterialPageRoute(
                               builder: (context) => ServiceBookingPage(
                                 serviceName: service["name"] as String,
+                                service: service["backendService"] as AppService?,
                                 serviceImage: service["image"] as String?,
                                 serviceIcon: service["icon"] as IconData?,
                               ),
@@ -256,10 +338,24 @@ class _ServicesPageState extends State<ServicesPage> {
                                 color: ColorApp.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: service['image'] != null
+                              child: service['image'] != null &&
+                                      (service['image'] as String).isNotEmpty &&
+                                      !(service['image'] as String).startsWith('/')
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(20),
-                                      child: Image.asset(
+                                      child: (service['image'] as String).startsWith('http')
+                                          ? Image.network(
+                                              service['image'] as String,
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => Icon(
+                                                service['icon'] as IconData,
+                                                color: ColorApp.primary,
+                                                size: 30,
+                                              ),
+                                            )
+                                          : Image.asset(
                                         service['image'] as String,
                                         width: double.infinity,
                                         height: double.infinity,

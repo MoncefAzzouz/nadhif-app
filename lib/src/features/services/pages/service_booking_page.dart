@@ -3,18 +3,21 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
 import 'package:cleanapp/src/features/services/cubit/booking_cubit.dart';
+import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/pages/order_summary_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ServiceBookingPage extends StatelessWidget {
   final String serviceName;
+  final AppService? service;
   final String? serviceImage;
   final IconData? serviceIcon;
 
   const ServiceBookingPage({
     super.key,
     required this.serviceName,
+    this.service,
     this.serviceImage,
     this.serviceIcon,
   });
@@ -25,6 +28,7 @@ class ServiceBookingPage extends StatelessWidget {
       create: (_) => BookingCubit(),
       child: _ServiceBookingView(
         serviceName: serviceName,
+        service: service,
         serviceImage: serviceImage,
         serviceIcon: serviceIcon,
       ),
@@ -51,11 +55,13 @@ class _ServiceBookingView extends StatelessWidget {
   ];
 
   final String serviceName;
+  final AppService? service;
   final String? serviceImage;
   final IconData? serviceIcon;
 
   const _ServiceBookingView({
     required this.serviceName,
+    this.service,
     this.serviceImage,
     this.serviceIcon,
   });
@@ -138,7 +144,7 @@ class _ServiceBookingView extends StatelessWidget {
               ],
             ),
           ),
-          _BottomAction(serviceName: serviceName),
+          _BottomAction(serviceName: serviceName, service: service),
         ],
       ),
     );
@@ -193,15 +199,29 @@ class _ServiceBookingView extends StatelessWidget {
                 border:
                     Border.all(color: Colors.white.withValues(alpha: 0.31)),
               ),
-              child: serviceImage != null
+              child: serviceImage != null &&
+                      serviceImage!.isNotEmpty &&
+                      !serviceImage!.startsWith('/')
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: Image.asset(
-                        serviceImage!,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: serviceImage!.startsWith('http')
+                          ? Image.network(
+                              serviceImage!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                serviceIcon ?? Icons.cleaning_services_rounded,
+                                color: Colors.white,
+                                size: 35,
+                              ),
+                            )
+                          : Image.asset(
+                              serviceImage!,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
                     )
                   : Icon(
                       serviceIcon ?? Icons.cleaning_services_rounded,
@@ -747,7 +767,8 @@ class _BookingMaterialOption extends StatelessWidget {
 
 class _BottomAction extends StatelessWidget {
   final String serviceName;
-  const _BottomAction({required this.serviceName});
+  final AppService? service;
+  const _BottomAction({required this.serviceName, this.service});
 
   @override
   Widget build(BuildContext context) {
@@ -863,8 +884,11 @@ class _BottomAction extends StatelessWidget {
       MaterialPageRoute(
         builder: (context) => OrderSummaryPage(
           serviceName: serviceName,
-          date: 'Wednesday, May 13',
-          time: '07:00 PM - 07:30 PM',
+          serviceId: service?.id,
+          houseConfigId: service?.defaultHouseConfig?.id,
+          scheduledDate: state.selectedDate,
+          date: '${state.selectedDate.day}/${state.selectedDate.month}/${state.selectedDate.year}',
+          time: state.selectedTimeSlot,
           address:
               'Hsh jshs, jzjx, x d, Jasim Bin Mohammed Street, 774905514',
           frequency: 'One time schedule',
@@ -872,6 +896,7 @@ class _BottomAction extends StatelessWidget {
           cleaners: state.selectedCleaners,
           needMaterials: state.needMaterials,
           needEquipment: state.needEquipment,
+          materialType: state.materialType,
           subtotal: state.totalPrice,
         ),
       ),

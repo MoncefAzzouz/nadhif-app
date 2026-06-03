@@ -1,6 +1,10 @@
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/services/auth_token_store.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/personal_info_page.dart';
 import 'package:flutter/material.dart';
@@ -11,20 +15,52 @@ class ProfilePage extends StatelessWidget {
 
   const ProfilePage({
     super.key,
-    this.repository = const InMemoryProfileRepository(),
+    this.repository = const ApiProfileRepository(),
   });
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final user = repository.getCurrentUser();
     
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
+        child: FutureBuilder<UserProfile>(
+          future: repository.getCurrentUser(),
+          builder: (context, snapshot) {
+            final user = snapshot.data;
+
+            if (snapshot.connectionState == ConnectionState.waiting && user == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError && user == null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    snapshot.error.toString().replaceFirst('Exception: ', ''),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            final profile = user ??
+                const UserProfile(
+                  fullName: 'Customer',
+                  email: '',
+                  phone: '',
+                  location: '',
+                );
+
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Custom Header
@@ -119,7 +155,7 @@ class ProfilePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              user.firstName,
+                              profile.fullName,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 22,
@@ -128,7 +164,7 @@ class ProfilePage extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              user.email,
+                              profile.email,
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 13,
@@ -163,7 +199,7 @@ class ProfilePage extends StatelessWidget {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const PersonalInfoPage()),
+                    MaterialPageRoute(builder: (context) => PersonalInfoPage(profile: profile)),
                   );
                 },
               ),
@@ -202,7 +238,7 @@ class ProfilePage extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: () => _logout(context),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
@@ -230,10 +266,22 @@ class ProfilePage extends StatelessWidget {
               ),
               
               const SizedBox(height: 120),
-            ],
-          ),
+              ],
+            ),
+          );
+          },
         ),
       ),
+    );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    await locator<AuthTokenStore>().clear();
+    if (!context.mounted) return;
+    context.read<AuthCubit>().clearError();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PhoneNumberPage()),
+      (route) => false,
     );
   }
 

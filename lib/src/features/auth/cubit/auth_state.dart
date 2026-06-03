@@ -26,11 +26,3 @@ class AuthError extends AuthState {
   @override
   List<Object?> get props => [message];
 }
-
-class AuthCodeSent extends AuthState {
-  final String phoneNumber;
-  const AuthCodeSent(this.phoneNumber);
-
-  @override
-  List<Object?> get props => [phoneNumber];
-}
