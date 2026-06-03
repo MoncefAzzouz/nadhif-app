@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
@@ -910,40 +911,49 @@ class _BottomNavBar extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(left: 22, right: 22, bottom: 18),
       height: 70,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.all(Radius.circular(32)),
-        boxShadow: AppShadows.bottomBar,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _NavItem(
-            index: 0,
-            label: l10n.homeLabel,
-            icon: Icons.home_rounded,
-            isActive: selectedIndex == 0,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
+              boxShadow: AppShadows.bottomBar,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  index: 0,
+                  label: l10n.homeLabel,
+                  icon: Icons.home_rounded,
+                  isActive: selectedIndex == 0,
+                ),
+                _NavItem(
+                  index: 1,
+                  label: l10n.servicesLabel,
+                  icon: Icons.grid_view_rounded,
+                  isActive: selectedIndex == 1,
+                ),
+                _NavItem(
+                  index: 2,
+                  label: l10n.ordersLabel,
+                  icon: Icons.receipt_long_rounded,
+                  isActive: selectedIndex == 2,
+                  badgeCount: ordersCount,
+                ),
+                _NavItem(
+                  index: 3,
+                  label: l10n.profileLabel,
+                  icon: Icons.person_rounded,
+                  isActive: selectedIndex == 3,
+                ),
+              ],
+            ),
           ),
-          _NavItem(
-            index: 1,
-            label: l10n.servicesLabel,
-            icon: Icons.grid_view_rounded,
-            isActive: selectedIndex == 1,
-          ),
-          _NavItem(
-            index: 2,
-            label: l10n.ordersLabel,
-            icon: Icons.receipt_long_rounded,
-            isActive: selectedIndex == 2,
-            badgeCount: ordersCount,
-          ),
-          _NavItem(
-            index: 3,
-            label: l10n.profileLabel,
-            icon: Icons.person_rounded,
-            isActive: selectedIndex == 3,
-          ),
-        ],
+        ),
       ),
     );
   }
