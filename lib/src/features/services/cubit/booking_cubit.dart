@@ -139,6 +139,8 @@ class BookingCubit extends Cubit<BookingState> {
         ),
       );
   void selectHours(int hours) => emit(state.copyWith(selectedHours: hours));
+  void selectExtraWorkers(int count) =>
+      emit(state.copyWith(selectedCleaners: state.defaultCleaners + count));
   void selectCleaners(int count) =>
       emit(state.copyWith(selectedCleaners: count));
   void selectTimeSlot(String slot) =>

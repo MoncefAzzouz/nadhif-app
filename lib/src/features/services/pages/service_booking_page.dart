@@ -106,15 +106,6 @@ class _ServiceBookingView extends StatelessWidget {
                       children: [
                         _buildHeaderInfo(context, l10n),
                         const SizedBox(height: 16),
-                        BlocBuilder<BookingCubit, BookingState>(
-                          buildWhen: (a, b) =>
-                              a.selectedDate != b.selectedDate,
-                          builder: (context, state) => _DateSection(
-                            selectedDate: state.selectedDate,
-                            weekDays: _weekDays,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
                         if (usesBackendHouseConfigs) ...[
                           BlocBuilder<BookingCubit, BookingState>(
                             buildWhen: (a, b) =>
@@ -128,7 +119,26 @@ class _ServiceBookingView extends StatelessWidget {
                               state: state,
                             ),
                           ),
-                        ] else ...[
+                          const SizedBox(height: 16),
+                          BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) =>
+                                a.selectedCleaners != b.selectedCleaners ||
+                                a.defaultCleaners != b.defaultCleaners,
+                            builder: (context, state) =>
+                                _ExtraWorkersSection(state: state),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        BlocBuilder<BookingCubit, BookingState>(
+                          buildWhen: (a, b) =>
+                              a.selectedDate != b.selectedDate,
+                          builder: (context, state) => _DateSection(
+                            selectedDate: state.selectedDate,
+                            weekDays: _weekDays,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (!usesBackendHouseConfigs) ...[
                           BlocBuilder<BookingCubit, BookingState>(
                             buildWhen: (a, b) =>
                                 a.selectedHours != b.selectedHours,
@@ -524,6 +534,72 @@ class _ConfigMetric extends StatelessWidget {
             color: ColorApp.textBlack,
             fontSize: 13,
             fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExtraWorkersSection extends StatelessWidget {
+  final BookingState state;
+
+  const _ExtraWorkersSection({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: 'Extra Workers',
+          trailing: '+${state.extraWorkers}',
+        ),
+        Row(
+          children: List.generate(4, (index) {
+            final isSelected = state.extraWorkers == index;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () =>
+                    context.read<BookingCubit>().selectExtraWorkers(index),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  height: 50,
+                  margin: EdgeInsets.only(right: index == 3 ? 0 : 8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? ColorApp.primary.withValues(alpha: 0.12)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? ColorApp.primary : ColorApp.greyBorder,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '+$index',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight:
+                            isSelected ? FontWeight.w900 : FontWeight.w700,
+                        color:
+                            isSelected ? ColorApp.primary : ColorApp.textBlack,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Total workers: ${state.selectedCleaners}',
+          style: const TextStyle(
+            color: ColorApp.textGrey,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
