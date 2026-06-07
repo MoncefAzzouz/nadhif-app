@@ -1,11 +1,16 @@
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
+import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class BookingState extends Equatable {
   final DateTime selectedDate;
+  final String? selectedHouseConfigId;
+  final String? selectedHouseType;
   final int selectedHours;
   final int selectedCleaners;
+  final double selectedBasePrice;
+  final int defaultCleaners;
   final String selectedTimeSlot;
   final bool needMaterials;
   final BookingMaterial materialType;
@@ -14,8 +19,12 @@ class BookingState extends Equatable {
 
   const BookingState({
     required this.selectedDate,
+    required this.selectedHouseConfigId,
+    required this.selectedHouseType,
     required this.selectedHours,
     required this.selectedCleaners,
+    required this.selectedBasePrice,
+    required this.defaultCleaners,
     required this.selectedTimeSlot,
     required this.needMaterials,
     required this.materialType,
@@ -23,28 +32,47 @@ class BookingState extends Equatable {
     required this.showBreakdown,
   });
 
-  factory BookingState.initial() => BookingState(
+  factory BookingState.initial({
+    AppHouseConfig? houseConfig,
+    AppCategoryService? categoryService,
+    bool needMaterials = false,
+  }) =>
+      BookingState(
         selectedDate: DateTime.now().add(const Duration(days: 1)),
-        selectedHours: 4,
-        selectedCleaners: 1,
+        selectedHouseConfigId: houseConfig?.id,
+        selectedHouseType: houseConfig?.type,
+        selectedHours:
+            houseConfig?.durationHours ?? categoryService?.durationHours ?? 4,
+        selectedCleaners: houseConfig?.workers ?? categoryService?.workers ?? 1,
+        selectedBasePrice:
+            houseConfig?.basePrice ?? categoryService?.basePrice ?? 0,
+        defaultCleaners: houseConfig?.workers ?? categoryService?.workers ?? 1,
         selectedTimeSlot: '05:30 pm - 06:00 pm',
-        needMaterials: false,
+        needMaterials: needMaterials,
         materialType: BookingMaterial.algerian,
         needEquipment: false,
         showBreakdown: false,
       );
 
   double get totalPrice => BookingPricing.total(
+        basePrice: selectedBasePrice,
         hours: selectedHours,
         cleaners: selectedCleaners,
         needMaterials: needMaterials,
         materialType: materialType,
       );
 
+  int get extraWorkers =>
+      selectedCleaners > defaultCleaners ? selectedCleaners - defaultCleaners : 0;
+
   BookingState copyWith({
     DateTime? selectedDate,
+    String? selectedHouseConfigId,
+    String? selectedHouseType,
     int? selectedHours,
     int? selectedCleaners,
+    double? selectedBasePrice,
+    int? defaultCleaners,
     String? selectedTimeSlot,
     bool? needMaterials,
     BookingMaterial? materialType,
@@ -53,8 +81,13 @@ class BookingState extends Equatable {
   }) {
     return BookingState(
       selectedDate: selectedDate ?? this.selectedDate,
+      selectedHouseConfigId:
+          selectedHouseConfigId ?? this.selectedHouseConfigId,
+      selectedHouseType: selectedHouseType ?? this.selectedHouseType,
       selectedHours: selectedHours ?? this.selectedHours,
       selectedCleaners: selectedCleaners ?? this.selectedCleaners,
+      selectedBasePrice: selectedBasePrice ?? this.selectedBasePrice,
+      defaultCleaners: defaultCleaners ?? this.defaultCleaners,
       selectedTimeSlot: selectedTimeSlot ?? this.selectedTimeSlot,
       needMaterials: needMaterials ?? this.needMaterials,
       materialType: materialType ?? this.materialType,
@@ -66,8 +99,12 @@ class BookingState extends Equatable {
   @override
   List<Object?> get props => [
         selectedDate,
+        selectedHouseConfigId,
+        selectedHouseType,
         selectedHours,
         selectedCleaners,
+        selectedBasePrice,
+        defaultCleaners,
         selectedTimeSlot,
         needMaterials,
         materialType,
@@ -77,9 +114,30 @@ class BookingState extends Equatable {
 }
 
 class BookingCubit extends Cubit<BookingState> {
-  BookingCubit() : super(BookingState.initial());
+  BookingCubit({
+    AppHouseConfig? houseConfig,
+    AppCategoryService? categoryService,
+    bool needMaterials = false,
+  })
+      : super(
+          BookingState.initial(
+            houseConfig: houseConfig,
+            categoryService: categoryService,
+            needMaterials: needMaterials,
+          ),
+        );
 
   void selectDate(DateTime date) => emit(state.copyWith(selectedDate: date));
+  void selectHouseConfig(AppHouseConfig config) => emit(
+        state.copyWith(
+          selectedHouseConfigId: config.id,
+          selectedHouseType: config.type,
+          selectedHours: config.durationHours,
+          selectedCleaners: config.workers,
+          selectedBasePrice: config.basePrice,
+          defaultCleaners: config.workers,
+        ),
+      );
   void selectHours(int hours) => emit(state.copyWith(selectedHours: hours));
   void selectCleaners(int count) =>
       emit(state.copyWith(selectedCleaners: count));

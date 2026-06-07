@@ -18,7 +18,7 @@ class OrdersApiService extends BaseApiService {
   Future<void> createServiceOrder({
     required String serviceId,
     required String houseConfigId,
-    required int cleaners,
+    required int extraWorkers,
     required bool useMaterials,
     required BookingMaterial materialType,
     required DateTime scheduledDate,
@@ -31,7 +31,7 @@ class OrdersApiService extends BaseApiService {
         data: {
           'serviceId': serviceId,
           'houseConfigId': houseConfigId,
-          'extraWorkers': cleaners > 1 ? cleaners - 1 : 0,
+          'extraWorkers': extraWorkers,
           'useMaterials': useMaterials,
           'productOrigin': useMaterials
               ? (materialType == BookingMaterial.imported ? 'IMPORTED' : 'LOCAL')

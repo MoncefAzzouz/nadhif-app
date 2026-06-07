@@ -28,7 +28,14 @@ class ServiceBookingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => BookingCubit(),
+      create: (_) => BookingCubit(
+        houseConfig: service?.defaultHouseConfig,
+        categoryService: category?.defaultCategoryService,
+        needMaterials: service?.materialsMandatory == true ||
+            service?.productsMandatory == true ||
+            category?.materialsMandatory == true ||
+            category?.productsMandatory == true,
+      ),
       child: _ServiceBookingView(
         serviceName: serviceName,
         service: service,
@@ -75,6 +82,12 @@ class _ServiceBookingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final houseConfigs = service?.houseConfigs ?? const <AppHouseConfig>[];
+    final usesBackendHouseConfigs = houseConfigs.isNotEmpty;
+    final materialsRequired = service?.materialsMandatory == true ||
+        service?.productsMandatory == true ||
+        category?.materialsMandatory == true ||
+        category?.productsMandatory == true;
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -102,19 +115,34 @@ class _ServiceBookingView extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        BlocBuilder<BookingCubit, BookingState>(
-                          buildWhen: (a, b) =>
-                              a.selectedHours != b.selectedHours,
-                          builder: (context, state) =>
-                              _HoursSection(selectedHours: state.selectedHours),
-                        ),
-                        const SizedBox(height: 16),
-                        BlocBuilder<BookingCubit, BookingState>(
-                          buildWhen: (a, b) =>
-                              a.selectedCleaners != b.selectedCleaners,
-                          builder: (context, state) => _CleanersSection(
-                              selectedCleaners: state.selectedCleaners),
-                        ),
+                        if (usesBackendHouseConfigs) ...[
+                          BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) =>
+                                a.selectedHouseConfigId !=
+                                    b.selectedHouseConfigId ||
+                                a.selectedHours != b.selectedHours ||
+                                a.selectedCleaners != b.selectedCleaners ||
+                                a.selectedBasePrice != b.selectedBasePrice,
+                            builder: (context, state) => _HouseTypeSection(
+                              configs: houseConfigs,
+                              state: state,
+                            ),
+                          ),
+                        ] else ...[
+                          BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) =>
+                                a.selectedHours != b.selectedHours,
+                            builder: (context, state) => _HoursSection(
+                                selectedHours: state.selectedHours),
+                          ),
+                          const SizedBox(height: 16),
+                          BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) =>
+                                a.selectedCleaners != b.selectedCleaners,
+                            builder: (context, state) => _CleanersSection(
+                                selectedCleaners: state.selectedCleaners),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         BlocBuilder<BookingCubit, BookingState>(
                           buildWhen: (a, b) =>
@@ -132,6 +160,7 @@ class _ServiceBookingView extends StatelessWidget {
                           builder: (context, state) => _MaterialsCard(
                             needMaterials: state.needMaterials,
                             materialType: state.materialType,
+                            isMandatory: materialsRequired,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -369,6 +398,139 @@ class _DateSection extends StatelessWidget {
   }
 }
 
+class _HouseTypeSection extends StatelessWidget {
+  final List<AppHouseConfig> configs;
+  final BookingState state;
+
+  const _HouseTypeSection({
+    required this.configs,
+    required this.state,
+  });
+
+  String _label(String type) => type.toUpperCase();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: 'House Type',
+          trailing: state.selectedHouseType?.toUpperCase() ?? '',
+        ),
+        Row(
+          children: configs.map((config) {
+            final isSelected = state.selectedHouseConfigId == config.id;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () =>
+                    context.read<BookingCubit>().selectHouseConfig(config),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  height: 50,
+                  margin: EdgeInsets.only(
+                    right: config == configs.last ? 0 : 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? ColorApp.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? Colors.transparent : ColorApp.greyBorder,
+                      width: 1.5,
+                    ),
+                    boxShadow: isSelected ? AppShadows.primaryGlow() : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      _label(config.type),
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : ColorApp.textBlack,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: ColorApp.softGrey,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.professionals,
+                  value: '${state.selectedCleaners}',
+                ),
+              ),
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.duration,
+                  value: '${state.selectedHours} ${l10n.hours}',
+                ),
+              ),
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.basePrice,
+                  value: 'DA ${state.selectedBasePrice.toStringAsFixed(0)}',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConfigMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ConfigMetric({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: ColorApp.textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: ColorApp.textBlack,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _HoursSection extends StatelessWidget {
   final int selectedHours;
   const _HoursSection({required this.selectedHours});
@@ -548,10 +710,12 @@ class _TimeSlotSection extends StatelessWidget {
 class _MaterialsCard extends StatelessWidget {
   final bool needMaterials;
   final BookingMaterial materialType;
+  final bool isMandatory;
 
   const _MaterialsCard({
     required this.needMaterials,
     required this.materialType,
+    required this.isMandatory,
   });
 
   @override
@@ -600,16 +764,18 @@ class _MaterialsCard extends StatelessWidget {
                 ),
               ),
               Switch.adaptive(
-                value: needMaterials,
-                onChanged: (val) =>
-                    context.read<BookingCubit>().toggleMaterials(val),
+                value: needMaterials || isMandatory,
+                onChanged: isMandatory
+                    ? null
+                    : (val) =>
+                        context.read<BookingCubit>().toggleMaterials(val),
                 activeTrackColor:
                     ColorApp.primary.withValues(alpha: 0.39),
               ),
             ],
           ),
         ),
-        if (needMaterials) ...[
+        if (needMaterials || isMandatory) ...[
           const SizedBox(height: 16),
           Row(
             children: [
@@ -884,7 +1050,7 @@ class _BottomAction extends StatelessWidget {
         builder: (context) => OrderSummaryPage(
           serviceName: serviceName,
           serviceId: service?.id,
-          houseConfigId: service?.defaultHouseConfig?.id,
+          houseConfigId: state.selectedHouseConfigId,
           categoryId: category?.id,
           categoryServiceId: category?.defaultCategoryService?.id,
           scheduledDate: state.selectedDate,
@@ -895,6 +1061,7 @@ class _BottomAction extends StatelessWidget {
           frequency: 'One time schedule',
           duration: state.selectedHours,
           cleaners: state.selectedCleaners,
+          extraWorkers: state.extraWorkers,
           needMaterials: state.needMaterials,
           needEquipment: state.needEquipment,
           materialType: state.materialType,
@@ -919,7 +1086,9 @@ class _PriceBreakdown extends StatelessWidget {
         children: [
           _BreakdownRow(
               label: l10n.basePrice,
-              value: 'DA ${BookingPricing.basePricePerHour}/hr'),
+              value: state.selectedBasePrice > 0
+                  ? 'DA ${state.selectedBasePrice.toStringAsFixed(0)}'
+                  : 'DA ${BookingPricing.basePricePerHour}/hr'),
           const SizedBox(height: 8),
           _BreakdownRow(
               label: l10n.professionals,

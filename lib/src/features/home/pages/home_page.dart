@@ -218,7 +218,7 @@ class _HomePageState extends State<HomePage>
           const SizedBox(height: 2),
           _SectionHeader(title: l10n.recommendedServices, showViewAll: true),
           _buildHorizontalServices(context),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0),
           _SectionHeader(title: l10n.ourServices),
           _buildServiceGrid(context),
           const SizedBox(height: 10),
@@ -314,7 +314,7 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildHeroCarousel() {
     return SizedBox(
-      height: 220,
+      height: 184,
       child: PageView.builder(
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
@@ -636,111 +636,117 @@ class _HorizontalServiceCard extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: 16, bottom: 8),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(28)),
-          boxShadow: AppShadows.cardSubtle,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 126,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(28),
-                        topRight: Radius.circular(28),
-                      ),
-                      child: data.imageUrl.startsWith('http')
-                          ? CachedNetworkImage(
-                              imageUrl: data.imageUrl,
-                              fit: BoxFit.fitWidth,
-                              placeholder: (_, __) => Container(
-                                color: ColorApp.softGrey,
-                              ),
-                              errorWidget: (_, __, ___) => Container(
-                                color: ColorApp.softGrey,
-                                child: const Icon(Icons.image_not_supported,
-                                    color: ColorApp.textGrey),
-                              ),
-                            )
-                          : Image.asset(data.imageUrl, fit: BoxFit.fitWidth),
-                    ),
-                  ),
-                  if (data.isNew)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ColorApp.primary,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          l10n.newLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: 184,
+          child: Container(
+            width: 200,
+            margin: const EdgeInsets.only(right: 16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.all(Radius.circular(28)),
+              boxShadow: AppShadows.cardSubtle,
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    data.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      color: ColorApp.textBlack,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 126,
+                  child: Stack(
                     children: [
-                      Expanded(
-                        child: Text(
-                          data.subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: ColorApp.textGrey,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(28),
+                            topRight: Radius.circular(28),
                           ),
+                          child: data.imageUrl.startsWith('http')
+                              ? CachedNetworkImage(
+                                  imageUrl: data.imageUrl,
+                                  fit: BoxFit.fitWidth,
+                                  placeholder: (_, __) => Container(
+                                    color: ColorApp.softGrey,
+                                  ),
+                                  errorWidget: (_, __, ___) => Container(
+                                    color: ColorApp.softGrey,
+                                    child: const Icon(Icons.image_not_supported,
+                                        color: ColorApp.textGrey),
+                                  ),
+                                )
+                              : Image.asset(data.imageUrl, fit: BoxFit.fitWidth),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        data.price,
-                        style: const TextStyle(
-                          color: ColorApp.primary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
+                      if (data.isNew)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: ColorApp.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              l10n.newLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
                         ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: ColorApp.textBlack,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              data.subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: ColorApp.textGrey,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            data.price,
+                            style: const TextStyle(
+                              color: ColorApp.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

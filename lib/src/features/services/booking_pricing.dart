@@ -13,12 +13,13 @@ class BookingPricing {
           : materialPriceImported;
 
   static double total({
+    double basePrice = 0,
     required int hours,
     required int cleaners,
     required bool needMaterials,
     required BookingMaterial materialType,
   }) {
-    double price = hours * cleaners * basePricePerHour;
+    double price = basePrice > 0 ? basePrice : hours * cleaners * basePricePerHour;
     if (needMaterials) {
       price += hours * materialRate(materialType);
     }

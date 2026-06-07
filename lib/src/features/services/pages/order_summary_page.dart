@@ -20,6 +20,7 @@ class OrderSummaryPage extends StatefulWidget {
   final String frequency;
   final int duration;
   final int cleaners;
+  final int extraWorkers;
   final bool needMaterials;
   final bool needEquipment;
   final BookingMaterial materialType;
@@ -39,6 +40,7 @@ class OrderSummaryPage extends StatefulWidget {
     required this.frequency,
     required this.duration,
     required this.cleaners,
+    this.extraWorkers = 0,
     required this.needMaterials,
     required this.needEquipment,
     required this.materialType,
@@ -266,7 +268,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         await locator<OrdersApiService>().createServiceOrder(
           serviceId: widget.serviceId!,
           houseConfigId: widget.houseConfigId!,
-          cleaners: widget.cleaners,
+          extraWorkers: widget.extraWorkers,
           useMaterials: widget.needMaterials,
           materialType: widget.materialType,
           scheduledDate: widget.scheduledDate,
@@ -301,8 +303,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       extendBodyBehindAppBar: true,
