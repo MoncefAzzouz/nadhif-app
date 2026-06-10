@@ -62,7 +62,6 @@ class _HomePageState extends State<HomePage>
   UserProfile? _profile;
   int _activeOrdersCount = 0;
   List<AppCategory> _backendCategories = const [];
-  List<AppService> _backendServices = const [];
 
   @override
   void initState() {
@@ -109,21 +108,12 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _loadCategories() async {
     try {
-      final servicesFuture = locator<ServicesApiService>().getServices();
-      final categoriesFuture = locator<ServicesApiService>().getCategories();
-      final services = await servicesFuture;
-      final categories = await categoriesFuture;
+      final categories = await locator<ServicesApiService>().getCategories();
       if (!mounted) return;
-      setState(() {
-        _backendServices = services;
-        _backendCategories = categories;
-      });
+      setState(() => _backendCategories = categories);
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _backendServices = const [];
-        _backendCategories = const [];
-      });
+      setState(() => _backendCategories = const []);
     }
   }
 
@@ -378,56 +368,10 @@ class _HomePageState extends State<HomePage>
   }
 
   Widget _buildServiceGrid(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final services = <_ServiceTile>[
-      _ServiceTile(
-        name: l10n.laundry,
-        image: MediaRes.laundryIcon,
-        icon: Icons.local_laundry_service_rounded,
-      ),
-      _ServiceTile(
-        name: l10n.carpet,
-        image: MediaRes.carpetIcon,
-        icon: Icons.texture_rounded,
-      ),
-      _ServiceTile(
-        name: l10n.acRepair,
-        image: MediaRes.acRepairIcon,
-        icon: Icons.ac_unit_rounded,
-      ),
-      _ServiceTile(
-        name: l10n.deepClean,
-        image: MediaRes.deepCleanIcon,
-        icon: Icons.auto_awesome_rounded,
-      ),
-      _ServiceTile(
-        name: l10n.homeClean,
-        image: MediaRes.fastCleanIcon,
-        icon: Icons.home_work_rounded,
-      ),
-      _ServiceTile(
-        name: l10n.carWash,
-        image: MediaRes.carWashIcon,
-        icon: Icons.directions_car_filled_rounded,
-      ),
-      _ServiceTile(name: l10n.shoeCare, icon: Icons.shopping_bag_rounded),
-      _ServiceTile(
-        name: l10n.furniture,
-        image: MediaRes.furnitureIcon,
-        icon: Icons.weekend_rounded,
-      ),
-    ];
-    final serviceTiles = _backendServices
-        .map(
-          (service) => _ServiceTile(
-            name: service.name,
-            image: service.picture,
-            icon: Icons.cleaning_services_rounded,
-            service: service,
-          ),
-        )
-        .toList();
-    final categoryTiles = _backendCategories
+    // "Our services" on the home page shows only what the admin adds at
+    // /admin/categories (backend categories). Items from /admin/services are
+    // intentionally excluded here.
+    final tiles = _backendCategories
         .map(
           (category) => _ServiceTile(
             name: category.name,
@@ -437,10 +381,6 @@ class _HomePageState extends State<HomePage>
           ),
         )
         .toList();
-    final hasBackendTiles = serviceTiles.isNotEmpty || categoryTiles.isNotEmpty;
-    final tiles = hasBackendTiles
-        ? [...serviceTiles, ...categoryTiles]
-        : services;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -783,14 +723,12 @@ class _ServiceTile {
   final String? image;
   final IconData icon;
   final AppCategory? category;
-  final AppService? service;
 
   const _ServiceTile({
     required this.name,
     required this.icon,
     this.image,
     this.category,
-    this.service,
   });
 }
 
@@ -807,7 +745,6 @@ class _ServiceGridTile extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => ServiceDetailsPage(
               serviceName: service.name,
-              service: service.service,
               category: service.category,
               serviceImage: service.image,
               serviceIcon: service.icon,
