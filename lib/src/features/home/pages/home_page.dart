@@ -62,6 +62,7 @@ class _HomePageState extends State<HomePage>
   UserProfile? _profile;
   int _activeOrdersCount = 0;
   List<AppCategory> _backendCategories = const [];
+  List<AppService> _backendServices = const [];
 
   @override
   void initState() {
@@ -108,12 +109,21 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _loadCategories() async {
     try {
-      final categories = await locator<ServicesApiService>().getCategories();
+      final servicesFuture = locator<ServicesApiService>().getServices();
+      final categoriesFuture = locator<ServicesApiService>().getCategories();
+      final services = await servicesFuture;
+      final categories = await categoriesFuture;
       if (!mounted) return;
-      setState(() => _backendCategories = categories);
+      setState(() {
+        _backendServices = services;
+        _backendCategories = categories;
+      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _backendCategories = const []);
+      setState(() {
+        _backendServices = const [];
+        _backendCategories = const [];
+      });
     }
   }
 
@@ -407,6 +417,16 @@ class _HomePageState extends State<HomePage>
         icon: Icons.weekend_rounded,
       ),
     ];
+    final serviceTiles = _backendServices
+        .map(
+          (service) => _ServiceTile(
+            name: service.name,
+            image: service.picture,
+            icon: Icons.cleaning_services_rounded,
+            service: service,
+          ),
+        )
+        .toList();
     final categoryTiles = _backendCategories
         .map(
           (category) => _ServiceTile(
@@ -417,7 +437,10 @@ class _HomePageState extends State<HomePage>
           ),
         )
         .toList();
-    final tiles = [...services, ...categoryTiles];
+    final hasBackendTiles = serviceTiles.isNotEmpty || categoryTiles.isNotEmpty;
+    final tiles = hasBackendTiles
+        ? [...serviceTiles, ...categoryTiles]
+        : services;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -760,12 +783,14 @@ class _ServiceTile {
   final String? image;
   final IconData icon;
   final AppCategory? category;
+  final AppService? service;
 
   const _ServiceTile({
     required this.name,
     required this.icon,
     this.image,
     this.category,
+    this.service,
   });
 }
 
@@ -782,6 +807,7 @@ class _ServiceGridTile extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => ServiceDetailsPage(
               serviceName: service.name,
+              service: service.service,
               category: service.category,
               serviceImage: service.image,
               serviceIcon: service.icon,
