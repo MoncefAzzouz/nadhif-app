@@ -1,4 +1,4 @@
-import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
+import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
@@ -350,7 +350,7 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ServiceBookingPage(
+                              builder: (context) => ServiceDetailsPage(
                                 serviceName: service["name"] as String,
                                 service: service["backendService"] as AppService?,
                                 category:

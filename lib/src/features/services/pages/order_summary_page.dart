@@ -52,7 +52,6 @@ class OrderSummaryPage extends StatefulWidget {
 }
 
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
-  String _selectedPayment = 'Cash on Delivery';
   String? _appliedPromo;
   bool _isSubmitting = false;
 
@@ -303,6 +302,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       extendBodyBehindAppBar: true,
@@ -424,16 +424,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                const Padding(
-                  padding: EdgeInsets.only(left: 4, bottom: 12),
-                  child: Text(
-                    "Payment Method",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
-                  ),
-                ),
-                _paymentOption("Cash on Delivery", Icons.payments_outlined),
-                const SizedBox(height: 24),
+
                 _buildSectionCard(
                   title: "Financial Summary",
                   icon: Icons.account_balance_wallet_outlined,
@@ -468,7 +459,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton(
-                  onPressed: _selectedPayment.isEmpty || _isSubmitting
+                  onPressed: _isSubmitting
                       ? null
                       : _confirmBooking,
                   style: ElevatedButton.styleFrom(
@@ -480,15 +471,11 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   child: Text(
                     _isSubmitting
                         ? "Creating Booking..."
-                        : _selectedPayment.isEmpty
-                            ? "Select Payment Type"
-                            : "Confirm Booking",
-                    style: TextStyle(
+                        : "Confirm Booking",
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
-                      color: _selectedPayment.isEmpty
-                          ? ColorApp.textBlack
-                          : Colors.white,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -583,53 +570,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     );
   }
 
-  Widget _paymentOption(String title, IconData icon) {
-    final isSelected = _selectedPayment == title;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPayment = title),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        decoration: BoxDecoration(
-          color: isSelected ? ColorApp.primary.withValues(alpha: 0.03) : Colors.white,
-          border: Border.all(color: isSelected ? ColorApp.primary : Colors.transparent, width: 2),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: ColorApp.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: ColorApp.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                color: ColorApp.textBlack,
-                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                fontSize: 15,
-              ),
-            ),
-            const Spacer(),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: ColorApp.primary, size: 24)
-            else
-              Icon(Icons.circle_outlined, color: Colors.grey.shade300, size: 24),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildPromoSection() {
     return GestureDetector(

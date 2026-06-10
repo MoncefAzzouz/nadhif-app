@@ -14,6 +14,7 @@ import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
+import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
@@ -629,7 +630,7 @@ class _HorizontalServiceCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceBookingPage(
+            builder: (context) => ServiceDetailsPage(
               serviceName: data.title,
               serviceImage: data.imageUrl,
             ),
@@ -778,7 +779,7 @@ class _ServiceGridTile extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceBookingPage(
+            builder: (context) => ServiceDetailsPage(
               serviceName: service.name,
               category: service.category,
               serviceImage: service.image,
