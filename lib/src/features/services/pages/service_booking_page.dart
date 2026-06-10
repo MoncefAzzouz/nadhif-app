@@ -15,6 +15,7 @@ class ServiceBookingPage extends StatelessWidget {
   final AppCategory? category;
   final String? serviceImage;
   final IconData? serviceIcon;
+  final String? selectedPropertyType;
 
   const ServiceBookingPage({
     super.key,
@@ -23,18 +24,30 @@ class ServiceBookingPage extends StatelessWidget {
     this.category,
     this.serviceImage,
     this.serviceIcon,
+    this.selectedPropertyType,
   });
 
   @override
   Widget build(BuildContext context) {
+    AppHouseConfig? initialConfig = service?.defaultHouseConfig;
+    if (selectedPropertyType != null && service != null && service!.houseConfigs.isNotEmpty) {
+      for (final config in service!.houseConfigs) {
+        if (config.type.toLowerCase() == selectedPropertyType!.toLowerCase()) {
+          initialConfig = config;
+          break;
+        }
+      }
+    }
+
     return BlocProvider(
       create: (_) => BookingCubit(
-        houseConfig: service?.defaultHouseConfig,
+        houseConfig: initialConfig,
         categoryService: category?.defaultCategoryService,
         needMaterials: service?.materialsMandatory == true ||
             service?.productsMandatory == true ||
             category?.materialsMandatory == true ||
             category?.productsMandatory == true,
+        initialHouseType: selectedPropertyType,
       ),
       child: _ServiceBookingView(
         serviceName: serviceName,

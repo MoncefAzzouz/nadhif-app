@@ -118,12 +118,15 @@ class BookingCubit extends Cubit<BookingState> {
     AppHouseConfig? houseConfig,
     AppCategoryService? categoryService,
     bool needMaterials = false,
+    String? initialHouseType,
   })
       : super(
           BookingState.initial(
             houseConfig: houseConfig,
             categoryService: categoryService,
             needMaterials: needMaterials,
+          ).copyWith(
+            selectedHouseType: initialHouseType ?? houseConfig?.type,
           ),
         );
 

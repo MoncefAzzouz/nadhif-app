@@ -633,6 +633,7 @@ class _HorizontalServiceCard extends StatelessWidget {
             builder: (context) => ServiceDetailsPage(
               serviceName: data.title,
               serviceImage: data.imageUrl,
+              fromRecommendation: true,
             ),
           ),
         );

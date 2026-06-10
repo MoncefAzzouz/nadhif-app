@@ -1,7 +1,10 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
+import 'package:cleanapp/src/features/services/pages/property_selection_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,12 +22,13 @@ class ServiceDetailContent {
   });
 }
 
-class ServiceDetailsPage extends StatelessWidget {
+class ServiceDetailsPage extends StatefulWidget {
   final String serviceName;
   final AppService? service;
   final AppCategory? category;
   final String? serviceImage;
   final IconData? serviceIcon;
+  final bool fromRecommendation;
 
   const ServiceDetailsPage({
     super.key,
@@ -33,7 +37,21 @@ class ServiceDetailsPage extends StatelessWidget {
     this.category,
     this.serviceImage,
     this.serviceIcon,
+    this.fromRecommendation = false,
   });
+
+  @override
+  State<ServiceDetailsPage> createState() => _ServiceDetailsPageState();
+}
+
+class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
+  AppHouseConfig? _selectedConfig;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedConfig = widget.service?.defaultHouseConfig;
+  }
 
   static ServiceDetailContent _getDetailsForService(String name, String? backendDesc) {
     final lowerName = name.toLowerCase();
@@ -192,8 +210,10 @@ class ServiceDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backendDesc = service?.description ?? category?.description;
-    final details = _getDetailsForService(serviceName, backendDesc);
+    final backendDesc = widget.service?.description ?? widget.category?.description;
+    final details = _getDetailsForService(widget.serviceName, backendDesc);
+    final houseConfigs = widget.service?.houseConfigs ?? const <AppHouseConfig>[];
+    final hasHouseConfigs = houseConfigs.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -216,15 +236,15 @@ class ServiceDetailsPage extends StatelessWidget {
                         children: [
                           Positioned.fill(
                             child: Hero(
-                              tag: 'service_details_img_$serviceName',
+                              tag: 'service_details_img_${widget.serviceName}',
                               child: AppImage(
-                                source: serviceImage,
+                                source: widget.serviceImage,
                                 width: double.infinity,
                                 height: double.infinity,
                                 fallback: Container(
                                   color: ColorApp.primary.withValues(alpha: 0.1),
                                   child: Icon(
-                                    serviceIcon ?? Icons.cleaning_services_rounded,
+                                    widget.serviceIcon ?? Icons.cleaning_services_rounded,
                                     color: ColorApp.primary,
                                     size: 80,
                                   ),
@@ -255,7 +275,7 @@ class ServiceDetailsPage extends StatelessWidget {
                             left: 24,
                             right: 24,
                             child: Text(
-                              serviceName,
+                              widget.serviceName,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 30,
@@ -332,22 +352,36 @@ class ServiceDetailsPage extends StatelessWidget {
                               )),
                           const SizedBox(height: 24),
 
-                          // Duration Section
-                          Row(
-                            children: [
-                              _buildSectionTitle('Duration'),
-                              const SizedBox(width: 8),
-                              Text(
-                                details.duration,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: ColorApp.primary,
-                                  fontWeight: FontWeight.w800,
+                          // House layout selection (only when the service has
+                          // backend house configs). Picking a layout auto-fills
+                          // Workers / Base Price / Duration below.
+                          if (hasHouseConfigs) ...[
+                            _buildSectionTitle('House Type'),
+                            const SizedBox(height: 12),
+                            _HouseLayoutSection(
+                              configs: houseConfigs,
+                              onChanged: (config) =>
+                                  _selectedConfig = config,
+                            ),
+                            const SizedBox(height: 24),
+                          ] else ...[
+                            // Duration Section
+                            Row(
+                              children: [
+                                _buildSectionTitle('Duration'),
+                                const SizedBox(width: 8),
+                                Text(
+                                  details.duration,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: ColorApp.primary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                          ],
 
                           // Additional Section
                           Text(
@@ -410,18 +444,34 @@ class ServiceDetailsPage extends StatelessWidget {
                   top: false,
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ServiceBookingPage(
-                            serviceName: serviceName,
-                            service: service,
-                            category: category,
-                            serviceImage: serviceImage,
-                            serviceIcon: serviceIcon,
+                      if (widget.fromRecommendation) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PropertySelectionPage(
+                              serviceName: widget.serviceName,
+                              service: widget.service,
+                              category: widget.category,
+                              serviceImage: widget.serviceImage,
+                              serviceIcon: widget.serviceIcon,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ServiceBookingPage(
+                              serviceName: widget.serviceName,
+                              service: widget.service,
+                              category: widget.category,
+                              serviceImage: widget.serviceImage,
+                              serviceIcon: widget.serviceIcon,
+                              selectedPropertyType: _selectedConfig?.type,
+                            ),
+                          ),
+                        );
+                      }
                     },
                     child: Container(
                       height: 56,
@@ -467,6 +517,159 @@ class ServiceDetailsPage extends StatelessWidget {
         color: ColorApp.textBlack,
         letterSpacing: -0.2,
       ),
+    );
+  }
+}
+
+/// House-layout picker for the service details page. Mirrors the booking
+/// page's `_HouseTypeSection`: a row of selectable type buttons (F2/F3/…)
+/// plus a metric box that auto-fills Workers / Duration / Base Price from the
+/// selected [AppHouseConfig]. Manages its own selection locally and reports
+/// the current config back to the parent via [onChanged].
+class _HouseLayoutSection extends StatefulWidget {
+  final List<AppHouseConfig> configs;
+  final ValueChanged<AppHouseConfig>? onChanged;
+
+  const _HouseLayoutSection({
+    required this.configs,
+    this.onChanged,
+  });
+
+  @override
+  State<_HouseLayoutSection> createState() => _HouseLayoutSectionState();
+}
+
+class _HouseLayoutSectionState extends State<_HouseLayoutSection> {
+  late AppHouseConfig _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.configs.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onChanged?.call(_selected);
+    });
+  }
+
+  void _select(AppHouseConfig config) {
+    setState(() => _selected = config);
+    widget.onChanged?.call(config);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: widget.configs.map((config) {
+            final isSelected = _selected.id == config.id;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => _select(config),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  height: 50,
+                  margin: EdgeInsets.only(
+                    right: config == widget.configs.last ? 0 : 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? ColorApp.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color:
+                          isSelected ? Colors.transparent : ColorApp.greyBorder,
+                      width: 1.5,
+                    ),
+                    boxShadow: isSelected ? AppShadows.primaryGlow() : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      config.type.toUpperCase(),
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : ColorApp.textBlack,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: ColorApp.softGrey,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.professionals,
+                  value: '${_selected.workers}',
+                ),
+              ),
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.duration,
+                  value: '${_selected.durationHours} ${l10n.hours}',
+                ),
+              ),
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.basePrice,
+                  value: 'DA ${_selected.basePrice.toStringAsFixed(0)}',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConfigMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ConfigMetric({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: ColorApp.textGrey,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: ColorApp.textBlack,
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
@@ -54,6 +56,60 @@ class OrderSummaryPage extends StatefulWidget {
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
   String? _appliedPromo;
   bool _isSubmitting = false;
+  bool _isBookingConfigExpanded = false;
+  final List<String> _selectedPhotos = [];
+
+  Future<void> _pickImageFromDevice() async {
+    if (_selectedPhotos.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Maximum of 5 photos allowed"),
+          backgroundColor: ColorApp.primary,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedPhotos.add(image.path);
+        });
+      }
+    } catch (e) {
+      final errStr = e.toString();
+      if (errStr.contains('MissingPluginException') || errStr.contains('no implementation')) {
+        setState(() {
+          _selectedPhotos.add("MockPhoto_${_selectedPhotos.length + 1}");
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Mock photo added (please restart/rebuild the app to load native image picker)"),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to pick image: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _removePhoto(int index) {
+    setState(() {
+      _selectedPhotos.removeAt(index);
+    });
+  }
 
   void _showPromoBottomSheet(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -352,7 +408,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 80, 24, 120),
+            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 80, 24, 180),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -412,11 +468,14 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _buildSectionCard(
+                _buildExpandableSectionCard(
                   title: "Booking Configuration",
                   icon: Icons.settings_outlined,
+                  isExpanded: _isBookingConfigExpanded,
+                  onTap: () => setState(() => _isBookingConfigExpanded = !_isBookingConfigExpanded),
                   child: Column(
                     children: [
+                      const Divider(height: 24, thickness: 0.5),
                       _detailRow("Duration", "${widget.duration} Hours", Icons.timer_outlined),
                       _detailRow("Cleaners", "${widget.cleaners} Professionals", Icons.people_outline_rounded),
                       _detailRow("Materials", widget.needMaterials ? "Provided" : "Not needed", Icons.inventory_2_outlined),
@@ -424,7 +483,157 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     ],
                   ),
                 ),
-
+                const SizedBox(height: 24),
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Text(
+                    "Notes",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: TextField(
+                    minLines: 3,
+                    maxLines: 5,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: ColorApp.textBlack),
+                    decoration: InputDecoration(
+                      hintText: "Add any special instructions or notes...",
+                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w500),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide(color: Colors.grey.shade100, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: const BorderSide(color: ColorApp.primary, width: 1.5),
+                      ),
+                      contentPadding: const EdgeInsets.all(20),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Text(
+                    "Photos (optional)",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ...List.generate(_selectedPhotos.length, (index) {
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                              decoration: BoxDecoration(
+                                color: ColorApp.softGrey,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.file(
+                                  File(_selectedPhotos[index]),
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFFE6ECE9),
+                                    child: const Center(
+                                      child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF0E4337), size: 32),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () => _removePhoto(index),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                      if (_selectedPhotos.length < 5)
+                        GestureDetector(
+                          onTap: _pickImageFromDevice,
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F3),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_a_photo_outlined,
+                                  color: Color(0xFF0E4337),
+                                  size: 24,
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  "Add photos",
+                                  style: TextStyle(
+                                    color: Color(0xFF0E4337),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    "${_selectedPhotos.length}/5",
+                    style: const TextStyle(
+                      color: ColorApp.textGrey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 _buildSectionCard(
                   title: "Financial Summary",
                   icon: Icons.account_balance_wallet_outlined,
@@ -447,7 +656,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -455,30 +664,56 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, -5)),
                 ],
               ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : _confirmBooking,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorApp.primary,
-                    disabledBackgroundColor: ColorApp.softGrey,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    elevation: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Total",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          color: ColorApp.textBlack,
+                          fontFamily: 'Gilmer',
+                        ),
+                      ),
+                      Text(
+                        "${widget.subtotal.toStringAsFixed(0)}Da",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0E4337),
+                          fontFamily: 'Gilmer',
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    _isSubmitting
-                        ? "Creating Booking..."
-                        : "Confirm Booking",
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _confirmBooking,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ColorApp.primary,
+                        disabledBackgroundColor: ColorApp.softGrey,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        _isSubmitting ? "Creating Booking..." : "Confirm Booking",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          fontFamily: 'Gilmer',
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -519,6 +754,62 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           const SizedBox(height: 16),
           child,
         ],
+      ),
+    );
+  }
+
+  Widget _buildExpandableSectionCard({
+    required String title,
+    required IconData icon,
+    required bool isExpanded,
+    required VoidCallback onTap,
+    required Widget child,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 18, color: ColorApp.primary),
+                const SizedBox(width: 8),
+                Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: ColorApp.primary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                  color: ColorApp.textGrey,
+                  size: 20,
+                ),
+              ],
+            ),
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: child,
+              crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+          ],
+        ),
       ),
     );
   }
