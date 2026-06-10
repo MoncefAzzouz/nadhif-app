@@ -2,8 +2,33 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 
 const router = Router();
+
+function signUserToken(userId: string, role: string) {
+  return jwt.sign(
+    { userId, role },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '7d' }
+  );
+}
+
+function serializeUser(user: {
+  id: string;
+  email: string;
+  phone: string;
+  fullName: string;
+  role: string;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    phone: user.phone,
+    fullName: user.fullName,
+    role: user.role,
+  };
+}
 
 // Register new user
 router.post('/register', async (req: Request, res: Response) => {
@@ -22,7 +47,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const user = await prisma.user.create({
       data: { email, phone, passwordHash, fullName, role: 'CUSTOMER' },
     });
-    res.status(201).json({ id: user.id, email: user.email, fullName: user.fullName });
+    res.status(201).json(serializeUser(user));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -47,12 +72,29 @@ router.post('/login', async (req: Request, res: Response) => {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
-    const token = jwt.sign(
-      { userId: user.id, role: user.role },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '7d' }
-    );
-    res.json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role } });
+    const token = signUserToken(user.id, user.role);
+    res.json({ token, user: serializeUser(user) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Current authenticated user
+router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'User unauthorized' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    res.json(serializeUser(user));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
