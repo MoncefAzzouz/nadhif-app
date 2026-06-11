@@ -413,3 +413,18 @@ export const skillsApi = {
 };
 
 
+
+// ─── Admin: Push Notifications ───────────────────────────────────────────────
+export interface BroadcastResult {
+  recipients: number;
+  success: number;
+  failure: number;
+}
+
+export const notificationsApi = {
+  broadcast: (payload: { title: string; body: string; audience: 'all' | 'cleaners' | 'phone'; phone?: string }) =>
+    apiFetch<BroadcastResult>('/api/notifications/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+};

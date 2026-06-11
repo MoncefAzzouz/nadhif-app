@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Play
 } from 'lucide-react';
+import { notificationsApi } from '../../lib/api';
 
 interface NotificationLog {
   id: string;
@@ -24,7 +25,15 @@ interface NotificationLog {
   status: 'sent' | 'scheduled' | 'failed';
   createdAt: string;
   recipientCount: number;
+  phone?: string;
 }
+
+// Maps the form's audience values to the backend broadcast API ones.
+const AUDIENCE_MAP = {
+  all_users: 'all',
+  cleaners_only: 'cleaners',
+  specific_client: 'phone',
+} as const;
 
 const DEFAULT_LOGS: NotificationLog[] = [
   {
@@ -63,6 +72,7 @@ export default function NotificationsPage() {
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   // Form states
   const [notificationForm, setNotificationForm] = useState({
@@ -106,71 +116,125 @@ export default function NotificationsPage() {
     }));
   };
 
-  // Submit Broadcast
-  const handleSendNotification = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Sends a real FCM broadcast through the backend and returns the log entry.
+  const dispatchBroadcast = async (
+    title: string,
+    body: string,
+    targetAudience: 'all_users' | 'cleaners_only' | 'specific_client',
+    phone?: string,
+  ): Promise<NotificationLog> => {
+    try {
+      const result = await notificationsApi.broadcast({
+        title,
+        body,
+        audience: AUDIENCE_MAP[targetAudience],
+        phone: targetAudience === 'specific_client' ? phone : undefined,
+      });
+      setSuccessToast(
+        `🚀 Broadcast pushed to ${result.recipients} device(s) — ${result.success} delivered!`,
+      );
+      return {
+        id: `NTF-${Math.floor(100 + Math.random() * 900)}`,
+        title,
+        body,
+        targetAudience,
+        scheduledTime: 'Immediate',
+        status: 'sent',
+        createdAt: new Date().toISOString(),
+        recipientCount: result.recipients,
+        phone,
+      };
+    } catch (err: any) {
+      setSuccessToast(`❌ Broadcast failed: ${err?.message || 'unknown error'}`);
+      return {
+        id: `NTF-${Math.floor(100 + Math.random() * 900)}`,
+        title,
+        body,
+        targetAudience,
+        scheduledTime: 'Immediate',
+        status: 'failed',
+        createdAt: new Date().toISOString(),
+        recipientCount: 0,
+        phone,
+      };
+    }
+  };
 
-    let recipientCount = 0;
-    if (notificationForm.targetAudience === 'all_users') {
-      recipientCount = 2450;
-    } else if (notificationForm.targetAudience === 'cleaners_only') {
-      recipientCount = 120;
+  // Submit Broadcast
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSending) return;
+
+    let newLog: NotificationLog;
+
+    if (notificationForm.deliveryType === 'now') {
+      setIsSending(true);
+      newLog = await dispatchBroadcast(
+        notificationForm.title,
+        notificationForm.body,
+        notificationForm.targetAudience,
+        notificationForm.specificClientPhone,
+      );
+      setIsSending(false);
     } else {
-      recipientCount = 1;
+      // No backend scheduler yet: the entry is saved locally only and is NOT
+      // delivered automatically — use "Resend" at the scheduled time.
+      const scheduledDisplay = `${notificationForm.scheduledDate} ${notificationForm.scheduledTime}`;
+      newLog = {
+        id: `NTF-${Math.floor(100 + Math.random() * 900)}`,
+        title: notificationForm.title,
+        body: notificationForm.body,
+        targetAudience: notificationForm.targetAudience,
+        scheduledTime: scheduledDisplay,
+        status: 'scheduled',
+        createdAt: new Date().toISOString(),
+        recipientCount: 0,
+        phone: notificationForm.specificClientPhone || undefined,
+      };
+      setSuccessToast(
+        `📅 Saved locally for ${scheduledDisplay} — not sent automatically; use Resend at that time.`,
+      );
     }
 
-    const scheduledDisplay = notificationForm.deliveryType === 'now'
-      ? 'Immediate'
-      : `${notificationForm.scheduledDate} ${notificationForm.scheduledTime}`;
-
-    const newLog: NotificationLog = {
-      id: `NTF-${Math.floor(100 + Math.random() * 900)}`,
-      title: notificationForm.title,
-      body: notificationForm.body,
-      targetAudience: notificationForm.targetAudience,
-      scheduledTime: scheduledDisplay,
-      status: notificationForm.deliveryType === 'now' ? 'sent' : 'scheduled',
-      createdAt: new Date().toISOString(),
-      recipientCount: recipientCount
-    };
-
     setLogs(prev => [newLog, ...prev]);
-
-    // Show dynamic success alert
-    setSuccessToast(
-      notificationForm.deliveryType === 'now'
-        ? `🚀 Broadcast successfully pushed to ${recipientCount} recipients!`
-        : `📅 Notification campaign scheduled successfully for ${scheduledDisplay}!`
-    );
 
     // Auto dismiss toast
     setTimeout(() => {
       setSuccessToast(null);
     }, 4000);
 
-    // Reset Form
-    setNotificationForm({
-      title: '🌟 Elite Home Maintenance Offer!',
-      body: 'Get a professional sparkling clean with 4 workers. Enjoy flat rate discounts on materials today.',
-      targetAudience: 'all_users',
-      specificClientPhone: '',
-      deliveryType: 'now',
-      scheduledDate: '',
-      scheduledTime: ''
-    });
+    // Reset Form only when the send succeeded (keep input on failure to retry)
+    if (newLog.status !== 'failed') {
+      setNotificationForm({
+        title: '🌟 Elite Home Maintenance Offer!',
+        body: 'Get a professional sparkling clean with 4 workers. Enjoy flat rate discounts on materials today.',
+        targetAudience: 'all_users',
+        specificClientPhone: '',
+        deliveryType: 'now',
+        scheduledDate: '',
+        scheduledTime: ''
+      });
+    }
   };
 
-  // Resend notification
-  const handleResend = (log: NotificationLog) => {
-    const resubmittedLog: NotificationLog = {
-      ...log,
-      id: `NTF-${Math.floor(100 + Math.random() * 900)}`,
-      status: 'sent',
-      createdAt: new Date().toISOString()
-    };
+  // Resend notification (real send through the backend)
+  const handleResend = async (log: NotificationLog) => {
+    if (isSending) return;
+    if (log.targetAudience === 'specific_client' && !log.phone) {
+      setSuccessToast('❌ Cannot resend: client phone not stored on this entry. Send it again from the form.');
+      setTimeout(() => setSuccessToast(null), 4000);
+      return;
+    }
+    setIsSending(true);
+    const resubmittedLog = await dispatchBroadcast(
+      log.title,
+      log.body,
+      log.targetAudience as 'all_users' | 'cleaners_only' | 'specific_client',
+      log.phone,
+    );
+    setIsSending(false);
     setLogs(prev => [resubmittedLog, ...prev]);
-    setSuccessToast(`🔄 Resent Campaign: "${log.title}" dispatched successfully!`);
-    setTimeout(() => setSuccessToast(null), 3000);
+    setTimeout(() => setSuccessToast(null), 4000);
   };
 
   // Delete notification log
