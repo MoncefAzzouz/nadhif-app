@@ -32,7 +32,7 @@ import {
   Users
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, subscriptionsApi, uploadImage, imgUrl, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiSubscription } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, subscriptionsApi, uploadImage, imgUrl, promosApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiSubscription, type ApiPromo } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
   ssr: false,
@@ -103,6 +103,7 @@ export default function CommandsPage() {
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [promos, setPromos] = useState<ApiPromo[]>([]);
   const [addFormData, setAddFormData] = useState({
     fullName: '', phone: '', address: '',
     serviceId: '' as string | null, houseConfigId: '' as string | null,
@@ -112,7 +113,8 @@ export default function CommandsPage() {
     latitude: undefined as number | undefined, longitude: undefined as number | undefined,
     sizeM2: undefined as number | undefined,
     clientNote: '',
-    housePictures: [] as string[]
+    housePictures: [] as string[],
+    promoCode: ''
   });
 
   const selectedAddService = services.find(s => s.id === addFormData.serviceId);
@@ -173,7 +175,8 @@ export default function CommandsPage() {
         categoryId: addFormType === 'category' ? addFormData.categoryId : null,
         categoryServiceId: addFormType === 'category' ? addFormData.categoryServiceId : null,
         extraWorkers: addFormType === 'service' ? addFormData.extraWorkers : 0,
-        isRapid: addFormData.isRapid
+        isRapid: addFormData.isRapid,
+        promoCode: addFormData.promoCode || null
       };
       await ordersApi.createAdminOrder(payload);
       setIsAddModalOpen(false);
@@ -187,7 +190,8 @@ export default function CommandsPage() {
         latitude: undefined, longitude: undefined,
         sizeM2: undefined,
         clientNote: '',
-        housePictures: []
+        housePictures: [],
+        promoCode: ''
       });
       setAddFormType('service');
     } catch (err: any) {
@@ -200,14 +204,15 @@ export default function CommandsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [data, srvData, catData, clnData, lockedDaysData, skData, subData] = await Promise.all([
+      const [data, srvData, catData, clnData, lockedDaysData, skData, subData, promosData] = await Promise.all([
         ordersApi.getAll(),
         servicesApi.getAll(),
         categoriesApi.getAll(),
         cleanersApi.getAll().catch(() => [] as ApiCleaner[]),
         lockedDaysApi.getAll().catch(() => [] as string[]),
         skillsApi.getAll().catch(() => [] as ApiSkill[]),
-        subscriptionsApi.getAll().catch(() => [] as ApiSubscription[])
+        subscriptionsApi.getAll().catch(() => [] as ApiSubscription[]),
+        promosApi.getAll().catch(() => [] as ApiPromo[])
       ]);
       setOrders(data);
       setServices(srvData);
@@ -216,6 +221,7 @@ export default function CommandsPage() {
       setLockedDays(lockedDaysData);
       setSkills(skData);
       setSubscriptions(subData);
+      setPromos(promosData);
     } catch (err: any) {
       setError(err.message || 'Failed to load orders. Is the backend running?');
     } finally {
@@ -506,6 +512,27 @@ export default function CommandsPage() {
     addFinalTotal = addBasePrice + addMaterialsPrice + addProductsPrice;
   }
 
+  // Find matching promo code if valid
+  const activePromo = promos.find(
+    p => p.code.toLowerCase() === addFormData.promoCode.trim().toLowerCase() && p.isActive
+  );
+  let promoDiscountPercent = 0;
+  let promoDiscountAmount = 0;
+  if (activePromo) {
+    const now = new Date();
+    const start = new Date(activePromo.validFrom);
+    const until = new Date(activePromo.validUntil);
+    if (now >= start && now <= until) {
+      promoDiscountPercent = activePromo.discountPercent;
+    }
+  }
+
+  // Apply promo discount
+  if (promoDiscountPercent > 0) {
+    promoDiscountAmount = addFinalTotal * (promoDiscountPercent / 100);
+    addFinalTotal = addFinalTotal - promoDiscountAmount;
+  }
+
   // Dynamic cleaner availability check for Add modal
   const getAddFormTempOrder = (): ApiOrder | null => {
     if (!addFormData.scheduledDate) return null;
@@ -607,7 +634,7 @@ export default function CommandsPage() {
   };
 
   return (
-    <div className="space-y-10 font-gilmer max-w-7xl mx-auto">
+    <div className="space-y-10 font-gilmer max-w-full mx-auto px-4 lg:px-8">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -781,7 +808,7 @@ export default function CommandsPage() {
       ) : (
         <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left min-w-[1100px]">
+            <table className="w-full border-collapse text-left min-w-[1450px]">
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
                   <th className="pb-4 pl-4">Command ID</th>
@@ -791,6 +818,7 @@ export default function CommandsPage() {
                   <th className="pb-4">Service</th>
                   <th className="pb-4">Scheduled</th>
                   <th className="pb-4">Total</th>
+                  <th className="pb-4">Promo</th>
                   <th className="pb-4">Status</th>
                   <th className="pb-4 pr-4 text-right">Actions</th>
                 </tr>
@@ -920,6 +948,22 @@ export default function CommandsPage() {
                         {/* Total */}
                         <td className="py-5 text-sm font-black text-emerald-500">
                           {order.totalPrice.toLocaleString('fr-DZ')} DA
+                        </td>
+
+                        {/* Promo */}
+                        <td className="py-5">
+                          {order.promo ? (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                {order.promo.code}
+                              </span>
+                              <span className="text-[9px] font-bold text-slate-400 block pl-1">
+                                -{order.promo.discountPercent}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-bold">Aucune</span>
+                          )}
                         </td>
 
                         {/* Status dropdown */}
@@ -1837,6 +1881,42 @@ export default function CommandsPage() {
                       </div>
                     </div>
 
+                    {/* Code Promo */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Code Promo</h4>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Promo Code</label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={addFormData.promoCode}
+                            onChange={e => setAddFormData(prev => ({ ...prev, promoCode: e.target.value.toUpperCase() }))}
+                            className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${
+                              addFormData.promoCode && !activePromo
+                                ? 'border-amber-400 focus:border-amber-500 focus:ring-amber-500 bg-amber-50/10'
+                                : activePromo
+                                ? 'border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500 bg-emerald-50/10'
+                                : 'border-slate-200 focus:border-primary focus:ring-primary'
+                            }`}
+                            placeholder="e.g. NADIF20"
+                          />
+                          {addFormData.promoCode && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                              {activePromo ? (
+                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-lg uppercase">
+                                  Valid (-{promoDiscountPercent}%)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black text-amber-600 bg-amber-100 px-2 py-1 rounded-lg uppercase">
+                                  Invalid / Inactive
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Property & Client Notes */}
                     <div className="space-y-4 pt-6 border-t border-slate-100">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Property & Client Notes</h4>
@@ -1991,6 +2071,12 @@ export default function CommandsPage() {
                               {addProductsPrice > 0 ? `+${addProductsPrice} DA` : 'Excluded'}
                             </span>
                           </div>
+                          {promoDiscountPercent > 0 && (
+                            <div className="flex justify-between border-t border-dashed border-slate-200 pt-2 text-emerald-600 font-bold">
+                              <span>Discount ({activePromo?.code} -{promoDiscountPercent}%):</span>
+                              <span className="font-black">-{promoDiscountAmount.toLocaleString('fr-DZ')} DA</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
