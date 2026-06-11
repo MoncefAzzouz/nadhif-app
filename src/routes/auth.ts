@@ -80,6 +80,67 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
+// Send OTP Code
+router.post('/send-otp', async (req: Request, res: Response) => {
+  const { phone } = req.body;
+  console.log(`Sending OTP code 1234 to phone: ${phone}`);
+  res.json({ success: true, message: 'OTP code sent' });
+});
+
+// Verify OTP Code
+router.post('/verify-otp', async (req: Request, res: Response) => {
+  const { phone, code } = req.body;
+  if (code !== '1234') {
+    res.status(400).json({ error: 'Invalid verification code' });
+    return;
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { phone } });
+    if (user) {
+      const token = signUserToken(user.id, user.role);
+      res.json({ success: true, token, user: serializeUser(user) });
+    } else {
+      res.json({ success: true, isNewUser: true });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Register user via Phone
+router.post('/register-phone', async (req: Request, res: Response) => {
+  const { fullName, phone } = req.body;
+  if (!fullName || !phone) {
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
+  }
+  try {
+    const existing = await prisma.user.findUnique({ where: { phone } });
+    if (existing) {
+      const token = signUserToken(existing.id, existing.role);
+      res.json({ token, user: serializeUser(existing) });
+      return;
+    }
+    const dummyEmail = `${phone}@nadhif.com`;
+    const passwordHash = await bcrypt.hash('dummy_otp_password', 10);
+    const user = await prisma.user.create({
+      data: {
+        email: dummyEmail,
+        phone,
+        passwordHash,
+        fullName,
+        role: 'CUSTOMER',
+      },
+    });
+    const token = signUserToken(user.id, user.role);
+    res.json({ token, user: serializeUser(user) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Current authenticated user
 router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;

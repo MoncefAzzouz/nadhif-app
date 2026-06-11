@@ -71,6 +71,67 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+// Send OTP Code
+router.post('/send-otp', async (req, res) => {
+    const { phone } = req.body;
+    console.log(`Sending OTP code 1234 to phone: ${phone}`);
+    res.json({ success: true, message: 'OTP code sent' });
+});
+// Verify OTP Code
+router.post('/verify-otp', async (req, res) => {
+    const { phone, code } = req.body;
+    if (code !== '1234') {
+        res.status(400).json({ error: 'Invalid verification code' });
+        return;
+    }
+    try {
+        const user = await prisma_1.default.user.findUnique({ where: { phone } });
+        if (user) {
+            const token = signUserToken(user.id, user.role);
+            res.json({ success: true, token, user: serializeUser(user) });
+        }
+        else {
+            res.json({ success: true, isNewUser: true });
+        }
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// Register user via Phone
+router.post('/register-phone', async (req, res) => {
+    const { fullName, phone } = req.body;
+    if (!fullName || !phone) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+    }
+    try {
+        const existing = await prisma_1.default.user.findUnique({ where: { phone } });
+        if (existing) {
+            const token = signUserToken(existing.id, existing.role);
+            res.json({ token, user: serializeUser(existing) });
+            return;
+        }
+        const dummyEmail = `${phone}@nadhif.com`;
+        const passwordHash = await bcryptjs_1.default.hash('dummy_otp_password', 10);
+        const user = await prisma_1.default.user.create({
+            data: {
+                email: dummyEmail,
+                phone,
+                passwordHash,
+                fullName,
+                role: 'CUSTOMER',
+            },
+        });
+        const token = signUserToken(user.id, user.role);
+        res.json({ token, user: serializeUser(user) });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 // Current authenticated user
 router.get('/me', auth_1.authenticateToken, async (req, res) => {
     const userId = req.user?.userId;
