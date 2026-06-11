@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, imgUrl, promosApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiPromo } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, imgUrl, promosApi, uploadImage, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiPromo } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
   ssr: false,
@@ -1337,6 +1337,81 @@ export default function RapidPage() {
                               )}
                             </div>
                           )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Property & Client Notes */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Property & Client Notes</h4>
+                      <div className="space-y-4">
+                        {addFormType === 'service' && (
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Size (m²)</label>
+                            <input
+                              type="number"
+                              value={addFormData.sizeM2 ?? ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setAddFormData(prev => ({ ...prev, sizeM2: val === '' ? undefined : parseFloat(val) }));
+                              }}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                              placeholder="e.g. 120"
+                              min="0"
+                              step="any"
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Client Note</label>
+                          <textarea
+                            value={addFormData.clientNote ?? ''}
+                            onChange={e => setAddFormData(prev => ({ ...prev, clientNote: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 min-h-[80px]"
+                            placeholder="Add specific instructions, details, etc."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Pictures</label>
+                          <div className="flex flex-col gap-3">
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              onChange={e => {
+                                const files = e.target.files;
+                                if (!files) return;
+                                const fileArray = Array.from(files);
+                                const promises = fileArray.map(file => uploadImage(file));
+                                Promise.all(promises).then(base64s => {
+                                  setAddFormData(prev => ({
+                                    ...prev,
+                                    housePictures: [...(prev.housePictures || []), ...base64s]
+                                  }));
+                                }).catch(err => alert("Error uploading images: " + err.message));
+                              }}
+                              className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-500/10 file:text-amber-600 hover:file:bg-amber-500/20 cursor-pointer"
+                            />
+                            {addFormData.housePictures && addFormData.housePictures.length > 0 && (
+                              <div className="grid grid-cols-4 gap-2 border border-slate-100 p-3 rounded-2xl bg-slate-50/50">
+                                {addFormData.housePictures.map((pic, index) => (
+                                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-150">
+                                    <img src={imgUrl(pic)} alt="Preview" className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => setAddFormData(prev => ({
+                                        ...prev,
+                                        housePictures: prev.housePictures?.filter((_, i) => i !== index) || []
+                                      }))}
+                                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
