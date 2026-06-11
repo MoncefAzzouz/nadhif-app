@@ -45,7 +45,12 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response) => {
 router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.user.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.deviceToken.deleteMany({ where: { userId: id } }),
+      prisma.order.deleteMany({ where: { userId: id } }),
+      prisma.subscription.deleteMany({ where: { userId: id } }),
+      prisma.user.delete({ where: { id } }),
+    ]);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
