@@ -507,7 +507,8 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
         houseConfig: true,
         category: { select: { id: true, name: true, picture: true } },
         categoryService: true,
-        cleaner: true
+        cleaner: true,
+        promo: true
       }
     });
 
