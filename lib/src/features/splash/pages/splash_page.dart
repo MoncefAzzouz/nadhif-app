@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/home/pages/home_page.dart';
 import '../../../core/res/color_app.dart';
 import '../widgets/text_reveal_widget.dart';
 import '../../onboarding/pages/onboarding_page.dart';
@@ -50,8 +53,15 @@ class _SplashPageState extends State<SplashPage>
       ),
     );
 
-    _mainController.forward().then((_) {
-      _navigateToOnboarding();
+    _mainController.forward().then((_) async {
+      final loggedIn = await context.read<AuthCubit>().checkAuthStatus();
+      if (loggedIn && mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else if (mounted) {
+        _navigateToOnboarding();
+      }
     });
   }
 

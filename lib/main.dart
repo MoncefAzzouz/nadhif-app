@@ -3,7 +3,7 @@ import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
-import 'package:cleanapp/src/features/onboarding/pages/onboarding_page.dart';
+import 'package:cleanapp/src/features/splash/pages/splash_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -68,7 +68,7 @@ class CleanApp extends StatelessWidget {
               systemOverlayStyle: SystemUiOverlayStyle.light,
             ),
           ),
-          home: const OnboardingPage(),
+          home: const SplashPage(),
         );
       },
     );

@@ -58,6 +58,47 @@ class AuthApiService extends BaseApiService {
       throw Exception(error['message'] ?? 'Failed to load profile');
     }
   }
+  Future<bool> sendVerificationCode(String phone, String prefix) async {
+    try {
+      await dio.post('/api/auth/send-otp', data: {'phone': phone, 'prefix': prefix});
+      return true;
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to send verification code');
+    }
+  }
+
+  Future<bool> verifyOtp(String phone, String code) async {
+    try {
+      final response = await dio.post('/api/auth/verify-otp', data: {'phone': phone, 'code': code});
+      if (response.data['token'] != null) {
+        await _saveAuth(response.data as Map<String, dynamic>);
+      }
+      return true;
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Invalid verification code');
+    }
+  }
+
+  Future<bool> registerUser({
+    required String firstName,
+    required String lastName,
+    required String phoneNumber,
+  }) async {
+    try {
+      final response = await dio.post('/api/auth/register-phone', data: {
+        'fullName': '$firstName $lastName',
+        'phone': phoneNumber,
+      });
+      await _saveAuth(response.data as Map<String, dynamic>);
+      return true;
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to register profile');
+    }
+  }
+
 
   Future<void> _saveAuth(Map<String, dynamic> data) async {
     final user = AuthUser.fromJson(data['user'] as Map<String, dynamic>);
