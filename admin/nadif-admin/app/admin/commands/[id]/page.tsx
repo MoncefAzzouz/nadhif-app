@@ -298,10 +298,10 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
     }
     if (payload.serviceId) {
       if (payload.sizeM2 !== undefined && payload.sizeM2 !== null) {
-        payload.sizeM2 = payload.sizeM2.toString() === '' ? null : parseFloat(payload.sizeM2.toString());
+        payload.sizeM2 = payload.sizeM2.toString() === '' ? (null as any) : parseFloat(payload.sizeM2.toString());
       }
     } else {
-      payload.sizeM2 = null;
+      payload.sizeM2 = null as any;
     }
     if (editFormData.serviceId) {
       const service = services.find(s => s.id === editFormData.serviceId);
