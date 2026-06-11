@@ -41,6 +41,13 @@ const STATUS_STYLES: Record<ApiOrder['status'], { label: string; bg: string; tex
     border: 'border-amber-100',
     dot: 'bg-amber-500 animate-pulse',
   },
+  CALLED_NOT_PAID: {
+    label: 'Appelé · Non Payé',
+    bg: 'bg-orange-50/80 backdrop-blur-md',
+    text: 'text-orange-600',
+    border: 'border-orange-100',
+    dot: 'bg-orange-500 animate-pulse',
+  },
   CONFIRMED: {
     label: 'Confirmé',
     bg: 'bg-blue-50/80 backdrop-blur-md',
