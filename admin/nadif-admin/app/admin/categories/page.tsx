@@ -27,7 +27,7 @@ import {
   Lock,
   Layers
 } from 'lucide-react';
-import { categoriesApi, type ApiCategory as Category, type ApiCategoryService as CategoryService } from '../../lib/api';
+import { categoriesApi, uploadImage, imgUrl, type ApiCategory as Category, type ApiCategoryService as CategoryService } from '../../lib/api';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -212,14 +212,12 @@ export default function CategoriesPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        setPictureBase64(e.target.result as string);
+    uploadImage(file)
+      .then((url) => {
+        setPictureBase64(url);
         setFormError('');
-      }
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch((err) => setFormError(err?.message || 'Upload failed'));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -625,7 +623,7 @@ export default function CategoriesPage() {
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl overflow-hidden shadow border border-white/10">
-                      <img src={selectedSimCategory.picture} alt="Thumbnail" className="w-full h-full object-cover" />
+                      <img src={imgUrl(selectedSimCategory.picture)} alt="Thumbnail" className="w-full h-full object-cover" />
                     </div>
                     <div>
                       <h4 className="text-xs font-black uppercase truncate max-w-[150px]">{selectedSimCategory.name}</h4>
@@ -806,7 +804,7 @@ export default function CategoriesPage() {
                   <div className="flex justify-between items-start relative z-10">
                     <div className="w-20 h-20 relative rounded-3xl overflow-hidden shadow-md ring-4 ring-slate-50">
                       <img
-                        src={category.picture}
+                        src={imgUrl(category.picture)}
                         alt={category.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
@@ -937,7 +935,7 @@ export default function CategoriesPage() {
                     >
                       <td className="py-4 pl-4">
                         <div className="w-12 h-12 relative rounded-2xl overflow-hidden shadow-sm border border-slate-100">
-                          <img src={category.picture} alt={category.name} className="w-full h-full object-cover" />
+                          <img src={imgUrl(category.picture)} alt={category.name} className="w-full h-full object-cover" />
                         </div>
                       </td>
                       <td className="py-4">
@@ -1204,7 +1202,7 @@ export default function CategoriesPage() {
                       // Preview state
                       <div className="relative border border-slate-100 rounded-3xl p-4 flex items-center gap-4 bg-slate-50/50">
                         <div className="w-16 h-16 relative rounded-2xl overflow-hidden border border-slate-100 shadow-sm shrink-0 bg-slate-50">
-                          <img src={pictureBase64} alt="Preview" className="w-full h-full object-cover" />
+                          <img src={imgUrl(pictureBase64)} alt="Preview" className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 uppercase truncate">

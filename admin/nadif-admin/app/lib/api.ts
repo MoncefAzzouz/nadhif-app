@@ -596,3 +596,29 @@ export const slidesApi = {
   delete: (id: string) =>
     apiFetch<{ success: boolean }>(`/api/slides/${id}`, { method: 'DELETE' }),
 };
+
+// ─── Image Uploads ───────────────────────────────────────────────────────────
+// Multipart upload (separate from apiFetch, which forces a JSON content type).
+export async function uploadImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append('file', file);
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}/api/upload`, { method: 'POST', body: form, headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Upload failed (${res.status})`);
+  }
+  const data = await res.json();
+  return data.url as string;
+}
+
+// Resolves stored image refs for <img src>: relative /uploads paths live on the
+// backend host; base64 data URIs and absolute URLs pass through unchanged.
+export function imgUrl(src?: string | null): string {
+  if (!src) return '';
+  if (src.startsWith('/uploads/')) return `${BASE}${src}`;
+  return src;
+}

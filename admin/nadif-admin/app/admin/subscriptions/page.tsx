@@ -53,6 +53,7 @@ import {
   type ApiSkill,
   type ApiOrder
 } from '../../lib/api';
+import { uploadImage, imgUrl } from '../../lib/api';
 
 const STATUS_LABELS: Record<ApiSubscription['status'], string> = {
   PENDING: 'En Attente',
@@ -1171,7 +1172,7 @@ export default function SubscriptionsPage() {
                     <div className="flex flex-wrap gap-2">
                       {selectedSub.pictures.map((pic, idx) => (
                         <a key={idx} href={pic} target="_blank" rel="noreferrer" className="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shadow-sm relative group hover:border-primary/50 transition-all">
-                          <img src={pic} alt="Logement pic" className="w-full h-full object-cover" />
+                          <img src={imgUrl(pic)} alt="Logement pic" className="w-full h-full object-cover" />
                         </a>
                       ))}
                     </div>
@@ -2217,14 +2218,7 @@ export default function SubscriptionsPage() {
                         const files = e.target.files;
                         if (!files) return;
                         const fileArray = Array.from(files);
-                        const promises = fileArray.map(file => {
-                          return new Promise<string>((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result as string);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(file);
-                          });
-                        });
+                        const promises = fileArray.map(file => uploadImage(file));
                         Promise.all(promises).then(base64s => {
                           setAddFormData(prev => ({
                             ...prev,
@@ -2238,7 +2232,7 @@ export default function SubscriptionsPage() {
                       <div className="grid grid-cols-4 gap-2 border border-slate-100 p-3 rounded-2xl bg-slate-50/50 mt-2">
                         {addFormData.pictures.map((pic, index) => (
                           <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-150">
-                            <img src={pic} alt="Preview" className="w-full h-full object-cover" />
+                            <img src={imgUrl(pic)} alt="Preview" className="w-full h-full object-cover" />
                             <button
                               type="button"
                               onClick={() => setAddFormData(prev => ({

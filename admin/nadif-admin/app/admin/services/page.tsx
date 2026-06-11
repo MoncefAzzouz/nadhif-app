@@ -27,7 +27,7 @@ import {
   Lock,
   Layers
 } from 'lucide-react';
-import { servicesApi, type ApiService as Service, type ApiHouseConfig as HouseConfig } from '../../lib/api';
+import { servicesApi, uploadImage, imgUrl, type ApiService as Service, type ApiHouseConfig as HouseConfig } from '../../lib/api';
 
 // Local mock removed in favor of API
 
@@ -228,14 +228,12 @@ export default function ServicesPage() {
       setFormError('Only PNG files are allowed. Please upload a valid PNG format.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        setPictureBase64(e.target.result as string);
+    uploadImage(file)
+      .then((url) => {
+        setPictureBase64(url);
         setFormError('');
-      }
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch((err) => setFormError(err?.message || 'Upload failed'));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -937,7 +935,7 @@ export default function ServicesPage() {
                     <div className="flex justify-between items-start relative z-10">
                       <div className="w-20 h-20 relative rounded-3xl overflow-hidden shadow-md border border-slate-100 bg-slate-50 shrink-0">
                         <img 
-                          src={service.picture} 
+                          src={imgUrl(service.picture)} 
                           alt={service.name} 
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                         />
@@ -1069,7 +1067,7 @@ export default function ServicesPage() {
                       >
                         <td className="py-4 pl-4">
                           <div className="w-12 h-12 relative rounded-2xl overflow-hidden shadow-sm border border-slate-100">
-                            <img src={service.picture} alt={service.name} className="w-full h-full object-cover" />
+                            <img src={imgUrl(service.picture)} alt={service.name} className="w-full h-full object-cover" />
                           </div>
                         </td>
                         <td className="py-4 font-inter">
@@ -1565,7 +1563,7 @@ export default function ServicesPage() {
                     {pictureBase64 ? (
                       <div className="relative border border-slate-100 rounded-3xl p-4 flex items-center gap-4 bg-slate-50/50">
                         <div className="w-16 h-16 relative rounded-2xl overflow-hidden border border-slate-100 shadow-sm shrink-0 bg-slate-50">
-                          <img src={pictureBase64} alt="Preview" className="w-full h-full object-cover" />
+                          <img src={imgUrl(pictureBase64)} alt="Preview" className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 uppercase truncate">

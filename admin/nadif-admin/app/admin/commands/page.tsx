@@ -32,7 +32,7 @@ import {
   Users
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, subscriptionsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiSubscription } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, subscriptionsApi, uploadImage, imgUrl, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiSubscription } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
   ssr: false,
@@ -1190,7 +1190,7 @@ export default function CommandsPage() {
                             {selectedOrder.housePictures.map((pic, idx) => (
                               <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group cursor-zoom-in">
                                 <img
-                                  src={pic}
+                                  src={imgUrl(pic)}
                                   alt={`House ${idx + 1}`}
                                   className="w-full h-full object-cover transition-transform group-hover:scale-110"
                                   onClick={() => setLightboxImage(pic)}
@@ -1878,14 +1878,7 @@ export default function CommandsPage() {
                                 const files = e.target.files;
                                 if (!files) return;
                                 const fileArray = Array.from(files);
-                                const promises = fileArray.map(file => {
-                                  return new Promise<string>((resolve, reject) => {
-                                    const reader = new FileReader();
-                                    reader.onload = () => resolve(reader.result as string);
-                                    reader.onerror = reject;
-                                    reader.readAsDataURL(file);
-                                  });
-                                });
+                                const promises = fileArray.map(file => uploadImage(file));
                                 Promise.all(promises).then(base64s => {
                                   setAddFormData(prev => ({
                                     ...prev,
@@ -1899,7 +1892,7 @@ export default function CommandsPage() {
                               <div className="grid grid-cols-4 gap-2 border border-slate-100 p-3 rounded-2xl bg-slate-50/50">
                                 {addFormData.housePictures.map((pic, index) => (
                                   <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-150">
-                                    <img src={pic} alt="Preview" className="w-full h-full object-cover" />
+                                    <img src={imgUrl(pic)} alt="Preview" className="w-full h-full object-cover" />
                                     <button
                                       type="button"
                                       onClick={() => setAddFormData(prev => ({
@@ -2060,7 +2053,7 @@ export default function CommandsPage() {
               >
                 <X size={18} />
               </button>
-              <img src={lightboxImage} alt="House Pic Fullsize" className="max-w-full max-h-[85vh] object-contain" />
+              <img src={imgUrl(lightboxImage)} alt="House Pic Fullsize" className="max-w-full max-h-[85vh] object-contain" />
             </motion.div>
           </div>
         )}

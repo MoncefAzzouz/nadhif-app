@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { slidesApi, type ApiSlide } from '../../lib/api';
+import { slidesApi, uploadImage, imgUrl, type ApiSlide } from '../../lib/api';
 import { 
   Sliders, 
   Plus, 
@@ -94,17 +94,15 @@ export default function SlidesPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
+    uploadImage(file)
+      .then((url) => {
         if (target === 'add') {
-          setAddForm(prev => ({ ...prev, imageUrl: reader.result as string }));
+          setAddForm(prev => ({ ...prev, imageUrl: url }));
         } else if (target === 'edit' && editForm) {
-          setEditForm({ ...editForm, imageUrl: reader.result as string });
+          setEditForm({ ...editForm, imageUrl: url });
         }
-      }
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch((err) => toast(`❌ ${err?.message || 'Upload failed'}`));
   };
 
   // Drag over drop handlers
@@ -127,17 +125,15 @@ export default function SlidesPage() {
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === 'string') {
+    uploadImage(file)
+      .then((url) => {
         if (target === 'add') {
-          setAddForm(prev => ({ ...prev, imageUrl: reader.result as string }));
+          setAddForm(prev => ({ ...prev, imageUrl: url }));
         } else if (target === 'edit' && editForm) {
-          setEditForm({ ...editForm, imageUrl: reader.result as string });
+          setEditForm({ ...editForm, imageUrl: url });
         }
-      }
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch((err) => toast(`❌ ${err?.message || 'Upload failed'}`));
   };
 
   const toast = (msg: string) => {
@@ -318,7 +314,7 @@ export default function SlidesPage() {
                 {/* Banner Image Preview Container */}
                 <div className="w-full aspect-[16/9] relative bg-slate-100 overflow-hidden border-b border-slate-100">
                   <img 
-                    src={slide.imageUrl} 
+                    src={imgUrl(slide.imageUrl)} 
                     alt={slide.title} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
@@ -464,7 +460,7 @@ export default function SlidesPage() {
                       >
                         {addForm.imageUrl ? (
                           <>
-                            <img src={addForm.imageUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                            <img src={imgUrl(addForm.imageUrl)} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
                             <button
                               type="button"
                               onClick={(e) => {
@@ -657,7 +653,7 @@ export default function SlidesPage() {
                       >
                         {editForm.imageUrl ? (
                           <>
-                            <img src={editForm.imageUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                            <img src={imgUrl(editForm.imageUrl)} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
                             <button
                               type="button"
                               onClick={(e) => {

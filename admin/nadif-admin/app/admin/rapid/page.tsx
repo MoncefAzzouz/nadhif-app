@@ -28,7 +28,7 @@ import {
   Users
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, imgUrl, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
   ssr: false,
@@ -1586,7 +1586,7 @@ export default function RapidPage() {
                     <div className="grid grid-cols-2 gap-2">
                       {selectedOrder.housePictures.map((pic, idx) => (
                         <div key={idx} className="relative rounded-2xl overflow-hidden aspect-[4/3] border border-slate-100 bg-slate-100">
-                          <img src={pic} alt="House Pic" className="w-full h-full object-cover" />
+                          <img src={imgUrl(pic)} alt="House Pic" className="w-full h-full object-cover" />
                         </div>
                       ))}
                     </div>

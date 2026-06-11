@@ -15,7 +15,7 @@ import {
   X
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, subscriptionsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSubscription } from '../../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, subscriptionsApi, uploadImage, imgUrl, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSubscription } from '../../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../../components/LocationPicker'), { 
   ssr: false, 
@@ -972,14 +972,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                           const files = e.target.files;
                           if (!files) return;
                           const fileArray = Array.from(files);
-                          const promises = fileArray.map(file => {
-                            return new Promise<string>((resolve, reject) => {
-                              const reader = new FileReader();
-                              reader.onload = () => resolve(reader.result as string);
-                              reader.onerror = reject;
-                              reader.readAsDataURL(file);
-                            });
-                          });
+                          const promises = fileArray.map(file => uploadImage(file));
                           Promise.all(promises).then(base64s => {
                             setEditFormData(prev => ({
                               ...prev,
@@ -993,7 +986,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                         <div className="grid grid-cols-4 gap-3 border border-slate-100 p-4 rounded-2xl bg-slate-50/50">
                           {editFormData.housePictures.map((pic, index) => (
                             <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-150">
-                              <img src={pic} alt="Preview" className="w-full h-full object-cover" />
+                              <img src={imgUrl(pic)} alt="Preview" className="w-full h-full object-cover" />
                               <button
                                 type="button"
                                 onClick={() => setEditFormData(prev => ({
