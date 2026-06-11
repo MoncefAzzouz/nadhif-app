@@ -50,7 +50,8 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
     longitude,
     sizeM2,
     clientNote,
-    housePictures
+    housePictures,
+    isRapid
   } = req.body;
 
   if ((!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate || !address) {
@@ -87,8 +88,9 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
       }
 
       // 2. Compute dynamic base price
-      basePrice = houseConfig.basePrice;
-      extraWorkersPrice = workersCount * service.extraWorkerPrice;
+      basePrice = (isRapid === true || isRapid === 'true') ? houseConfig.rapidBasePrice : houseConfig.basePrice;
+      const extraPriceUnit = (isRapid === true || isRapid === 'true') ? (service.rapidExtraWorkerPrice ?? 0) : service.extraWorkerPrice;
+      extraWorkersPrice = workersCount * extraPriceUnit;
       materialsFlag = useMaterials === true || service.materialsMandatory;
       materialsPrice = materialsFlag ? service.materialPrice : 0;
 
@@ -123,7 +125,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
       }
 
       // 2. Compute category base price
-      basePrice = categoryService.basePrice;
+      basePrice = (isRapid === true || isRapid === 'true') ? categoryService.rapidBasePrice : categoryService.basePrice;
       materialsFlag = useMaterials === true || category.materialsMandatory;
       materialsPrice = materialsFlag ? category.materialPrice : 0;
 
@@ -191,6 +193,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
         totalPrice: calculatedTotal,
         scheduledDate: new Date(scheduledDate),
         address,
+        isRapid: isRapid === true || isRapid === 'true',
         latitude: latitude ? parseFloat(latitude.toString()) : null,
         longitude: longitude ? parseFloat(longitude.toString()) : null,
         status: OrderStatus.PENDING,
@@ -383,7 +386,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
     return;
   }
 
-  const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, sizeM2, clientNote, housePictures } = req.body;
+  const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, sizeM2, clientNote, housePictures, isRapid } = req.body;
 
   try {
     const order = await prisma.order.findUnique({ where: { id } });
@@ -410,6 +413,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
       where: { id },
       data: {
         ...(address !== undefined && { address }),
+        ...(isRapid !== undefined && { isRapid: isRapid === true || isRapid === 'true' }),
         ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
         cleanerId: (status === 'PENDING' || status === 'CALLED_NOT_PAID') 
           ? null 

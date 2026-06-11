@@ -78,6 +78,7 @@ model Service {
   descriptionFr         String    @default("")
   picture               String
   extraWorkerPrice      Float
+  rapidExtraWorkerPrice Float     @default(0)
   durationHours         Int
   
   materialPrice         Float
@@ -92,6 +93,7 @@ model Service {
   
   houseConfigs          HouseConfig[]
   orders                Order[]
+  skills                Skill[]
 }
 
 model HouseConfig {
@@ -131,6 +133,7 @@ model Category {
   
   categoryServices      CategoryService[]
   orders                Order[]
+  skills                Skill[]
 }
 
 model CategoryService {
@@ -209,4 +212,18 @@ model Faq {
 model AppSetting {
   key   String @id
   value String
+}
+
+model Skill {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  nameAr      String   @default("")
+  nameFr      String   @default("")
+  description String   @default("")
+  color       String   @default("slate")
+  
+  services    Service[]
+  categories  Category[]
+  
+  createdAt   DateTime @default(now())
 }

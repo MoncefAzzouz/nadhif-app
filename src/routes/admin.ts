@@ -205,7 +205,7 @@ router.delete('/promos/:id', async (req: AuthenticatedRequest, res: Response) =>
 router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
   const {
     name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
-    extraWorkerPrice, durationHours,
+    extraWorkerPrice, rapidExtraWorkerPrice, durationHours,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
     isActive, houseConfigs,
@@ -227,6 +227,7 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
         descriptionFr: descriptionFr || '',
         picture: picture || '',
         extraWorkerPrice: parseFloat(extraWorkerPrice ?? 0),
+        rapidExtraWorkerPrice: parseFloat(rapidExtraWorkerPrice ?? 0),
         durationHours: parseInt(durationHours ?? 4),
         materialPrice: parseFloat(materialPrice ?? 0),
         materialsMandatory: materialsMandatory ?? false,
@@ -262,7 +263,7 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
   const id = req.params.id as string;
   const {
     name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
-    extraWorkerPrice, durationHours,
+    extraWorkerPrice, rapidExtraWorkerPrice, durationHours,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
     isActive, houseConfigs,
@@ -280,6 +281,7 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
         descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
         picture,
         extraWorkerPrice: extraWorkerPrice != null ? parseFloat(extraWorkerPrice) : undefined,
+        rapidExtraWorkerPrice: rapidExtraWorkerPrice != null ? parseFloat(rapidExtraWorkerPrice) : undefined,
         durationHours: durationHours != null ? parseInt(durationHours) : undefined,
         materialPrice: materialPrice != null ? parseFloat(materialPrice) : undefined,
         materialsMandatory,
@@ -357,7 +359,7 @@ router.delete('/services/:id', async (req: AuthenticatedRequest, res: Response) 
 router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
   const {
     fullName, phone, address, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, scheduledDate,
-    extraWorkers, useMaterials, productOrigin, promoCode, sizeM2, clientNote, housePictures
+    extraWorkers, useMaterials, productOrigin, promoCode, sizeM2, clientNote, housePictures, isRapid
   } = req.body;
 
   if (!phone || !address || (!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate) {
@@ -410,8 +412,9 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       }
 
       // 3. Pricing Calculation
-      basePrice = houseConfig.basePrice;
-      extraWorkersPrice = workersCount * service.extraWorkerPrice;
+      basePrice = (isRapid === true || isRapid === 'true') ? houseConfig.rapidBasePrice : houseConfig.basePrice;
+      const extraPriceUnit = (isRapid === true || isRapid === 'true') ? (service.rapidExtraWorkerPrice ?? 0) : service.extraWorkerPrice;
+      extraWorkersPrice = workersCount * extraPriceUnit;
       materialsFlag = useMaterials === true || service.materialsMandatory;
       materialsPrice = materialsFlag ? service.materialPrice : 0;
       
@@ -438,7 +441,7 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       }
 
       // 3. Pricing Calculation
-      basePrice = categoryService.basePrice;
+      basePrice = (isRapid === true || isRapid === 'true') ? categoryService.rapidBasePrice : categoryService.basePrice;
       materialsFlag = useMaterials === true || category.materialsMandatory;
       materialsPrice = materialsFlag ? category.materialPrice : 0;
       
@@ -489,6 +492,7 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
         extraWorkers: workersCount,
         useMaterials: materialsFlag,
         productOrigin: origin,
+        isRapid: isRapid === true || isRapid === 'true',
         latitude: latitude ? parseFloat(latitude.toString()) : null,
         longitude: longitude ? parseFloat(longitude.toString()) : null,
         address,
@@ -568,6 +572,7 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
                 nameFr: cs.nameFr || '',
                 workers: parseInt(cs.workers),
                 basePrice: parseFloat(cs.basePrice),
+                rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
                 durationHours: parseInt(cs.durationHours ?? 3),
               })),
             }
@@ -620,6 +625,7 @@ router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) =
                 nameFr: cs.nameFr || '',
                 workers: parseInt(cs.workers),
                 basePrice: parseFloat(cs.basePrice),
+                rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
                 durationHours: parseInt(cs.durationHours ?? 3),
               })),
             }
@@ -783,5 +789,96 @@ router.post('/locked-days', async (req: AuthenticatedRequest, res: Response) => 
   }
 });
 
+// GET /api/admin/skills
+router.get('/skills', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const skills = await prisma.skill.findMany({
+      include: { services: true, categories: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(skills);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/skills
+router.post('/skills', async (req: AuthenticatedRequest, res: Response) => {
+  const { name, nameAr, nameFr, description, color, serviceIds, categoryIds } = req.body;
+  if (!name) {
+    res.status(400).json({ error: 'Skill name is required' });
+    return;
+  }
+  try {
+    const skill = await prisma.skill.create({
+      data: {
+        name,
+        nameAr: nameAr || '',
+        nameFr: nameFr || '',
+        description: description || '',
+        color: color || 'slate',
+        services: serviceIds && serviceIds.length > 0 ? {
+          connect: serviceIds.map((id: string) => ({ id }))
+        } : undefined,
+        categories: categoryIds && categoryIds.length > 0 ? {
+          connect: categoryIds.map((id: string) => ({ id }))
+        } : undefined
+      },
+      include: { services: true, categories: true }
+    });
+    res.status(201).json(skill);
+  } catch (err: any) {
+    console.error(err);
+    if (err.code === 'P2002') {
+      res.status(400).json({ error: 'A skill with this name already exists' });
+    } else {
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+});
+
+// PUT /api/admin/skills/:id
+router.put('/skills/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { name, nameAr, nameFr, description, color, serviceIds, categoryIds } = req.body;
+  try {
+    const skill = await prisma.skill.update({
+      where: { id },
+      data: {
+        name,
+        nameAr: nameAr !== undefined ? nameAr : undefined,
+        nameFr: nameFr !== undefined ? nameFr : undefined,
+        description: description !== undefined ? description : undefined,
+        color: color !== undefined ? color : undefined,
+        services: serviceIds !== undefined ? {
+          set: (serviceIds || []).map((id: string) => ({ id }))
+        } : undefined,
+        categories: categoryIds !== undefined ? {
+          set: (categoryIds || []).map((id: string) => ({ id }))
+        } : undefined
+      },
+      include: { services: true, categories: true }
+    });
+    res.json(skill);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/skills/:id
+router.delete('/skills/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    await prisma.skill.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
+
 // Trigger reload for Prisma client regeneration updates.
