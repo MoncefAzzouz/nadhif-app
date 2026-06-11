@@ -32,7 +32,7 @@ import {
   Users
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, subscriptionsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiSubscription } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
   ssr: false,
@@ -97,6 +97,7 @@ export default function CommandsPage() {
 
   // Assign Cleaner Modal States
   const [orderToConfirm, setOrderToConfirm] = useState<ApiOrder | null>(null);
+  const [subscriptions, setSubscriptions] = useState<ApiSubscription[]>([]);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedCleanerIds, setSelectedCleanerIds] = useState<string[]>([]);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -199,13 +200,14 @@ export default function CommandsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [data, srvData, catData, clnData, lockedDaysData, skData] = await Promise.all([
+      const [data, srvData, catData, clnData, lockedDaysData, skData, subData] = await Promise.all([
         ordersApi.getAll(),
         servicesApi.getAll(),
         categoriesApi.getAll(),
         cleanersApi.getAll().catch(() => [] as ApiCleaner[]),
         lockedDaysApi.getAll().catch(() => [] as string[]),
-        skillsApi.getAll().catch(() => [] as ApiSkill[])
+        skillsApi.getAll().catch(() => [] as ApiSkill[]),
+        subscriptionsApi.getAll().catch(() => [] as ApiSubscription[])
       ]);
       setOrders(data);
       setServices(srvData);
@@ -213,6 +215,7 @@ export default function CommandsPage() {
       setCleaners(clnData);
       setLockedDays(lockedDaysData);
       setSkills(skData);
+      setSubscriptions(subData);
     } catch (err: any) {
       setError(err.message || 'Failed to load orders. Is the backend running?');
     } finally {
@@ -285,8 +288,22 @@ export default function CommandsPage() {
       const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
       if (start1 < end2 && start2 < end1) {
-        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
       }
+    });
+
+    // Check subscription sessions
+    subscriptions.forEach(sub => {
+      sub.sessions?.forEach(session => {
+        if (!session.cleanerId || session.status === 'CANCELLED') return;
+        const startSession = new Date(session.scheduledDate).getTime();
+        const durationSession = session.durationHours || 3;
+        const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+        if (start1 < endSession && startSession < end1) {
+          session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+        }
+      });
     });
 
     const available = activeCleaners.filter(c => !busyCleanerIds.has(c.id));

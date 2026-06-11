@@ -25,10 +25,12 @@ import {
   servicesApi, 
   categoriesApi, 
   skillsApi, 
+  serviceTiersApi,
   type ApiCleaner, 
   type ApiService, 
   type ApiCategory, 
-  type ApiSkill 
+  type ApiSkill,
+  type ApiSubscriptionServiceTier
 } from '../../lib/api';
 
 export default function SkillsManager() {
@@ -36,6 +38,7 @@ export default function SkillsManager() {
   const [cleaners, setCleaners] = useState<ApiCleaner[]>([]);
   const [services, setServices] = useState<ApiService[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [serviceTiers, setServiceTiers] = useState<ApiSubscriptionServiceTier[]>([]);
   
   const [isLoaded, setIsLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,7 +65,8 @@ export default function SkillsManager() {
     description: '',
     color: 'slate',
     serviceIds: [] as string[],
-    categoryIds: [] as string[]
+    categoryIds: [] as string[],
+    serviceTierIds: [] as string[]
   });
 
   // Edit form state
@@ -74,23 +78,26 @@ export default function SkillsManager() {
     description: '',
     color: 'slate',
     serviceIds: [] as string[],
-    categoryIds: [] as string[]
+    categoryIds: [] as string[],
+    serviceTierIds: [] as string[]
   });
 
   // Load database entities
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [skData, clData, svData, catData] = await Promise.all([
+        const [skData, clData, svData, catData, stData] = await Promise.all([
           skillsApi.getAll(),
           cleanersApi.getAll(),
           servicesApi.getAll(),
-          categoriesApi.getAll()
+          categoriesApi.getAll(),
+          serviceTiersApi.getAll()
         ]);
         setSkills(skData);
         setCleaners(clData);
         setServices(svData);
         setCategories(catData);
+        setServiceTiers(stData);
       } catch (err) {
         console.error("Failed to load skills page dependencies:", err);
       } finally {
@@ -121,7 +128,8 @@ export default function SkillsManager() {
       description: skill.description || '',
       color: skill.color || 'slate',
       serviceIds: skill.services?.map(s => s.id) || [],
-      categoryIds: skill.categories?.map(c => c.id) || []
+      categoryIds: skill.categories?.map(c => c.id) || [],
+      serviceTierIds: skill.subscriptionServiceTiers?.map(st => st.id) || []
     });
   };
 
@@ -145,7 +153,8 @@ export default function SkillsManager() {
         description: createForm.description,
         color: createForm.color,
         serviceIds: createForm.serviceIds,
-        categoryIds: createForm.categoryIds
+        categoryIds: createForm.categoryIds,
+        serviceTierIds: createForm.serviceTierIds
       };
 
       const newSkill = await skillsApi.create(payload);
@@ -158,7 +167,8 @@ export default function SkillsManager() {
         description: '',
         color: 'slate',
         serviceIds: [],
-        categoryIds: []
+        categoryIds: [],
+        serviceTierIds: []
       });
       triggerToast(`✨ Compétence "${newSkill.name}" créée avec succès !`);
     } catch (err: any) {
@@ -180,7 +190,8 @@ export default function SkillsManager() {
         description: editForm.description,
         color: editForm.color,
         serviceIds: editForm.serviceIds,
-        categoryIds: editForm.categoryIds
+        categoryIds: editForm.categoryIds,
+        serviceTierIds: editForm.serviceTierIds
       };
 
       const updated = await skillsApi.update(editForm.id, payload);
@@ -343,7 +354,7 @@ export default function SkillsManager() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {[
           { label: "Compétences Enregistrées", val: skills.length, icon: Sparkles, color: "text-purple-500 bg-purple-50 border-purple-100/50" },
-          { label: "Services Reliés (Total)", val: skills.reduce((acc, s) => acc + (s.services?.length || 0), 0), icon: Layers, color: "text-blue-500 bg-blue-50 border-blue-100/50" },
+          { label: "Services Reliés (Total)", val: skills.reduce((acc, s) => acc + (s.services?.length || 0) + (s.subscriptionServiceTiers?.length || 0), 0), icon: Layers, color: "text-blue-500 bg-blue-50 border-blue-100/50" },
           { label: "Catégories Reliées (Total)", val: skills.reduce((acc, s) => acc + (s.categories?.length || 0), 0), icon: Users, color: "text-emerald-500 bg-emerald-50 border-emerald-100/50" }
         ].map((card, idx) => {
           const Icon = card.icon;
@@ -448,7 +459,14 @@ export default function SkillsManager() {
                               📁 {c.name}
                             </span>
                           ))}
-                          {(!skill.services || skill.services.length === 0) && (!skill.categories || skill.categories.length === 0) && (
+                          {skill.subscriptionServiceTiers && skill.subscriptionServiceTiers.map(st => (
+                            <span key={st.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 border border-purple-100 text-purple-700 rounded-xl text-[9px] font-black uppercase tracking-wider">
+                              📅 {st.name}
+                            </span>
+                          ))}
+                          {(!skill.services || skill.services.length === 0) && 
+                           (!skill.categories || skill.categories.length === 0) && 
+                           (!skill.subscriptionServiceTiers || skill.subscriptionServiceTiers.length === 0) && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-50 border border-slate-100 text-slate-500 rounded-xl text-[9px] font-black uppercase tracking-wider">
                               🌐 Globale
                             </span>
@@ -524,7 +542,7 @@ export default function SkillsManager() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white border border-slate-100 rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl space-y-4 relative overflow-hidden"
+              className="bg-white border border-slate-100 rounded-[2.5rem] w-full max-w-xl p-8 shadow-2xl space-y-4 relative overflow-hidden"
             >
               <button
                 onClick={() => setIsAddOpen(false)}
@@ -579,7 +597,7 @@ export default function SkillsManager() {
                 </div>
 
                 {/* Many-to-many selectors */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Services Associés</label>
                     <div className="space-y-1.5 max-h-[110px] overflow-y-auto border border-slate-100 rounded-xl p-2.5 bg-slate-50 [scrollbar-width:thin]">
@@ -634,6 +652,36 @@ export default function SkillsManager() {
                                 className="w-3.5 h-3.5 rounded border-slate-200 text-primary focus:ring-primary cursor-pointer"
                               />
                               <span className="truncate">{c.name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Abonnements Associés</label>
+                    <div className="space-y-1.5 max-h-[110px] overflow-y-auto border border-slate-100 rounded-xl p-2.5 bg-slate-50 [scrollbar-width:thin]">
+                      {serviceTiers.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 italic font-medium">Aucun abonnement</p>
+                      ) : (
+                        serviceTiers.map(st => {
+                          const isChecked = createForm.serviceTierIds.includes(st.id);
+                          return (
+                            <label key={st.id} className="flex items-center gap-2 text-[10px] font-bold text-slate-700 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setCreateForm(prev => {
+                                    const ids = prev.serviceTierIds.includes(st.id)
+                                      ? prev.serviceTierIds.filter(id => id !== st.id)
+                                      : [...prev.serviceTierIds, st.id];
+                                    return { ...prev, serviceTierIds: ids };
+                                  });
+                                }}
+                                className="w-3.5 h-3.5 rounded border-slate-200 text-primary focus:ring-primary cursor-pointer"
+                              />
+                              <span className="truncate">{st.name}</span>
                             </label>
                           );
                         })
@@ -700,7 +748,7 @@ export default function SkillsManager() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white border border-slate-100 rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl space-y-4 relative overflow-hidden"
+              className="bg-white border border-slate-100 rounded-[2.5rem] w-full max-w-xl p-8 shadow-2xl space-y-4 relative overflow-hidden"
             >
               <button
                 onClick={() => setEditingSkill(null)}
@@ -752,7 +800,7 @@ export default function SkillsManager() {
                 </div>
 
                 {/* Edit Form selectors */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Services Associés</label>
                     <div className="space-y-1.5 max-h-[110px] overflow-y-auto border border-slate-100 rounded-xl p-2.5 bg-slate-50 [scrollbar-width:thin]">
@@ -807,6 +855,36 @@ export default function SkillsManager() {
                                 className="w-3.5 h-3.5 rounded border-slate-200 text-primary focus:ring-primary cursor-pointer"
                               />
                               <span className="truncate">{c.name}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-slate-400 mb-1">Abonnements Associés</label>
+                    <div className="space-y-1.5 max-h-[110px] overflow-y-auto border border-slate-100 rounded-xl p-2.5 bg-slate-50 [scrollbar-width:thin]">
+                      {serviceTiers.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 italic font-medium">Aucun abonnement</p>
+                      ) : (
+                        serviceTiers.map(st => {
+                          const isChecked = editForm.serviceTierIds.includes(st.id);
+                          return (
+                            <label key={st.id} className="flex items-center gap-2 text-[10px] font-bold text-slate-700 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setEditForm(prev => {
+                                    const ids = prev.serviceTierIds.includes(st.id)
+                                      ? prev.serviceTierIds.filter(id => id !== st.id)
+                                      : [...prev.serviceTierIds, st.id];
+                                    return { ...prev, serviceTierIds: ids };
+                                  });
+                                }}
+                                className="w-3.5 h-3.5 rounded border-slate-200 text-primary focus:ring-primary cursor-pointer"
+                              />
+                              <span className="truncate">{st.name}</span>
                             </label>
                           );
                         })

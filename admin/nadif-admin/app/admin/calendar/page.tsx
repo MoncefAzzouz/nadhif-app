@@ -30,7 +30,7 @@ import {
   Unlock
 } from 'lucide-react';
 import Link from 'next/link';
-import { ordersApi, cleanersApi, lockedDaysApi, type ApiOrder, type ApiCleaner } from '../../lib/api';
+import { ordersApi, cleanersApi, lockedDaysApi, subscriptionsApi, type ApiOrder, type ApiCleaner, type ApiSubscription } from '../../lib/api';
 
 // Status styling configuration
 const STATUS_STYLES: Record<ApiOrder['status'], { label: string; bg: string; text: string; border: string; dot: string }> = {
@@ -81,6 +81,7 @@ const STATUS_STYLES: Record<ApiOrder['status'], { label: string; bg: string; tex
 export default function CalendarPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [cleaners, setCleaners] = useState<ApiCleaner[]>([]);
+  const [subscriptions, setSubscriptions] = useState<ApiSubscription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
@@ -97,14 +98,15 @@ export default function CalendarPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusTab, setStatusTab] = useState<'ACTIVE' | 'ALL'>('ACTIVE'); // ACTIVE = CONFIRMED & IN_PROGRESS
 
-  // Fetch orders and locked days
+  // Fetch orders, subscriptions and locked days
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [ordersData, cleanersData, lockedDaysData] = await Promise.all([
+      const [ordersData, cleanersData, lockedDaysData, subscriptionsData] = await Promise.all([
         ordersApi.getAll(),
         cleanersApi.getAll().catch(() => [] as ApiCleaner[]),
-        lockedDaysApi.getAll().catch(() => [] as string[])
+        lockedDaysApi.getAll().catch(() => [] as string[]),
+        subscriptionsApi.getAll().catch(() => [] as ApiSubscription[])
       ]);
       // Sort orders by scheduledDate ascending
       const sorted = [...ordersData].sort((a, b) => 
@@ -113,10 +115,11 @@ export default function CalendarPage() {
       setOrders(sorted);
       setCleaners(cleanersData);
       setLockedDays(lockedDaysData);
+      setSubscriptions(subscriptionsData);
       setError(null);
     } catch (err: any) {
-      console.error('Error loading calendar orders:', err);
-      setError(err.message || 'Impossible de charger les commandes.');
+      console.error('Error loading calendar data:', err);
+      setError(err.message || 'Impossible de charger les données.');
     } finally {
       setIsLoading(false);
     }
@@ -214,8 +217,22 @@ export default function CalendarPage() {
       const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
       if (start1 < end2 && start2 < end1) {
-        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
       }
+    });
+
+    // Check subscription sessions
+    subscriptions.forEach(sub => {
+      sub.sessions?.forEach(session => {
+        if (!session.cleanerId || session.status === 'CANCELLED') return;
+        const startSession = new Date(session.scheduledDate).getTime();
+        const durationSession = session.durationHours || 3;
+        const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+        if (start1 < endSession && startSession < end1) {
+          session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+        }
+      });
     });
 
     const available = activeCleaners.filter(c => !busyCleanerIds.has(c.id));
@@ -258,8 +275,22 @@ export default function CalendarPage() {
         const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
         if (testTime < end2 && start2 < end1) {
-          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
         }
+      });
+
+      // Check subscription sessions
+      subscriptions.forEach(sub => {
+        sub.sessions?.forEach(session => {
+          if (!session.cleanerId || session.status === 'CANCELLED') return;
+          const startSession = new Date(session.scheduledDate).getTime();
+          const durationSession = session.durationHours || 3;
+          const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+          if (testTime < endSession && startSession < end1) {
+            session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+          }
+        });
       });
 
       const activeCount = cleaners.filter(c => c.isActive).length;
@@ -350,71 +381,135 @@ export default function CalendarPage() {
     tempDate.setDate(tempDate.getDate() + 1);
   }
 
-  // Filter orders for a specific date
-  const getOrdersForDate = (date: Date) => {
-    return orders.filter(order => {
+  // Combine orders and subscription sessions into unified calendar events
+  const getEventsForDate = (date: Date) => {
+    const list: {
+      type: 'NORMAL' | 'RAPID' | 'ABONNEMENT';
+      id: string;
+      scheduledDate: string;
+      status: string;
+      totalPrice: number;
+      address: string;
+      cleanerId: string | null;
+      title: string;
+      clientName: string;
+      clientPhone: string;
+      durationHours: number;
+      rawOrder?: ApiOrder;
+      rawSession?: any;
+    }[] = [];
+
+    // Add orders
+    orders.forEach(order => {
       const orderDate = new Date(order.scheduledDate);
-      return (
-        orderDate.getFullYear() === date.getFullYear() &&
-        orderDate.getMonth() === date.getMonth() &&
-        orderDate.getDate() === date.getDate()
-      );
+      const isSameDay = orderDate.getFullYear() === date.getFullYear() &&
+                        orderDate.getMonth() === date.getMonth() &&
+                        orderDate.getDate() === date.getDate();
+      if (isSameDay) {
+        list.push({
+          type: order.isRapid ? 'RAPID' : 'NORMAL',
+          id: order.id,
+          scheduledDate: order.scheduledDate,
+          status: order.status,
+          totalPrice: order.totalPrice,
+          address: order.address,
+          cleanerId: order.cleanerId || null,
+          title: order.service?.name || order.category?.name || 'Prestation Nadif',
+          clientName: order.user?.fullName || 'Client Anonyme',
+          clientPhone: order.user?.phone || '',
+          durationHours: order.houseConfig?.durationHours ?? order.categoryService?.durationHours ?? order.service?.durationHours ?? 3,
+          rawOrder: order,
+        });
+      }
     });
+
+    // Add subscription sessions
+    subscriptions.forEach(sub => {
+      sub.sessions?.forEach(session => {
+        const sessionDate = new Date(session.scheduledDate);
+        const isSameDay = sessionDate.getFullYear() === date.getFullYear() &&
+                          sessionDate.getMonth() === date.getMonth() &&
+                          sessionDate.getDate() === date.getDate();
+        if (isSameDay) {
+          list.push({
+            type: 'ABONNEMENT',
+            id: session.id,
+            scheduledDate: session.scheduledDate,
+            status: session.status,
+            totalPrice: 0,
+            address: sub.address,
+            cleanerId: session.cleanerId,
+            title: `Abonnement - ${sub.serviceTier?.name || 'Prestation'}`,
+            clientName: sub.fullName,
+            clientPhone: sub.phone,
+            durationHours: session.durationHours || 3,
+            rawSession: { ...session, subscription: sub },
+          });
+        }
+      });
+    });
+
+    // Sort by scheduled time chronological
+    return list.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
   };
 
-  // Helper to determine if a day has work scheduled (CONFIRMED or IN_PROGRESS)
+  // Helper to determine if a day has work scheduled (CONFIRMED or IN_PROGRESS or SCHEDULED)
   const dayHasWork = (date: Date) => {
-    return orders.some(order => {
-      const orderDate = new Date(order.scheduledDate);
-      const matchesDay = (
-        orderDate.getFullYear() === date.getFullYear() &&
-        orderDate.getMonth() === date.getMonth() &&
-        orderDate.getDate() === date.getDate()
-      );
-      return matchesDay && (order.status === 'CONFIRMED' || order.status === 'IN_PROGRESS');
-    });
+    return getEventsForDate(date).some(evt => evt.status !== 'CANCELLED');
   };
 
-  // Selected date statistics & orders list
-  const selectedDayOrders = getOrdersForDate(selectedDate);
+  // Selected date statistics & events list
+  const selectedDayEvents = getEventsForDate(selectedDate);
 
-  // Filter selected day's orders based on active tab and search query
-  const filteredOrders = selectedDayOrders.filter(order => {
+  // Filter selected day's events based on active tab and search query
+  const filteredEvents = selectedDayEvents.filter(evt => {
     // 1. Status Filter Tab
     if (statusTab === 'ACTIVE') {
-      if (order.status !== 'CONFIRMED' && order.status !== 'IN_PROGRESS') {
+      if (evt.status === 'CANCELLED') return false;
+      if (evt.type !== 'ABONNEMENT' && evt.status !== 'CONFIRMED' && evt.status !== 'IN_PROGRESS') {
         return false;
       }
     }
 
-    // 2. Search query filter (matches customer name, phone, address, service/category name)
+    // 2. Search query filter
     if (searchQuery.trim() === '') return true;
 
     const query = searchQuery.toLowerCase();
-    const matchesUser = order.user?.fullName?.toLowerCase().includes(query) ||
-                        order.user?.phone?.includes(query);
-    const matchesAddress = order.address.toLowerCase().includes(query);
-    const matchesService = order.service?.name?.toLowerCase().includes(query) ||
-                           order.category?.name?.toLowerCase().includes(query);
+    const matchesClient = evt.clientName.toLowerCase().includes(query) ||
+                          evt.clientPhone.includes(query);
+    const matchesAddress = evt.address.toLowerCase().includes(query);
+    const matchesTitle = evt.title.toLowerCase().includes(query);
 
-    return matchesUser || matchesAddress || matchesService;
+    return matchesClient || matchesAddress || matchesTitle;
   });
 
-  // Calculate stats for the current month view (all orders in this month)
+  // Calculate stats for the current month view (all orders and subscription sessions in this month)
   const currentMonthOrders = orders.filter(order => {
     const d = new Date(order.scheduledDate);
     return d.getFullYear() === year && d.getMonth() === month;
   });
 
-  const monthWorkDaysCount = new Set(
-    currentMonthOrders
-      .filter(o => o.status === 'CONFIRMED' || o.status === 'IN_PROGRESS')
-      .map(o => new Date(o.scheduledDate).getDate())
-  ).size;
+  const currentMonthSessions = subscriptions.flatMap(sub => 
+    (sub.sessions || []).filter(session => {
+      const d = new Date(session.scheduledDate);
+      return d.getFullYear() === year && d.getMonth() === month;
+    })
+  );
 
-  const monthConfirmedCount = currentMonthOrders.filter(o => o.status === 'CONFIRMED').length;
+  const monthWorkDaysCount = new Set([
+    ...currentMonthOrders
+      .filter(o => o.status === 'CONFIRMED' || o.status === 'IN_PROGRESS')
+      .map(o => new Date(o.scheduledDate).getDate()),
+    ...currentMonthSessions
+      .filter(s => s.status !== 'CANCELLED')
+      .map(s => new Date(s.scheduledDate).getDate())
+  ]).size;
+
+  const monthConfirmedCount = currentMonthOrders.filter(o => o.status === 'CONFIRMED').length +
+                              currentMonthSessions.filter(s => s.status === 'SCHEDULED').length;
   const monthInProgressCount = currentMonthOrders.filter(o => o.status === 'IN_PROGRESS').length;
-  const monthCompletedCount = currentMonthOrders.filter(o => o.status === 'COMPLETED').length;
+  const monthCompletedCount = currentMonthOrders.filter(o => o.status === 'COMPLETED').length +
+                              currentMonthSessions.filter(s => s.status === 'COMPLETED').length;
   const monthTotalRevenue = currentMonthOrders
     .filter(o => o.status === 'COMPLETED' || o.status === 'CONFIRMED' || o.status === 'IN_PROGRESS')
     .reduce((sum, o) => sum + o.totalPrice, 0);
@@ -639,8 +734,6 @@ export default function CalendarPage() {
                                 new Date().getFullYear() === day.getFullYear();
 
                 const hasWorkScheduled = dayHasWork(day);
-                const dayOrders = getOrdersForDate(day);
-                const activeOrdersCount = dayOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'IN_PROGRESS').length;
 
                 const offset = day.getTimezoneOffset();
                 const localDate = new Date(day.getTime() - offset * 60 * 1000);
@@ -689,22 +782,46 @@ export default function CalendarPage() {
                       )}
                     </div>
 
-                    {/* Status badges inside cell */}
-                    {isCurrentMonth && hasWorkScheduled && (
-                      <div className="w-full flex items-center justify-between gap-1 mt-1">
-                        {/* Dot indicator */}
-                        <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-primary shadow-sm shadow-primary/40'} relative`}>
-                          <span className={`absolute inset-0 w-2 h-2 rounded-full ${isSelected ? 'bg-white/40' : 'bg-primary/40'} animate-ping`} />
-                        </div>
+                    {/* Event indicators inside calendar grid cell */}
+                    {isCurrentMonth && (
+                      <div className="w-full mt-1.5 space-y-1">
+                        {(() => {
+                          const dayEvts = getEventsForDate(day).filter(e => e.status !== 'CANCELLED');
+                          if (dayEvts.length === 0) return null;
 
-                        {/* Count text */}
-                        {activeOrdersCount > 0 && (
-                          <span className={`text-[8px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-md ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
-                          }`}>
-                            {activeOrdersCount} Cmd
-                          </span>
-                        )}
+                          const normalCount = dayEvts.filter(e => e.type === 'NORMAL').length;
+                          const rapidCount = dayEvts.filter(e => e.type === 'RAPID').length;
+                          const subCount = dayEvts.filter(e => e.type === 'ABONNEMENT').length;
+
+                          return (
+                            <div className="flex flex-col gap-0.5 w-full">
+                              {normalCount > 0 && (
+                                <div className={`text-[7px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded flex items-center justify-between ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-blue-50 text-blue-600 border border-blue-100/30'
+                                }`}>
+                                  <span>Normal</span>
+                                  <span>{normalCount}</span>
+                                </div>
+                              )}
+                              {rapidCount > 0 && (
+                                <div className={`text-[7px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded flex items-center justify-between ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-600 border border-orange-100/30 animate-pulse'
+                                }`}>
+                                  <span>Rapide</span>
+                                  <span>{rapidCount}</span>
+                                </div>
+                              )}
+                              {subCount > 0 && (
+                                <div className={`text-[7px] font-black uppercase tracking-tight px-1.5 py-0.5 rounded flex items-center justify-between ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-violet-50 text-violet-600 border border-violet-100/30'
+                                }`}>
+                                  <span>Abo</span>
+                                  <span>{subCount}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -736,7 +853,7 @@ export default function CalendarPage() {
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  Confirmés / En Cours ({selectedDayOrders.filter(o => o.status === 'CONFIRMED' || o.status === 'IN_PROGRESS').length})
+                  Confirmés / En Cours ({selectedDayEvents.filter(evt => evt.status !== 'CANCELLED' && (evt.type === 'ABONNEMENT' || evt.status === 'CONFIRMED' || evt.status === 'IN_PROGRESS')).length})
                 </button>
                 <button
                   onClick={() => setStatusTab('ALL')}
@@ -746,7 +863,7 @@ export default function CalendarPage() {
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
-                  Toutes les commandes ({selectedDayOrders.length})
+                  Toutes les commandes ({selectedDayEvents.length})
                 </button>
               </div>
 
@@ -784,7 +901,7 @@ export default function CalendarPage() {
                     <AlertCircle size={20} />
                     <span className="text-[10px] font-black uppercase tracking-wider">Erreur : {error}</span>
                   </div>
-                ) : filteredOrders.length === 0 ? (
+                ) : filteredEvents.length === 0 ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -800,23 +917,27 @@ export default function CalendarPage() {
                     </p>
                   </motion.div>
                 ) : (
-                  filteredOrders.map(order => {
-                    const statusConfig = STATUS_STYLES[order.status] || STATUS_STYLES.PENDING;
-                    const orderTime = new Date(order.scheduledDate).toLocaleTimeString('fr-FR', {
+                  filteredEvents.map(evt => {
+                    const statusConfig = STATUS_STYLES[evt.status as ApiOrder['status']] || STATUS_STYLES.PENDING;
+                    const eventTime = new Date(evt.scheduledDate).toLocaleTimeString('fr-FR', {
                       hour: '2-digit',
                       minute: '2-digit',
                     });
 
-                    // Determine service/category name
-                    const typeLabel = order.serviceId ? 'Service Clé' : 'Catégorie';
-                    const titleText = order.service?.name || order.category?.name || 'Prestation Nadif';
-                    const configText = order.serviceId
-                      ? order.houseConfig?.type
-                      : order.categoryService?.name;
+                    // Custom type label styling
+                    const typeConfig = evt.type === 'RAPID'
+                      ? { label: '⚡ RAPIDE', bg: 'bg-orange-50 text-orange-600 border-orange-100', border: 'border-l-4 border-l-orange-500' }
+                      : evt.type === 'ABONNEMENT'
+                      ? { label: '📅 ABONNEMENT', bg: 'bg-violet-50 text-violet-600 border-violet-100', border: 'border-l-4 border-l-violet-500' }
+                      : { label: '👤 NORMAL', bg: 'bg-blue-50 text-blue-600 border-blue-100', border: 'border-l-4 border-l-blue-500' };
+
+                    // Determine title text
+                    const titleText = evt.title;
+                    const addressText = evt.address;
 
                     return (
                       <motion.div
-                        key={order.id}
+                        key={`${evt.type}-${evt.id}`}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -12 }}
@@ -824,28 +945,28 @@ export default function CalendarPage() {
                         className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
                       >
                         {/* Side Status Border */}
-                        <div className={`absolute top-0 bottom-0 left-0 w-1 ${statusConfig.dot.split(' ')[0]}`} />
+                        <div className={`absolute top-0 bottom-0 left-0 w-1 ${evt.type === 'RAPID' ? 'bg-orange-500' : evt.type === 'ABONNEMENT' ? 'bg-violet-500' : statusConfig.dot.split(' ')[0]}`} />
 
-                        {/* Order Main Header */}
+                        {/* Event Main Header */}
                         <div className="flex items-start justify-between gap-2 mb-3">
                           <div>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-                              {typeLabel} • Code #{order.id.slice(0, 8).toUpperCase()}
-                            </span>
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight mt-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                Code #{evt.id.slice(0, 8).toUpperCase()}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${typeConfig.bg}`}>
+                                {typeConfig.label}
+                              </span>
+                            </div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight mt-1.5">
                               {titleText}
                             </h3>
-                            {configText && (
-                              <p className="text-[10px] font-bold text-slate-500 uppercase">
-                                Format: {configText}
-                              </p>
-                            )}
                           </div>
                           
                           {/* Time tag */}
                           <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-lg text-slate-700">
                             <Clock size={12} className="text-slate-400" />
-                            <span className="text-xs font-black tracking-tight">{orderTime}</span>
+                            <span className="text-xs font-black tracking-tight">{eventTime}</span>
                           </div>
                         </div>
 
@@ -854,20 +975,20 @@ export default function CalendarPage() {
                           <div className="flex items-center gap-2 text-xs">
                             <User size={13} className="text-slate-400 shrink-0" />
                             <span className="font-bold text-slate-700">
-                              {order.user?.fullName || 'Client Anonyme'}
+                              {evt.clientName}
                             </span>
                           </div>
-                          {order.user?.phone && (
+                          {evt.clientPhone && (
                             <div className="flex items-center gap-2 text-[11px] text-slate-500 pl-5">
                               <Phone size={11} className="text-slate-400 shrink-0" />
-                              <a href={`tel:${order.user.phone}`} className="hover:text-primary transition-colors">
-                                {order.user.phone}
+                              <a href={`tel:${evt.clientPhone}`} className="hover:text-primary transition-colors">
+                                {evt.clientPhone}
                               </a>
                             </div>
                           )}
                           <div className="flex items-start gap-2 text-[11px] text-slate-500">
                             <MapPin size={13} className="text-slate-400 shrink-0 mt-0.5" />
-                            <span className="leading-tight">{order.address}</span>
+                            <span className="leading-tight">{addressText}</span>
                           </div>
                         </div>
 
@@ -875,102 +996,163 @@ export default function CalendarPage() {
                         <div className="flex flex-wrap gap-1.5 mb-3.5">
                           {/* Workers Count */}
                           <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 bg-slate-100 text-slate-600 rounded-md">
-                            {getRequiredCleanersCount(order)} Intervenant(s)
+                            {evt.type === 'ABONNEMENT' 
+                              ? `${evt.rawSession?.subscription?.serviceTier?.workers || 1} Intervenant(s)`
+                              : `${getRequiredCleanersCount(evt.rawOrder || null)} Intervenant(s)`}
                           </span>
                           
-                          {/* Materials Badge */}
-                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${
-                            order.useMaterials ? 'bg-blue-50 text-blue-600 border border-blue-100/30' : 'bg-slate-100 text-slate-400'
-                          }`}>
-                            {order.useMaterials ? 'Avec Matériel' : 'Sans Matériel'}
-                          </span>
-
-                          {/* Products Badge */}
-                          {order.productOrigin !== 'NONE' && (
-                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100/30 rounded-md">
-                              Produits: {order.productOrigin === 'LOCAL' ? 'Locaux' : 'Importés'}
+                          {/* Sub specific info */}
+                          {evt.type === 'ABONNEMENT' && (
+                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 bg-violet-50 text-violet-600 border border-violet-100/30 rounded-md">
+                              Session d'Abonnement
                             </span>
+                          )}
+
+                          {/* Order Badges */}
+                          {evt.type !== 'ABONNEMENT' && evt.rawOrder && (
+                            <>
+                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${
+                                evt.rawOrder.useMaterials ? 'bg-blue-50 text-blue-600 border border-blue-100/30' : 'bg-slate-100 text-slate-400'
+                              }`}>
+                                {evt.rawOrder.useMaterials ? 'Avec Matériel' : 'Sans Matériel'}
+                              </span>
+
+                              {evt.rawOrder.productOrigin !== 'NONE' && (
+                                <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100/30 rounded-md">
+                                  Produits: {evt.rawOrder.productOrigin === 'LOCAL' ? 'Locaux' : 'Importés'}
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
 
                         {/* Cleaner details */}
-                        {order.cleanerId && (
+                        {evt.cleanerId && (
                           <div className="flex items-center gap-1.5 mb-3.5 text-[10px] font-black uppercase text-emerald-600 tracking-wider">
-                            <span>Cleaners: {getCleanerNames(order.cleanerId)}</span>
+                            <span>Cleaners: {getCleanerNames(evt.cleanerId)}</span>
                           </div>
                         )}
 
                         {/* Live Timer Render */}
-                        {(order.status === 'CONFIRMED' || order.status === 'IN_PROGRESS') && (
+                        {evt.type !== 'ABONNEMENT' && evt.rawOrder && (evt.status === 'CONFIRMED' || evt.status === 'IN_PROGRESS') && (
                           <div className="bg-slate-50/50 border border-slate-100 p-3 rounded-xl mb-4">
-                            {renderTimer(order)}
+                            {renderTimer(evt.rawOrder)}
                           </div>
                         )}
 
                         {/* Footer Card Row: Price & Actions */}
                         <div className="flex items-center justify-between border-t border-slate-50 pt-3">
                           <div>
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block leading-none">
-                              Total
-                            </span>
-                            <span className="text-sm font-black text-primary">
-                              {order.totalPrice.toLocaleString('fr-DZ')} DA
-                            </span>
+                            {evt.type === 'ABONNEMENT' ? (
+                              <>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block leading-none">
+                                  Abonnement Mensuel
+                                </span>
+                                <span className="text-xs font-black text-slate-700">
+                                  {evt.rawSession?.subscription?.monthlyPrice ? `${evt.rawSession.subscription.monthlyPrice.toLocaleString('fr-DZ')} DA/mois` : 'Prix non fixé'}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block leading-none">
+                                  Total
+                                </span>
+                                <span className="text-sm font-black text-primary">
+                                  {evt.totalPrice.toLocaleString('fr-DZ')} DA
+                                </span>
+                              </>
+                            )}
                           </div>
 
                           {/* Quick Status Tag / Action Trigger */}
                           <div className="flex items-center gap-1.5">
                             {/* Static status display badge */}
-                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
-                              {statusConfig.label}
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                              evt.type === 'ABONNEMENT'
+                                ? evt.status === 'COMPLETED'
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                  : 'bg-violet-50 text-violet-600 border-violet-100'
+                                : statusConfig.bg
+                            } ${
+                              evt.type === 'ABONNEMENT'
+                                ? evt.status === 'COMPLETED'
+                                  ? 'text-emerald-600'
+                                  : 'text-violet-600'
+                                : statusConfig.text
+                            } ${
+                              evt.type === 'ABONNEMENT'
+                                ? evt.status === 'COMPLETED'
+                                  ? 'border-emerald-100'
+                                  : 'border-violet-100'
+                                : statusConfig.border
+                            }`}>
+                              {evt.type === 'ABONNEMENT'
+                                ? evt.status === 'COMPLETED'
+                                  ? 'Complété'
+                                  : 'Planifié'
+                                : statusConfig.label}
                             </span>
 
                             {/* Transition button */}
-                            {order.status === 'PENDING' && (
-                              <button
-                                onClick={() => {
-                                  setOrderToConfirm(order);
-                                  setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
-                                  setIsAssignModalOpen(true);
-                                }}
-                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                              >
-                                <Check size={10} strokeWidth={3} />
-                                Confirmer
-                              </button>
-                            )}
+                            {evt.type !== 'ABONNEMENT' && evt.rawOrder && (
+                              <>
+                                {evt.status === 'PENDING' && (
+                                  <button
+                                    onClick={() => {
+                                      setOrderToConfirm(evt.rawOrder!);
+                                      setSelectedCleanerIds(evt.cleanerId ? evt.cleanerId.split(',') : []);
+                                      setIsAssignModalOpen(true);
+                                    }}
+                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[9px] tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                                  >
+                                    <Check size={10} strokeWidth={3} />
+                                    Confirmer
+                                  </button>
+                                )}
 
-                            {order.status === 'CONFIRMED' && (
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'IN_PROGRESS')}
-                                className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[9px] tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                              >
-                                <Play size={10} fill="white" />
-                                Commencer
-                              </button>
-                            )}
+                                {evt.status === 'CONFIRMED' && (
+                                  <button
+                                    onClick={() => handleUpdateStatus(evt.id, 'IN_PROGRESS')}
+                                    className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[9px] tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                                  >
+                                    <Play size={10} fill="white" />
+                                    Commencer
+                                  </button>
+                                )}
 
-                            {order.status === 'IN_PROGRESS' && (
-                              <button
-                                onClick={() => handleUpdateStatus(order.id, 'COMPLETED')}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[9px] tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                              >
-                                <CheckSquare size={10} />
-                                Terminer
-                              </button>
+                                {evt.status === 'IN_PROGRESS' && (
+                                  <button
+                                    onClick={() => handleUpdateStatus(evt.id, 'COMPLETED')}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[9px] tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                                  >
+                                    <CheckSquare size={10} />
+                                    Terminer
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
 
-                        {/* Link to order details page */}
+                        {/* Link to details page */}
                         <div className="mt-3.5 text-right">
-                          <Link
-                            href={`/admin/commands/${order.id}`}
-                            className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-primary transition-colors inline-flex items-center gap-1"
-                          >
-                            <span>Fiche Détaillée</span>
-                            <ArrowRight size={10} />
-                          </Link>
+                          {evt.type === 'ABONNEMENT' ? (
+                            <Link
+                              href="/admin/subscriptions"
+                              className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-primary transition-colors inline-flex items-center gap-1"
+                            >
+                              <span>Gérer l'Abonnement</span>
+                              <ArrowRight size={10} />
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/admin/commands/${evt.id}`}
+                              className="text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-primary transition-colors inline-flex items-center gap-1"
+                            >
+                              <span>Fiche Détaillée</span>
+                              <ArrowRight size={10} />
+                            </Link>
+                          )}
                         </div>
                       </motion.div>
                     );

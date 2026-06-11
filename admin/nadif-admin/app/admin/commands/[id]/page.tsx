@@ -15,7 +15,7 @@ import {
   X
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService } from '../../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, subscriptionsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSubscription } from '../../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../../components/LocationPicker'), { 
   ssr: false, 
@@ -35,6 +35,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
+  const [subscriptions, setSubscriptions] = useState<ApiSubscription[]>([]);
   
   const [editFormData, setEditFormData] = useState<Partial<ApiOrder>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -44,13 +45,14 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [fetchedOrder, fetchedServices, fetchedCleaners, fetchedCategories, fetchedAllOrders, fetchedLockedDays] = await Promise.all([
+      const [fetchedOrder, fetchedServices, fetchedCleaners, fetchedCategories, fetchedAllOrders, fetchedLockedDays, fetchedSubscriptions] = await Promise.all([
         ordersApi.getOne(orderId),
         servicesApi.getAll(),
         cleanersApi.getAll(),
         categoriesApi.getAll(),
         ordersApi.getAll().catch(() => [] as ApiOrder[]),
-        lockedDaysApi.getAll().catch(() => [] as string[])
+        lockedDaysApi.getAll().catch(() => [] as string[]),
+        subscriptionsApi.getAll().catch(() => [] as ApiSubscription[])
       ]);
       setOrder(fetchedOrder);
       setServices(fetchedServices);
@@ -58,6 +60,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
       setCategories(fetchedCategories);
       setAllOrders(fetchedAllOrders);
       setLockedDays(fetchedLockedDays);
+      setSubscriptions(fetchedSubscriptions);
       
       // Initialize form
       setEditFormData({
@@ -148,8 +151,22 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
         const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
         if (testTime < end2 && start2 < end1) {
-          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
         }
+      });
+
+      // Check subscription sessions
+      subscriptions.forEach(sub => {
+        sub.sessions?.forEach(session => {
+          if (!session.cleanerId || session.status === 'CANCELLED') return;
+          const startSession = new Date(session.scheduledDate).getTime();
+          const durationSession = session.durationHours || 3;
+          const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+          if (testTime < endSession && startSession < end1) {
+            session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+          }
+        });
       });
 
       const activeCount = cleaners.filter(c => c.isActive).length;
@@ -213,8 +230,22 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
       const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
       if (start1 < end2 && start2 < end1) {
-        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
       }
+    });
+
+    // Check subscription sessions
+    subscriptions.forEach(sub => {
+      sub.sessions?.forEach(session => {
+        if (!session.cleanerId || session.status === 'CANCELLED') return;
+        const startSession = new Date(session.scheduledDate).getTime();
+        const durationSession = session.durationHours || 3;
+        const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+        if (start1 < endSession && startSession < end1) {
+          session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+        }
+      });
     });
 
     const available = activeCleaners.filter(c => !busyCleanerIds.has(c.id));

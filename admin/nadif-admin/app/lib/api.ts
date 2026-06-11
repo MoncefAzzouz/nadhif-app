@@ -393,23 +393,169 @@ export interface ApiSkill {
   color: string;
   services: ApiService[];
   categories: ApiCategory[];
+  subscriptionServiceTiers?: ApiSubscriptionServiceTier[];
   createdAt: string;
 }
 
 export const skillsApi = {
   getAll: () => apiFetch<ApiSkill[]>('/api/admin/skills'),
-  create: (payload: { name: string; nameAr?: string; nameFr?: string; description?: string; color?: string; serviceIds?: string[]; categoryIds?: string[] }) =>
+  create: (payload: { name: string; nameAr?: string; nameFr?: string; description?: string; color?: string; serviceIds?: string[]; categoryIds?: string[]; serviceTierIds?: string[] }) =>
     apiFetch<ApiSkill>('/api/admin/skills', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  update: (id: string, payload: { name: string; nameAr?: string; nameFr?: string; description?: string; color?: string; serviceIds?: string[]; categoryIds?: string[] }) =>
+  update: (id: string, payload: { name: string; nameAr?: string; nameFr?: string; description?: string; color?: string; serviceIds?: string[]; categoryIds?: string[]; serviceTierIds?: string[] }) =>
     apiFetch<ApiSkill>(`/api/admin/skills/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
   delete: (id: string) =>
     apiFetch<{ success: boolean }>(`/api/admin/skills/${id}`, { method: 'DELETE' }),
+};
+
+export interface ApiSubscriptionPropertyType {
+  id: string;
+  name: string;
+  nameAr: string;
+  nameFr: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ApiSubscriptionServiceTier {
+  id: string;
+  name: string;
+  nameAr: string;
+  nameFr: string;
+  description: string;
+  durationHours: number;
+  workers: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ApiSubscriptionPayment {
+  id: string;
+  subscriptionId: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface ApiSubscriptionSession {
+  id: string;
+  subscriptionId: string;
+  scheduledDate: string;
+  durationHours: number;
+  cleanerId: string | null;
+  status: string;
+  createdAt: string;
+  cleaner?: ApiCleaner;
+}
+
+export interface ApiSubscription {
+  id: string;
+  userId: string | null;
+  fullName: string;
+  phone: string;
+  propertyTypeId: string;
+  surfaceM2: number;
+  roomsToClean: number;
+  pictures: string[];
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  serviceTierId: string;
+  daysPerWeek: number;
+  monthlyPrice: number | null;
+  amountPaid: number;
+  adminNote: string | null;
+  status: 'PENDING' | 'DAYS_PROPOSED' | 'CONFIRMED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+  user?: ApiUser | null;
+  propertyType?: ApiSubscriptionPropertyType;
+  serviceTier?: ApiSubscriptionServiceTier;
+  sessions?: ApiSubscriptionSession[];
+  payments?: ApiSubscriptionPayment[];
+}
+
+export const propertyTypesApi = {
+  getAll: () => apiFetch<ApiSubscriptionPropertyType[]>('/api/subscriptions/property-types'),
+  create: (data: Partial<ApiSubscriptionPropertyType>) =>
+    apiFetch<ApiSubscriptionPropertyType>('/api/subscriptions/property-types', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<ApiSubscriptionPropertyType>) =>
+    apiFetch<ApiSubscriptionPropertyType>(`/api/subscriptions/property-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/subscriptions/property-types/${id}`, { method: 'DELETE' }),
+};
+
+export const serviceTiersApi = {
+  getAll: () => apiFetch<ApiSubscriptionServiceTier[]>('/api/subscriptions/service-tiers'),
+  create: (data: Partial<ApiSubscriptionServiceTier>) =>
+    apiFetch<ApiSubscriptionServiceTier>('/api/subscriptions/service-tiers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<ApiSubscriptionServiceTier>) =>
+    apiFetch<ApiSubscriptionServiceTier>(`/api/subscriptions/service-tiers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/subscriptions/service-tiers/${id}`, { method: 'DELETE' }),
+};
+
+export interface ApiAvailableDaysResponse {
+  subscriptionId: string;
+  daysPerWeek: number;
+  workersNeeded: number;
+  durationHours: number;
+  weeks: {
+    week: number;
+    days: {
+      date: string;
+      dayName: string;
+      availableCleanerCount: number;
+      isAvailable: boolean;
+      isLocked?: boolean;
+    }[];
+  }[];
+}
+
+export const subscriptionsApi = {
+  getAll: () => apiFetch<ApiSubscription[]>('/api/subscriptions'),
+  create: (data: Partial<ApiSubscription>) =>
+    apiFetch<ApiSubscription>('/api/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getOne: (id: string) => apiFetch<ApiSubscription>(`/api/subscriptions/${id}`),
+  update: (id: string, data: Partial<ApiSubscription>) =>
+    apiFetch<ApiSubscription>(`/api/subscriptions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/subscriptions/${id}`, { method: 'DELETE' }),
+  getAvailableDays: (id: string) =>
+    apiFetch<ApiAvailableDaysResponse>(`/api/subscriptions/${id}/available-days`),
+  setSessions: (id: string, sessions: { scheduledDate: string; durationHours: number; cleanerId?: string | null }[]) =>
+    apiFetch<ApiSubscriptionSession[]>(`/api/subscriptions/${id}/sessions`, {
+      method: 'POST',
+      body: JSON.stringify({ sessions }),
+    }),
+  recordPayment: (id: string, amount: number, note?: string) =>
+    apiFetch<{ payment: ApiSubscriptionPayment; subscription: ApiSubscription }>(`/api/subscriptions/${id}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, note }),
+    }),
 };
 
 
