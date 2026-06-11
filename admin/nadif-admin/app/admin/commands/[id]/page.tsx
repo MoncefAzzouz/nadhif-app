@@ -11,7 +11,8 @@ import {
   Clock,
   Save,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService } from '../../../lib/api';
@@ -74,6 +75,9 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
         totalPrice: fetchedOrder.totalPrice,
         status: fetchedOrder.status,
         cleanerId: fetchedOrder.cleanerId || '',
+        sizeM2: fetchedOrder.sizeM2,
+        clientNote: fetchedOrder.clientNote || '',
+        housePictures: fetchedOrder.housePictures || [],
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load order');
@@ -289,6 +293,16 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
 
     // Apply Forced Logic before saving
     const payload = { ...editFormData };
+    if (payload.status === 'PENDING' || payload.status === 'CALLED_NOT_PAID') {
+      payload.cleanerId = null as any;
+    }
+    if (payload.serviceId) {
+      if (payload.sizeM2 !== undefined && payload.sizeM2 !== null) {
+        payload.sizeM2 = payload.sizeM2.toString() === '' ? null : parseFloat(payload.sizeM2.toString());
+      }
+    } else {
+      payload.sizeM2 = null;
+    }
     if (editFormData.serviceId) {
       const service = services.find(s => s.id === editFormData.serviceId);
       if (service) {
@@ -429,6 +443,7 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                       className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 shadow-sm"
                     >
                       <option value="PENDING">Pending</option>
+                      <option value="CALLED_NOT_PAID">Appelé (Non Payé)</option>
                       <option value="CONFIRMED">Confirmé</option>
                       <option value="IN_PROGRESS">In Progress</option>
                       <option value="COMPLETED">Completed</option>
@@ -884,6 +899,88 @@ export default function EditCommandPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
               )}
+
+              {/* Property Details & Note */}
+              <div className="space-y-4 pt-6 border-t border-slate-100">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Property Details & Notes</h4>
+                <div className="space-y-4">
+                  {editFormData.serviceId && (
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">House Size (m²)</label>
+                      <input 
+                        type="number"
+                        value={editFormData.sizeM2 ?? ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setEditFormData(prev => ({ ...prev, sizeM2: val === '' ? undefined : parseFloat(val) }));
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 hover:bg-white transition-colors"
+                        placeholder="e.g. 120"
+                        min="0"
+                        step="any"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Client Note</label>
+                    <textarea 
+                      value={editFormData.clientNote ?? ''}
+                      onChange={e => setEditFormData(prev => ({ ...prev, clientNote: e.target.value }))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none text-slate-800 focus:border-primary/50 hover:bg-white transition-colors min-h-[100px]"
+                      placeholder="Client instruction note"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">House Pictures</label>
+                    <div className="flex flex-col gap-3">
+                      <input 
+                        type="file" 
+                        multiple 
+                        accept="image/*"
+                        onChange={e => {
+                          const files = e.target.files;
+                          if (!files) return;
+                          const fileArray = Array.from(files);
+                          const promises = fileArray.map(file => {
+                            return new Promise<string>((resolve, reject) => {
+                              const reader = new FileReader();
+                              reader.onload = () => resolve(reader.result as string);
+                              reader.onerror = reject;
+                              reader.readAsDataURL(file);
+                            });
+                          });
+                          Promise.all(promises).then(base64s => {
+                            setEditFormData(prev => ({
+                              ...prev,
+                              housePictures: [...(prev.housePictures || []), ...base64s]
+                            }));
+                          }).catch(err => alert("Error uploading images: " + err.message));
+                        }}
+                        className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                      />
+                      {editFormData.housePictures && editFormData.housePictures.length > 0 && (
+                        <div className="grid grid-cols-4 gap-3 border border-slate-100 p-4 rounded-2xl bg-slate-50/50">
+                          {editFormData.housePictures.map((pic, index) => (
+                            <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-150">
+                              <img src={pic} alt="Preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => setEditFormData(prev => ({
+                                  ...prev,
+                                  housePictures: prev.housePictures?.filter((_, i) => i !== index) || []
+                                }))}
+                                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <X size={12} className="text-white" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Location */}
               <div className="space-y-4 pt-6 border-t border-slate-100">

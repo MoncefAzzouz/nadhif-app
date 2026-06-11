@@ -45,7 +45,12 @@ export default function ServicesPage() {
 
   // Form Fields
   const [name, setName] = useState('');
+  const [nameFr, setNameFr] = useState('');
+  const [nameAr, setNameAr] = useState('');
   const [description, setDescription] = useState('');
+  const [descriptionFr, setDescriptionFr] = useState('');
+  const [descriptionAr, setDescriptionAr] = useState('');
+  const [formLangTab, setFormLangTab] = useState<'en' | 'fr' | 'ar'>('en');
   const [pictureBase64, setPictureBase64] = useState('');
   const [extraWorkerPrice, setExtraWorkerPrice] = useState<number>(0);
   const [durationHours, setDurationHours] = useState<number>(4);
@@ -64,6 +69,8 @@ export default function ServicesPage() {
 
   // Nested House Config Sub-form Add
   const [newHouseType, setNewHouseType] = useState('');
+  const [newHouseTypeFr, setNewHouseTypeFr] = useState('');
+  const [newHouseTypeAr, setNewHouseTypeAr] = useState('');
   const [newHouseWorkers, setNewHouseWorkers] = useState<number>(3);
   const [newHouseBasePrice, setNewHouseBasePrice] = useState<number>(3000);
   const [newHouseDuration, setNewHouseDuration] = useState<number>(3);
@@ -131,7 +138,12 @@ export default function ServicesPage() {
   const handleOpenCreate = () => {
     setEditingService(null);
     setName('');
+    setNameFr('');
+    setNameAr('');
     setDescription('');
+    setDescriptionFr('');
+    setDescriptionAr('');
+    setFormLangTab('en');
     setPictureBase64('');
     setExtraWorkerPrice(1000);
     setDurationHours(4);
@@ -145,11 +157,13 @@ export default function ServicesPage() {
     
     setIsActive(true);
     setHouseConfigs([
-      { type: 'f2', workers: 3, basePrice: 3000, durationHours: 3 },
-      { type: 'f3', workers: 4, basePrice: 4000, durationHours: 3 },
-      { type: 'f4', workers: 5, basePrice: 5000, durationHours: 3 }
+      { type: 'f2', typeFr: 'f2', typeAr: 'ف2', workers: 3, basePrice: 3000, durationHours: 3 },
+      { type: 'f3', typeFr: 'f3', typeAr: 'ف3', workers: 4, basePrice: 4000, durationHours: 3 },
+      { type: 'f4', typeFr: 'f4', typeAr: 'ف4', workers: 5, basePrice: 5000, durationHours: 3 }
     ]);
     setNewHouseType('');
+    setNewHouseTypeFr('');
+    setNewHouseTypeAr('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
     setNewHouseDuration(3);
@@ -162,7 +176,12 @@ export default function ServicesPage() {
   const handleOpenEdit = (service: Service) => {
     setEditingService(service);
     setName(service.name);
+    setNameFr(service.nameFr || '');
+    setNameAr(service.nameAr || '');
     setDescription(service.description);
+    setDescriptionFr(service.descriptionFr || '');
+    setDescriptionAr(service.descriptionAr || '');
+    setFormLangTab('en');
     setPictureBase64(service.picture);
     setExtraWorkerPrice(service.extraWorkerPrice);
     setDurationHours(service.durationHours);
@@ -175,8 +194,19 @@ export default function ServicesPage() {
     setProductsMandatory(service.productsMandatory || false);
     
     setIsActive(service.isActive);
-    setHouseConfigs([...service.houseConfigs]);
+    setHouseConfigs(service.houseConfigs.map(hc => ({
+      id: hc.id,
+      serviceId: hc.serviceId,
+      type: hc.type,
+      typeFr: hc.typeFr || '',
+      typeAr: hc.typeAr || '',
+      workers: hc.workers,
+      basePrice: hc.basePrice,
+      durationHours: hc.durationHours
+    })));
     setNewHouseType('');
+    setNewHouseTypeFr('');
+    setNewHouseTypeAr('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
     setNewHouseDuration(3);
@@ -224,6 +254,8 @@ export default function ServicesPage() {
   // House configs adding/editing inside modal sub-form
   const handleEditHouseConfig = (config: any) => {
     setNewHouseType(config.type);
+    setNewHouseTypeFr(config.typeFr || '');
+    setNewHouseTypeAr(config.typeAr || '');
     setNewHouseWorkers(config.workers);
     setNewHouseBasePrice(config.basePrice);
     setNewHouseDuration(config.durationHours ?? 3);
@@ -246,7 +278,7 @@ export default function ServicesPage() {
       }
       setHouseConfigs(prev => prev.map((config: any) => 
         config.type === editingHouseType 
-          ? { ...config, type: typeCleaned, workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration } 
+          ? { ...config, type: typeCleaned, typeFr: newHouseTypeFr.trim(), typeAr: newHouseTypeAr.trim(), workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration } 
           : config
       ));
       setEditingHouseType(null);
@@ -255,10 +287,12 @@ export default function ServicesPage() {
         setFormError(`Configuration for '${typeCleaned}' already exists.`);
         return;
       }
-      setHouseConfigs(prev => [...prev, { type: typeCleaned, workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration }]);
+      setHouseConfigs(prev => [...prev, { type: typeCleaned, typeFr: newHouseTypeFr.trim(), typeAr: newHouseTypeAr.trim(), workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration }]);
     }
 
     setNewHouseType('');
+    setNewHouseTypeFr('');
+    setNewHouseTypeAr('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
     setNewHouseDuration(3);
@@ -271,6 +305,8 @@ export default function ServicesPage() {
     if (editingHouseType === type) {
       setEditingHouseType(null);
       setNewHouseType('');
+      setNewHouseTypeFr('');
+      setNewHouseTypeAr('');
       setNewHouseWorkers(3);
       setNewHouseBasePrice(3000);
       setNewHouseDuration(3);
@@ -303,7 +339,11 @@ export default function ServicesPage() {
         // Edit
         const payload: any = { 
           name: name.trim(), 
+          nameFr: nameFr.trim(),
+          nameAr: nameAr.trim(),
           description: description.trim(), 
+          descriptionFr: descriptionFr.trim(),
+          descriptionAr: descriptionAr.trim(),
           picture: pictureBase64, 
           houseConfigs, 
           extraWorkerPrice, 
@@ -321,7 +361,11 @@ export default function ServicesPage() {
         // Create
         const payload = {
           name: name.trim(),
+          nameFr: nameFr.trim(),
+          nameAr: nameAr.trim(),
           description: description.trim(),
+          descriptionFr: descriptionFr.trim(),
+          descriptionAr: descriptionAr.trim(),
           picture: pictureBase64,
           houseConfigs,
           extraWorkerPrice,
@@ -1208,39 +1252,140 @@ export default function ServicesPage() {
 
                 {/* Main Fields */}
                 <div className="space-y-6">
-                  {/* Service Name */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
-                      Service Name
-                    </label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. Simple Service, Grand Service"
-                      value={name}
-                      onChange={(e) => {
-                        setName(e.target.value);
-                        if (formError.includes('name')) setFormError('');
-                      }}
-                      className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-bold text-slate-800 text-sm placeholder-slate-300 transition-all"
-                    />
+                  {/* Language Tab Switcher */}
+                  <div className="flex gap-2 border-b border-slate-100 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormLangTab('en')}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                        formLangTab === 'en' ? 'bg-primary text-white' : 'bg-slate-50 text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormLangTab('fr')}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                        formLangTab === 'fr' ? 'bg-primary text-white' : 'bg-slate-50 text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      French
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormLangTab('ar')}
+                      className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${
+                        formLangTab === 'ar' ? 'bg-primary text-white' : 'bg-slate-50 text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      Arabic
+                    </button>
                   </div>
 
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
-                      Service Description
-                    </label>
-                    <textarea 
-                      rows={3}
-                      placeholder="Detail what is included (dusting, scrubing, grease washing)..."
-                      value={description}
-                      onChange={(e) => {
-                        setDescription(e.target.value);
-                        if (formError.includes('description')) setFormError('');
-                      }}
-                      className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-semibold text-slate-800 text-sm placeholder-slate-300 transition-all resize-none font-inter"
-                    />
-                  </div>
+                  {formLangTab === 'en' && (
+                    <>
+                      {/* Service Name */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                          Service Name (English)
+                        </label>
+                        <input 
+                          type="text"
+                          placeholder="e.g. Simple Service, Grand Service"
+                          value={name}
+                          onChange={(e) => {
+                            setName(e.target.value);
+                            if (formError.includes('name')) setFormError('');
+                          }}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-bold text-slate-800 text-sm placeholder-slate-300 transition-all"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                          Service Description (English)
+                        </label>
+                        <textarea 
+                          rows={3}
+                          placeholder="Detail what is included (dusting, scrubbing, grease washing)..."
+                          value={description}
+                          onChange={(e) => {
+                            setDescription(e.target.value);
+                            if (formError.includes('description')) setFormError('');
+                          }}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-semibold text-slate-800 text-sm placeholder-slate-300 transition-all resize-none font-inter"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {formLangTab === 'fr' && (
+                    <>
+                      {/* Service Name (FR) */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                          Service Name (French)
+                        </label>
+                        <input 
+                          type="text"
+                          placeholder="e.g. Service Simple, Grand Service"
+                          value={nameFr}
+                          onChange={(e) => setNameFr(e.target.value)}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-bold text-slate-800 text-sm placeholder-slate-300 transition-all"
+                        />
+                      </div>
+
+                      {/* Description (FR) */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                          Service Description (French)
+                        </label>
+                        <textarea 
+                          rows={3}
+                          placeholder="Détails du service (poussière, récurage)..."
+                          value={descriptionFr}
+                          onChange={(e) => setDescriptionFr(e.target.value)}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-semibold text-slate-800 text-sm placeholder-slate-300 transition-all resize-none font-inter"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {formLangTab === 'ar' && (
+                    <>
+                      {/* Service Name (AR) */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                          Service Name (Arabic)
+                        </label>
+                        <input 
+                          type="text"
+                          dir="rtl"
+                          placeholder="مثال: خدمة بسيطة، خدمة كاملة"
+                          value={nameAr}
+                          onChange={(e) => setNameAr(e.target.value)}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-bold text-slate-800 text-sm placeholder-slate-300 transition-all text-right"
+                        />
+                      </div>
+
+                      {/* Description (AR) */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                          Service Description (Arabic)
+                        </label>
+                        <textarea 
+                          rows={3}
+                          dir="rtl"
+                          placeholder="تفاصيل الخدمة (تنظيف الغبار، الغسيل)..."
+                          value={descriptionAr}
+                          onChange={(e) => setDescriptionAr(e.target.value)}
+                          className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-semibold text-slate-800 text-sm placeholder-slate-300 transition-all resize-none font-inter text-right"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   {/* Pricing and Details Grid */}
                   <div className="grid grid-cols-2 gap-4">
@@ -1457,6 +1602,11 @@ export default function ServicesPage() {
                           <div key={config.type} className="flex justify-between items-center py-3 text-xs">
                             <div>
                               <span className="font-black uppercase text-slate-800">{config.type} Layout</span>
+                              {(config.typeFr || config.typeAr) && (
+                                <span className="text-[9px] text-slate-400 ml-2">
+                                  (FR: {config.typeFr || '--'} / AR: {config.typeAr || '--'})
+                                </span>
+                              )}
                               <span className="text-[9px] text-slate-400 font-bold ml-2">({config.workers} Workers, {config.durationHours ?? 3}h)</span>
                             </div>
                             <div className="flex items-center gap-4">
@@ -1484,20 +1634,44 @@ export default function ServicesPage() {
                     )}
 
                     {/* Add layout controls */}
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-4 gap-2">
+                    <div className="space-y-2 border-t border-slate-100 pt-3 mt-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Layout</label>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Layout (EN)</label>
                           <input 
                             type="text"
-                            placeholder="e.g. f5, f6"
+                            placeholder="e.g. f5"
                             value={newHouseType}
                             onChange={(e) => setNewHouseType(e.target.value)}
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40"
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Workers</label>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Layout (FR)</label>
+                          <input 
+                            type="text"
+                            placeholder="e.g. f5"
+                            value={newHouseTypeFr}
+                            onChange={(e) => setNewHouseTypeFr(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Layout (AR)</label>
+                          <input 
+                            type="text"
+                            dir="rtl"
+                            placeholder="مثال: ف5"
+                            value={newHouseTypeAr}
+                            onChange={(e) => setNewHouseTypeAr(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-right"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Workers Required</label>
                           <input 
                             type="number"
                             placeholder="Workers"

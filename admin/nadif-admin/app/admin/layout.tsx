@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar } from 'lucide-react';
-import { getToken, getUser, clearAuth, type ApiUser } from '../lib/api';
+import { getToken, getUser, clearAuth, type ApiUser, ordersApi } from '../lib/api';
 
 interface NavItem {
   name: string;
@@ -41,6 +41,23 @@ export default function AdminLayout({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const [hasPendingOrders, setHasPendingOrders] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const checkPending = async () => {
+      try {
+        const orders = await ordersApi.getAll();
+        const hasPending = orders.some(o => o.status === 'PENDING');
+        setHasPendingOrders(hasPending);
+      } catch (err) {
+        console.error("Error fetching orders for layout:", err);
+      }
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   // Authentication check — requires real JWT token with ADMIN role
   useEffect(() => {
@@ -129,6 +146,9 @@ export default function AdminLayout({
               >
                 <Icon size={20} className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary'}`} />
                 <span className="text-sm font-bold uppercase tracking-wider">{item.name}</span>
+                {item.name === 'Commands' && hasPendingOrders && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
+                )}
                 {isActive && (
                   <motion.div
                     layoutId="sidebar-active-indicator"
@@ -232,6 +252,9 @@ export default function AdminLayout({
                     >
                       <Icon size={20} />
                       <span className="text-sm font-bold uppercase tracking-wider">{item.name}</span>
+                      {item.name === 'Commands' && hasPendingOrders && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
+                      )}
                     </Link>
                   );
                 })}

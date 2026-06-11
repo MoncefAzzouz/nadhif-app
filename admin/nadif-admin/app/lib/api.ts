@@ -45,7 +45,14 @@ async function apiFetch<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `API error ${res.status}`);
+    const errorMsg = body.error || `API error ${res.status}`;
+    if (path !== '/api/auth/login' && (res.status === 401 || res.status === 403 || errorMsg === 'Invalid or expired token')) {
+      clearAuth();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+    throw new Error(errorMsg);
   }
 
   return res.json() as Promise<T>;
@@ -87,6 +94,8 @@ export interface ApiHouseConfig {
   id: string;
   serviceId: string;
   type: string;
+  typeAr?: string;
+  typeFr?: string;
   workers: number;
   basePrice: number;
   durationHours: number;
@@ -95,7 +104,11 @@ export interface ApiHouseConfig {
 export interface ApiService {
   id: string;
   name: string;
+  nameAr?: string;
+  nameFr?: string;
   description: string;
+  descriptionAr?: string;
+  descriptionFr?: string;
   picture: string;
   extraWorkerPrice: number;
   durationHours: number;
@@ -121,12 +134,15 @@ export interface ApiOrder {
   extraWorkers: number;
   useMaterials: boolean;
   productOrigin: 'NONE' | 'LOCAL' | 'IMPORTED';
-  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'CALLED_NOT_PAID' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   totalPrice: number;
   scheduledDate: string;
   address: string;
   latitude?: number;
   longitude?: number;
+  sizeM2?: number;
+  clientNote?: string;
+  housePictures?: string[];
   createdAt: string;
   updatedAt: string;
   user?: { id: string; email: string; fullName: string; phone: string };
@@ -255,6 +271,8 @@ export interface ApiCategoryService {
   id: string;
   categoryId: string;
   name: string;
+  nameAr?: string;
+  nameFr?: string;
   workers: number;
   basePrice: number;
   durationHours: number;
@@ -263,7 +281,11 @@ export interface ApiCategoryService {
 export interface ApiCategory {
   id: string;
   name: string;
+  nameAr?: string;
+  nameFr?: string;
   description: string;
+  descriptionAr?: string;
+  descriptionFr?: string;
   picture: string;
   materialPrice: number;
   materialsMandatory: boolean;

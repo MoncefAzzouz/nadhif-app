@@ -37,27 +37,30 @@ const LocationPicker = dynamic(() => import('../../components/LocationPicker'), 
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_LABELS: Record<ApiOrder['status'], string> = {
-  PENDING:     'En Attente',
-  CONFIRMED:   'Confirmé',
-  IN_PROGRESS: 'In Progress',
-  COMPLETED:   'Completed',
-  CANCELLED:   'Cancelled',
+  PENDING:          'En Attente',
+  CALLED_NOT_PAID:  'Appelé (Non Payé)',
+  CONFIRMED:        'Confirmé',
+  IN_PROGRESS:      'In Progress',
+  COMPLETED:        'Completed',
+  CANCELLED:        'Cancelled',
 };
 
 const STATUS_STYLES: Record<ApiOrder['status'], string> = {
-  PENDING:     'bg-amber-50 text-amber-600 border-amber-100',
-  CONFIRMED:   'bg-blue-50 text-blue-600 border-blue-100',
-  IN_PROGRESS: 'bg-violet-50 text-violet-600 border-violet-100',
-  COMPLETED:   'bg-emerald-50 text-emerald-600 border-emerald-100',
-  CANCELLED:   'bg-rose-50 text-rose-600 border-rose-100',
+  PENDING:          'bg-amber-50 text-amber-600 border-amber-100',
+  CALLED_NOT_PAID:  'bg-cyan-50 text-cyan-600 border-cyan-100',
+  CONFIRMED:        'bg-blue-50 text-blue-600 border-blue-100',
+  IN_PROGRESS:      'bg-violet-50 text-violet-600 border-violet-100',
+  COMPLETED:        'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CANCELLED:        'bg-rose-50 text-rose-600 border-rose-100',
 };
 
 const STATUS_DOT: Record<ApiOrder['status'], string> = {
-  PENDING:     'bg-amber-500 animate-pulse',
-  CONFIRMED:   'bg-blue-500',
-  IN_PROGRESS: 'bg-violet-500',
-  COMPLETED:   'bg-emerald-500',
-  CANCELLED:   'bg-rose-500',
+  PENDING:          'bg-amber-500 animate-pulse',
+  CALLED_NOT_PAID:  'bg-cyan-500 animate-pulse',
+  CONFIRMED:        'bg-blue-500',
+  IN_PROGRESS:      'bg-violet-500',
+  COMPLETED:        'bg-emerald-500',
+  CANCELLED:        'bg-rose-500',
 };
 
 type FilterStatus = 'all' | ApiOrder['status'];
@@ -89,6 +92,7 @@ export default function CommandsPage() {
   const [orderToConfirm, setOrderToConfirm] = useState<ApiOrder | null>(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedCleanerIds, setSelectedCleanerIds] = useState<string[]>([]);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
@@ -96,7 +100,10 @@ export default function CommandsPage() {
     serviceId: '' as string | null, houseConfigId: '' as string | null, 
     categoryId: '' as string | null, categoryServiceId: '' as string | null,
     scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
-    latitude: undefined as number | undefined, longitude: undefined as number | undefined
+    latitude: undefined as number | undefined, longitude: undefined as number | undefined,
+    sizeM2: undefined as number | undefined,
+    clientNote: '',
+    housePictures: [] as string[]
   });
   
   const selectedAddService = services.find(s => s.id === addFormData.serviceId);
@@ -148,6 +155,9 @@ export default function CommandsPage() {
     try {
       const payload = {
         ...addFormData,
+        sizeM2: addFormType === 'service' && addFormData.sizeM2 ? parseFloat(addFormData.sizeM2.toString()) : null,
+        clientNote: addFormData.clientNote || null,
+        housePictures: addFormData.housePictures || [],
         scheduledDate: new Date(addFormData.scheduledDate).toISOString(),
         serviceId: addFormType === 'service' ? addFormData.serviceId : null,
         houseConfigId: addFormType === 'service' ? addFormData.houseConfigId : null,
@@ -163,7 +173,10 @@ export default function CommandsPage() {
         serviceId: '', houseConfigId: '', 
         categoryId: '', categoryServiceId: '',
         scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
-        latitude: undefined, longitude: undefined
+        latitude: undefined, longitude: undefined,
+        sizeM2: undefined,
+        clientNote: '',
+        housePictures: []
       });
       setAddFormType('service');
     } catch (err: any) {
@@ -275,6 +288,12 @@ export default function CommandsPage() {
       return 0;
     });
   };
+
+  const modalReqCount = selectedOrder ? getRequiredCleanersCount(selectedOrder) : 0;
+  const modalAvCount = selectedOrder ? getAvailableCleaners(selectedOrder).length : 0;
+  const modalIsShort = selectedOrder 
+    ? (selectedOrder.status === 'PENDING' || selectedOrder.status === 'CALLED_NOT_PAID') && modalAvCount < modalReqCount
+    : false;
 
   const getAvailableSlots = (order: ApiOrder | null, requiredCount: number) => {
     if (!order || !order.scheduledDate) return [];
@@ -601,12 +620,12 @@ export default function CommandsPage() {
       )}
 
       {/* ── Stats Dashboard ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm flex flex-col justify-between">
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Bookings</p>
           <p className="text-3xl font-black text-slate-800 mt-2">{orders.length}</p>
         </div>
-        {(['PENDING','CONFIRMED','COMPLETED','CANCELLED'] as ApiOrder['status'][]).map(s => (
+        {(['PENDING','CALLED_NOT_PAID','CONFIRMED','COMPLETED','CANCELLED'] as ApiOrder['status'][]).map(s => (
           <div key={s} className={`border p-6 rounded-3xl shadow-sm flex flex-col justify-between ${STATUS_STYLES[s].replace('text-', 'border-').split('border-')[1] ? '' : ''} bg-white border-slate-100`}>
             <p className={`text-[9px] font-black uppercase tracking-widest ${STATUS_STYLES[s].split(' ')[1]}`}>
               {STATUS_LABELS[s]}
@@ -621,33 +640,48 @@ export default function CommandsPage() {
       <div className="flex border-b border-slate-100 gap-4">
         <button
           onClick={() => setBookingTypeFilter('all')}
-          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer ${
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
             bookingTypeFilter === 'all' 
               ? 'text-primary border-primary' 
               : 'text-slate-400 border-transparent hover:text-slate-600'
           }`}
         >
-          All Commands ({orders.length})
+          <span>All Commands ({orders.length})</span>
+          {orders.filter(o => o.status === 'PENDING').length > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-rose-500 rounded-full animate-pulse shrink-0">
+              {orders.filter(o => o.status === 'PENDING').length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setBookingTypeFilter('service')}
-          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer ${
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
             bookingTypeFilter === 'service' 
               ? 'text-primary border-primary' 
               : 'text-slate-400 border-transparent hover:text-slate-600'
           }`}
         >
-          Service Commands ({orders.filter(o => o.serviceId).length})
+          <span>Service Commands ({orders.filter(o => o.serviceId).length})</span>
+          {orders.filter(o => o.serviceId && o.status === 'PENDING').length > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-rose-500 rounded-full animate-pulse shrink-0">
+              {orders.filter(o => o.serviceId && o.status === 'PENDING').length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setBookingTypeFilter('category')}
-          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer ${
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
             bookingTypeFilter === 'category' 
               ? 'text-primary border-primary' 
               : 'text-slate-400 border-transparent hover:text-slate-600'
           }`}
         >
-          Category Commands ({orders.filter(o => o.categoryId).length})
+          <span>Category Commands ({orders.filter(o => o.categoryId).length})</span>
+          {orders.filter(o => o.categoryId && o.status === 'PENDING').length > 0 && (
+            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-rose-500 rounded-full animate-pulse shrink-0">
+              {orders.filter(o => o.categoryId && o.status === 'PENDING').length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -667,6 +701,7 @@ export default function CommandsPage() {
           {([
             { id: 'all', label: 'All Orders' },
             { id: 'PENDING', label: 'En Attente' },
+            { id: 'CALLED_NOT_PAID', label: 'Appelé (Non Payé)' },
             { id: 'CONFIRMED', label: 'Confirmé' },
             { id: 'IN_PROGRESS', label: 'In Progress' },
             { id: 'COMPLETED', label: 'Completed' },
@@ -724,15 +759,23 @@ export default function CommandsPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 <AnimatePresence mode="popLayout">
-                  {filtered.map(order => (
-                    <motion.tr
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      key={order.id}
-                      className="group hover:bg-slate-50/50 transition-colors font-semibold"
-                    >
+                  {filtered.map(order => {
+                    const reqCount = getRequiredCleanersCount(order);
+                    const avCount = getAvailableCleaners(order).length;
+                    const isShort = (order.status === 'PENDING' || order.status === 'CALLED_NOT_PAID') && avCount < reqCount;
+                    return (
+                      <motion.tr
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        key={order.id}
+                        className={`group transition-colors font-semibold border-l-4 ${
+                          isShort 
+                            ? 'bg-rose-50/40 hover:bg-rose-50/60 border-l-rose-500' 
+                            : 'hover:bg-slate-50/50 border-l-transparent'
+                        }`}
+                      >
                       {/* CMD ID */}
                       <td className="py-5 pl-4 font-mono text-[10px] text-slate-400 font-black uppercase tracking-wider">
                         {shortId(order.id)}
@@ -784,6 +827,23 @@ export default function CommandsPage() {
                         <span className="text-[9px] text-slate-400 block mt-1 uppercase">
                           {order.houseConfig?.type?.toUpperCase() || order.categoryService?.name?.toUpperCase() || ''} • {order.productOrigin}
                         </span>
+                        {((order.sizeM2 !== undefined && order.sizeM2 !== null) || (order.housePictures && order.housePictures.length > 0)) && (
+                          <span className="text-[10px] text-slate-700 font-bold block mt-1">
+                            {order.sizeM2 !== undefined && order.sizeM2 !== null ? `${order.sizeM2} m²` : ''} 
+                            {order.sizeM2 !== undefined && order.sizeM2 !== null && order.housePictures && order.housePictures.length > 0 ? ' • ' : ''}
+                            {order.housePictures && order.housePictures.length > 0 ? `${order.housePictures.length} photo(s)` : ''}
+                          </span>
+                        )}
+                        {order.clientNote && (
+                          <span className="text-[10px] text-slate-500 italic block mt-0.5 max-w-[180px] truncate" title={order.clientNote}>
+                            Note: {order.clientNote}
+                          </span>
+                        )}
+                        {isShort && (
+                          <span className="text-[10px] text-rose-500 font-bold block mt-1 uppercase tracking-wider animate-pulse">
+                            ⚠️ Indisponible • Proposer décalage
+                          </span>
+                        )}
                         {order.cleanerId && (
                           <span className="text-[9px] text-emerald-600 font-black block mt-1 uppercase tracking-wider">
                             Cleaners: {getCleanerNames(order.cleanerId)}
@@ -858,7 +918,7 @@ export default function CommandsPage() {
                         </div>
                       </td>
                     </motion.tr>
-                  ))}
+                  );})}
                 </AnimatePresence>
               </tbody>
             </table>
@@ -902,6 +962,20 @@ export default function CommandsPage() {
                     {STATUS_LABELS[selectedOrder.status]}
                   </span>
                 </div>
+
+                {/* Warning Banner */}
+                {modalIsShort && (
+                  <div className="bg-rose-50 border border-rose-100 rounded-3xl p-5 flex items-start gap-3">
+                    <AlertCircle size={20} className="text-rose-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-rose-700">Conflit de Disponibilité</p>
+                      <p className="text-xs text-rose-600 mt-1 font-semibold leading-relaxed">
+                        Il n'y a pas assez de nettoyeurs disponibles pour ce créneau.
+                        <strong> Veuillez appeler le client pour proposer un décalage d'horaire.</strong>
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Client */}
                 <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
@@ -1004,6 +1078,48 @@ export default function CommandsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Property Details & Note */}
+                {((selectedOrder.sizeM2 !== undefined && selectedOrder.sizeM2 !== null) || selectedOrder.clientNote || (selectedOrder.housePictures && selectedOrder.housePictures.length > 0)) && (
+                  <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
+                    <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-2">
+                      <ClipboardList size={12} /> Property Details & Notes
+                    </h3>
+                    <div className="space-y-3 text-xs font-semibold">
+                      {(selectedOrder.sizeM2 !== undefined && selectedOrder.sizeM2 !== null) && (
+                        <div className="flex justify-between py-1 border-b border-slate-100">
+                          <span className="text-slate-400">House Size:</span>
+                          <span className="text-slate-800 font-bold">{selectedOrder.sizeM2} m²</span>
+                        </div>
+                      )}
+                      {selectedOrder.clientNote && (
+                        <div className="py-1">
+                          <span className="text-slate-400 block mb-1">Client Note:</span>
+                          <div className="bg-white border border-slate-150 rounded-xl p-3 text-slate-700 font-medium text-xs whitespace-pre-wrap">
+                            {selectedOrder.clientNote}
+                          </div>
+                        </div>
+                      )}
+                      {selectedOrder.housePictures && selectedOrder.housePictures.length > 0 && (
+                        <div className="py-1">
+                          <span className="text-slate-400 block mb-2">House Pictures ({selectedOrder.housePictures.length}):</span>
+                          <div className="grid grid-cols-3 gap-2">
+                            {selectedOrder.housePictures.map((pic, idx) => (
+                              <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group cursor-zoom-in">
+                                <img 
+                                  src={pic} 
+                                  alt={`House ${idx + 1}`} 
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                  onClick={() => setLightboxImage(pic)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Status actions */}
                 <div className="space-y-4 border border-slate-100 rounded-3xl p-6 bg-slate-50/50">
@@ -1600,6 +1716,88 @@ export default function CommandsPage() {
                       </div>
                     </div>
 
+                    {/* Property & Client Notes */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Property & Client Notes</h4>
+                      <div className="space-y-4">
+                        {addFormType === 'service' && (
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Size (m²)</label>
+                            <input 
+                              type="number" 
+                              value={addFormData.sizeM2 ?? ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setAddFormData(prev => ({ ...prev, sizeM2: val === '' ? undefined : parseFloat(val) }));
+                              }}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                              placeholder="e.g. 120"
+                              min="0"
+                              step="any"
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Client Note</label>
+                          <textarea 
+                            value={addFormData.clientNote ?? ''}
+                            onChange={e => setAddFormData(prev => ({ ...prev, clientNote: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary min-h-[80px]"
+                            placeholder="Add specific instructions, details, etc."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Pictures</label>
+                          <div className="flex flex-col gap-3">
+                            <input 
+                              type="file" 
+                              multiple 
+                              accept="image/*"
+                              onChange={e => {
+                                const files = e.target.files;
+                                if (!files) return;
+                                const fileArray = Array.from(files);
+                                const promises = fileArray.map(file => {
+                                  return new Promise<string>((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.onload = () => resolve(reader.result as string);
+                                    reader.onerror = reject;
+                                    reader.readAsDataURL(file);
+                                  });
+                                });
+                                Promise.all(promises).then(base64s => {
+                                  setAddFormData(prev => ({
+                                    ...prev,
+                                    housePictures: [...(prev.housePictures || []), ...base64s]
+                                  }));
+                                }).catch(err => alert("Error uploading images: " + err.message));
+                              }}
+                              className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                            />
+                            {addFormData.housePictures && addFormData.housePictures.length > 0 && (
+                              <div className="grid grid-cols-4 gap-2 border border-slate-100 p-3 rounded-2xl bg-slate-50/50">
+                                {addFormData.housePictures.map((pic, index) => (
+                                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-150">
+                                    <img src={pic} alt="Preview" className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => setAddFormData(prev => ({
+                                        ...prev,
+                                        housePictures: prev.housePictures?.filter((_, i) => i !== index) || []
+                                      }))}
+                                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Location */}
                     <div className="space-y-4 pt-6 border-t border-slate-100">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Location</h4>
@@ -1713,6 +1911,35 @@ export default function CommandsPage() {
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setLightboxImage(null)}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative max-w-4xl max-h-[85vh] z-10 overflow-hidden rounded-2xl border border-white/10"
+            >
+              <button
+                onClick={() => setLightboxImage(null)}
+                className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 flex items-center justify-center text-white border border-white/10 transition-all cursor-pointer z-20"
+              >
+                <X size={18} />
+              </button>
+              <img src={lightboxImage} alt="House Pic Fullsize" className="max-w-full max-h-[85vh] object-contain" />
             </motion.div>
           </div>
         )}
