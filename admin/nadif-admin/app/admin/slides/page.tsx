@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { slidesApi, type ApiSlide } from '../../lib/api';
 import { 
   Sliders, 
   Plus, 
@@ -33,39 +34,6 @@ interface Slide {
   createdAt: string;
 }
 
-const DEFAULT_SLIDES: Slide[] = [
-  {
-    id: 'SLD-001',
-    title: '🕌 Ramadan Holy Clean Package',
-    imageUrl: '/assets/deepclean.JPG',
-    actionRoute: 'Grand Deep Clean',
-    order: 1,
-    status: 'active',
-    description: 'Special deep clean package slide with mandatory materials locked.',
-    createdAt: '2026-05-10T12:00:00Z'
-  },
-  {
-    id: 'SLD-002',
-    title: '❄️ AC Airflow & Clean Air Promo',
-    imageUrl: '/assets/cleanair.png',
-    actionRoute: 'Simple Maintenance',
-    order: 2,
-    status: 'active',
-    description: 'Seasonal promotion slide highlighting AC deep sanitizing & air safety.',
-    createdAt: '2026-05-12T14:30:00Z'
-  },
-  {
-    id: 'SLD-003',
-    title: '💎 Premium Sofa & Carpet Cleaners',
-    imageUrl: '/assets/sejadaclean.JPG',
-    actionRoute: 'Semi Grand Deep Clean',
-    order: 3,
-    status: 'inactive',
-    description: 'Targeted service slide showcasing sofa, upholstery, and carpet washes.',
-    createdAt: '2026-05-15T09:00:00Z'
-  }
-];
-
 export default function SlidesPage() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -92,28 +60,34 @@ export default function SlidesPage() {
   const [addDragOver, setAddDragOver] = useState(false);
   const [editDragOver, setEditDragOver] = useState(false);
 
-  // Load from LocalStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('nadif_slides');
-    if (stored) {
-      try {
-        setSlides(JSON.parse(stored));
-      } catch (e) {
-        setSlides(DEFAULT_SLIDES);
-      }
-    } else {
-      localStorage.setItem('nadif_slides', JSON.stringify(DEFAULT_SLIDES));
-      setSlides(DEFAULT_SLIDES);
-    }
-    setIsLoaded(true);
-  }, []);
+  // Map backend ApiSlide -> the page's internal Slide shape.
+  const fromApi = (s: ApiSlide): Slide => ({
+    id: s.id,
+    title: s.title,
+    imageUrl: s.imageUrl,
+    actionRoute: s.actionRoute,
+    order: s.order,
+    status: s.isActive ? 'active' : 'inactive',
+    description: s.description,
+    createdAt: s.createdAt,
+  });
 
-  // Save to LocalStorage
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('nadif_slides', JSON.stringify(slides));
+  const fetchSlides = async () => {
+    try {
+      const data = await slidesApi.getAll();
+      setSlides(data.map(fromApi));
+    } catch (err: any) {
+      setSuccessToast(`❌ Failed to load slides: ${err?.message || 'error'}`);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } finally {
+      setIsLoaded(true);
     }
-  }, [slides, isLoaded]);
+  };
+
+  // Load slides from the backend
+  useEffect(() => {
+    fetchSlides();
+  }, []);
 
   // Handle PNG/JPG base64 upload
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>, target: 'add' | 'edit') => {
@@ -166,16 +140,25 @@ export default function SlidesPage() {
     reader.readAsDataURL(file);
   };
 
-  // Status quick switch
-  const handleStatusToggle = (id: string, currentStatus: 'active' | 'inactive') => {
-    const nextStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    setSlides(prev => prev.map(s => s.id === id ? { ...s, status: nextStatus } : s));
-    setSuccessToast(`🟢 Slide Status switched to ${nextStatus.toUpperCase()}!`);
+  const toast = (msg: string) => {
+    setSuccessToast(msg);
     setTimeout(() => setSuccessToast(null), 3000);
   };
 
+  // Status quick switch
+  const handleStatusToggle = async (id: string, currentStatus: 'active' | 'inactive') => {
+    const nextActive = currentStatus !== 'active';
+    try {
+      await slidesApi.update(id, { isActive: nextActive });
+      await fetchSlides();
+      toast(`🟢 Slide status switched to ${nextActive ? 'ACTIVE' : 'INACTIVE'}!`);
+    } catch (err: any) {
+      toast(`❌ ${err?.message || 'Failed to update status'}`);
+    }
+  };
+
   // Submit Add
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!addForm.imageUrl) {
@@ -183,40 +166,29 @@ export default function SlidesPage() {
       return;
     }
 
-    const newSlide: Slide = {
-      id: `SLD-${Math.floor(100 + Math.random() * 900)}`,
-      title: addForm.title,
-      imageUrl: addForm.imageUrl,
-      actionRoute: addForm.actionRoute,
-      order: Number(addForm.order),
-      status: addForm.status,
-      description: addForm.description,
-      createdAt: new Date().toISOString()
-    };
-
-    setSlides(prev => {
-      // Re-order if matching rank
-      const updated = prev.map(s => {
-        if (s.order >= newSlide.order) {
-          return { ...s, order: s.order + 1 };
-        }
-        return s;
+    try {
+      await slidesApi.create({
+        title: addForm.title,
+        description: addForm.description,
+        imageUrl: addForm.imageUrl,
+        actionRoute: addForm.actionRoute,
+        order: Number(addForm.order),
+        isActive: addForm.status === 'active',
       });
-      return [...updated, newSlide].sort((a, b) => a.order - b.order);
-    });
-
-    setIsAddModalOpen(false);
-    setAddForm({
-      title: '',
-      imageUrl: '',
-      actionRoute: 'Grand Deep Clean',
-      order: slides.length + 1,
-      status: 'active',
-      description: ''
-    });
-
-    setSuccessToast("🚀 Carousel slide created successfully!");
-    setTimeout(() => setSuccessToast(null), 3000);
+      await fetchSlides();
+      setIsAddModalOpen(false);
+      setAddForm({
+        title: '',
+        imageUrl: '',
+        actionRoute: 'Grand Deep Clean',
+        order: slides.length + 1,
+        status: 'active',
+        description: ''
+      });
+      toast("🚀 Carousel slide created successfully!");
+    } catch (err: any) {
+      toast(`❌ ${err?.message || 'Failed to create slide'}`);
+    }
   };
 
   // Open Edit Modal
@@ -226,24 +198,24 @@ export default function SlidesPage() {
   };
 
   // Submit Edit
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editForm) {
-      setSlides(prev => {
-        const filtered = prev.filter(s => s.id !== editForm.id);
-        const updated = filtered.map(s => {
-          if (s.order >= editForm.order) {
-            return { ...s, order: s.order + 1 };
-          }
-          return s;
-        });
-        return [...updated, editForm].sort((a, b) => a.order - b.order);
+    if (!editForm) return;
+    try {
+      await slidesApi.update(editForm.id, {
+        title: editForm.title,
+        description: editForm.description,
+        imageUrl: editForm.imageUrl,
+        actionRoute: editForm.actionRoute,
+        order: Number(editForm.order),
+        isActive: editForm.status === 'active',
       });
+      await fetchSlides();
       setIsEditModalOpen(false);
       setEditForm(null);
-
-      setSuccessToast("✏️ Carousel slide updated successfully!");
-      setTimeout(() => setSuccessToast(null), 3000);
+      toast("✏️ Carousel slide updated successfully!");
+    } catch (err: any) {
+      toast(`❌ ${err?.message || 'Failed to update slide'}`);
     }
   };
 
@@ -254,14 +226,16 @@ export default function SlidesPage() {
   };
 
   // Confirm Delete
-  const handleDeleteConfirm = () => {
-    if (slideToDelete) {
-      setSlides(prev => prev.filter(s => s.id !== slideToDelete.id).map((s, idx) => ({ ...s, order: idx + 1 })));
+  const handleDeleteConfirm = async () => {
+    if (!slideToDelete) return;
+    try {
+      await slidesApi.delete(slideToDelete.id);
+      await fetchSlides();
       setIsDeleteModalOpen(false);
       setSlideToDelete(null);
-
-      setSuccessToast("🗑️ Carousel slide deleted permanently!");
-      setTimeout(() => setSuccessToast(null), 3000);
+      toast("🗑️ Carousel slide deleted permanently!");
+    } catch (err: any) {
+      toast(`❌ ${err?.message || 'Failed to delete slide'}`);
     }
   };
 

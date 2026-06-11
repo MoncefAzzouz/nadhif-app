@@ -574,3 +574,25 @@ export const notificationsApi = {
       body: JSON.stringify(payload),
     }),
 };
+
+// ─── Admin: Carousel Slides ──────────────────────────────────────────────────
+export interface ApiSlide {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  actionRoute: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export const slidesApi = {
+  getAll: () => apiFetch<ApiSlide[]>('/api/slides/all'),
+  create: (payload: { title?: string; description?: string; imageUrl: string; actionRoute?: string; order?: number; isActive?: boolean }) =>
+    apiFetch<ApiSlide>('/api/slides', { method: 'POST', body: JSON.stringify(payload) }),
+  update: (id: string, payload: Partial<{ title: string; description: string; imageUrl: string; actionRoute: string; order: number; isActive: boolean }>) =>
+    apiFetch<ApiSlide>(`/api/slides/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  delete: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/slides/${id}`, { method: 'DELETE' }),
+};
