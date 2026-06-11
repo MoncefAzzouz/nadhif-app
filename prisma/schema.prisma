@@ -37,8 +37,22 @@ model User {
   fullName      String
   role          Role      @default(CUSTOMER)
   createdAt     DateTime  @default(now())
-  
+
   orders        Order[]
+  deviceTokens  DeviceToken[]
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String   // "android" | "ios"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Cleaner {

@@ -2,8 +2,30 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 import { ProductOrigin, OrderStatus } from '@prisma/client';
+import { sendPushToUser } from '../lib/firebaseAdmin';
 
 const router = Router();
+
+// Human-friendly status text used in push notification bodies.
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'pending',
+  CALLED_NOT_PAID: 'awaiting payment',
+  CONFIRMED: 'confirmed',
+  IN_PROGRESS: 'in progress',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+};
+
+// Notify the order's customer that its status changed. Fire-and-forget so it
+// never blocks or fails the admin request.
+function notifyOrderStatus(userId: string, orderId: string, status: string) {
+  const label = STATUS_LABELS[status] ?? status.toLowerCase();
+  void sendPushToUser(userId, {
+    title: 'Order update',
+    body: `Your order is now ${label}.`,
+    data: { type: 'order_status', orderId, status },
+  });
+}
 
 // Create new order
 router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
@@ -314,6 +336,9 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
         data: dataToUpdate,
         include: { service: true, houseConfig: true, category: true, categoryService: true }
       });
+      if (order.status !== newStatus) {
+        notifyOrderStatus(order.userId, id, newStatus);
+      }
       res.json(updated);
       return;
     }
@@ -414,6 +439,10 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         promo: true
       }
     });
+
+    if (status !== undefined && status !== order.status) {
+      notifyOrderStatus(order.userId, id, status);
+    }
 
     res.json(updated);
   } catch (err) {

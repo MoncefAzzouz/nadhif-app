@@ -3,3 +3,7 @@ node_modules
 .env
 
 /generated/prisma
+
+# Firebase service account (never commit)
+secrets/
+firebase-admin*.json
