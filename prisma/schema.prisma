@@ -40,6 +40,7 @@ model User {
 
   orders        Order[]
   deviceTokens  DeviceToken[]
+  subscriptions Subscription[]
 }
 
 model DeviceToken {
@@ -65,7 +66,8 @@ model Cleaner {
   skills        String[]  @default([])
   createdAt     DateTime  @default(now())
   
-  orders        Order[]
+  orders                Order[]
+  subscriptionSessions  SubscriptionSession[]
 }
 
 model Service {
@@ -224,6 +226,123 @@ model Skill {
   
   services    Service[]
   categories  Category[]
+  subscriptionServiceTiers SubscriptionServiceTier[]
   
   createdAt   DateTime @default(now())
+}
+
+// ─── SUBSCRIPTION SYSTEM ──────────────────────────────────────────────────────
+
+enum SubscriptionStatus {
+  PENDING
+  DAYS_PROPOSED
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// Admin-manageable property types (House, Villa, Apartment, Office, etc.)
+model SubscriptionPropertyType {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  nameAr    String   @default("")
+  nameFr    String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+// Admin-manageable service tiers (Grand, Semi-Grand, Simple, etc.)
+model SubscriptionServiceTier {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  nameAr        String   @default("")
+  nameFr        String   @default("")
+  description   String   @default("")
+  durationHours Int      @default(3)
+  workers       Int      @default(1)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  subscriptions Subscription[]
+  skills        Skill[]
+}
+
+model Subscription {
+  id               String             @id @default(uuid())
+  
+  // Client info
+  userId           String?
+  fullName         String
+  phone            String
+  
+  // Property details
+  propertyTypeId   String
+  surfaceM2        Float
+  roomsToClean     Int                // Number of rooms the client wants cleaned
+  pictures         String[]           @default([])
+  address          String             @default("")
+  latitude         Float?
+  longitude        Float?
+  
+  // Service selection
+  serviceTierId    String
+  daysPerWeek      Int                // e.g. 2, 3
+  
+  // Admin-set fields
+  monthlyPrice     Float?             // Admin sets the price manually
+  amountPaid       Float              @default(0) // Running total of what client has paid
+  adminNote        String?            // Internal admin notes
+  
+  // Status & lifecycle
+  status           SubscriptionStatus @default(PENDING)
+  
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  
+  // Relations
+  user             User?                    @relation(fields: [userId], references: [id])
+  propertyType     SubscriptionPropertyType @relation(fields: [propertyTypeId], references: [id])
+  serviceTier      SubscriptionServiceTier  @relation(fields: [serviceTierId], references: [id])
+  sessions         SubscriptionSession[]
+  payments         SubscriptionPayment[]
+  
+  @@index([userId])
+  @@index([status])
+}
+
+model SubscriptionSession {
+  id               String    @id @default(uuid())
+  subscriptionId   String
+  
+  scheduledDate    DateTime           // The specific day+time
+  durationHours    Int       @default(3)
+  cleanerId        String?            // Assigned cleaner (availability-checked)
+  
+  status           String    @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  
+  createdAt        DateTime  @default(now())
+  
+  subscription     Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  cleaner          Cleaner?     @relation(fields: [cleanerId], references: [id])
+  
+  @@index([subscriptionId])
+  @@index([cleanerId])
+  @@index([scheduledDate])
+}
+
+model SubscriptionPayment {
+  id               String    @id @default(uuid())
+  subscriptionId   String
+  
+  amount           Float
+  note             String?            // e.g. "Paid cash", "Partial payment"
+  
+  createdAt        DateTime  @default(now())
+  
+  subscription     Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  @@index([subscriptionId])
 }

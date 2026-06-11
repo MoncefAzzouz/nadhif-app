@@ -1,4 +1,4 @@
-// Restart trigger: pick up updated Prisma Client enums
+// Restart trigger: pick up updated Prisma Client enums and subscriptionServiceTiers
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -9,6 +9,7 @@ import pagesRoutes from './routes/pages';
 import ordersRoutes from './routes/orders';
 import adminRoutes from './routes/admin';
 import notificationsRoutes from './routes/notifications';
+import subscriptionsRoutes from './routes/subscriptions';
 
 import prisma from './lib/prisma';
 
@@ -48,6 +49,7 @@ app.use('/api/pages', pagesRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
 
 const PORT = process.env.PORT || 5001;
 

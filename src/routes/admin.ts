@@ -793,7 +793,7 @@ router.post('/locked-days', async (req: AuthenticatedRequest, res: Response) => 
 router.get('/skills', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const skills = await prisma.skill.findMany({
-      include: { services: true, categories: true },
+      include: { services: true, categories: true, subscriptionServiceTiers: true },
       orderBy: { createdAt: 'desc' }
     });
     res.json(skills);
@@ -805,7 +805,7 @@ router.get('/skills', async (req: AuthenticatedRequest, res: Response) => {
 
 // POST /api/admin/skills
 router.post('/skills', async (req: AuthenticatedRequest, res: Response) => {
-  const { name, nameAr, nameFr, description, color, serviceIds, categoryIds } = req.body;
+  const { name, nameAr, nameFr, description, color, serviceIds, categoryIds, serviceTierIds } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Skill name is required' });
     return;
@@ -823,9 +823,12 @@ router.post('/skills', async (req: AuthenticatedRequest, res: Response) => {
         } : undefined,
         categories: categoryIds && categoryIds.length > 0 ? {
           connect: categoryIds.map((id: string) => ({ id }))
+        } : undefined,
+        subscriptionServiceTiers: serviceTierIds && serviceTierIds.length > 0 ? {
+          connect: serviceTierIds.map((id: string) => ({ id }))
         } : undefined
       },
-      include: { services: true, categories: true }
+      include: { services: true, categories: true, subscriptionServiceTiers: true }
     });
     res.status(201).json(skill);
   } catch (err: any) {
@@ -841,7 +844,7 @@ router.post('/skills', async (req: AuthenticatedRequest, res: Response) => {
 // PUT /api/admin/skills/:id
 router.put('/skills/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
-  const { name, nameAr, nameFr, description, color, serviceIds, categoryIds } = req.body;
+  const { name, nameAr, nameFr, description, color, serviceIds, categoryIds, serviceTierIds } = req.body;
   try {
     const skill = await prisma.skill.update({
       where: { id },
@@ -856,9 +859,12 @@ router.put('/skills/:id', async (req: AuthenticatedRequest, res: Response) => {
         } : undefined,
         categories: categoryIds !== undefined ? {
           set: (categoryIds || []).map((id: string) => ({ id }))
+        } : undefined,
+        subscriptionServiceTiers: serviceTierIds !== undefined ? {
+          set: (serviceTierIds || []).map((id: string) => ({ id }))
         } : undefined
       },
-      include: { services: true, categories: true }
+      include: { services: true, categories: true, subscriptionServiceTiers: true }
     });
     res.json(skill);
   } catch (err) {
