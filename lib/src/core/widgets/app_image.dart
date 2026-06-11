@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cleanapp/src/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 
 class AppImage extends StatelessWidget {
@@ -22,7 +23,25 @@ class AppImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final value = source?.trim();
-    if (value == null || value.isEmpty || value.startsWith('/')) {
+    if (value == null || value.isEmpty) {
+      return fallback;
+    }
+
+    // Backend-hosted uploads are stored as relative paths (/uploads/<file>);
+    // resolve them against the API host.
+    if (value.startsWith('/uploads/')) {
+      return Image.network(
+        '${AppConfig.apiBaseUrl}$value',
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, __, ___) => fallback,
+      );
+    }
+
+    // Any other server-relative path (e.g. legacy /assets/...) can't be
+    // resolved by the app; show the fallback.
+    if (value.startsWith('/')) {
       return fallback;
     }
 

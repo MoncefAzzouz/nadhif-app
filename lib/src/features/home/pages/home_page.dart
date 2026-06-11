@@ -17,6 +17,7 @@ import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/data/services_api_service.dart';
+import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,15 @@ class _HomePageState extends State<HomePage>
   Timer? _heroTimer;
   int _currentRecommendedIndex = 0;
   int _currentHeroIndex = 0;
+
+  // Backend carousel slides; when present they replace the static banners.
+  List<AppSlide> _slides = const [];
+
+  /// Image sources driving the hero carousel: backend slides if any, else the
+  /// bundled fallback banners.
+  List<String> get _heroSources => _slides.isNotEmpty
+      ? _slides.map((s) => s.imageUrl).toList()
+      : _heroBanners;
   bool _isAppActive = true;
   late String _currentLocation;
   UserProfile? _profile;
@@ -73,8 +83,19 @@ class _HomePageState extends State<HomePage>
     _loadProfile();
     _loadOrdersCount();
     _loadCategories();
+    _loadSlides();
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
+  }
+
+  Future<void> _loadSlides() async {
+    try {
+      final slides = await locator<SlidesApiService>().getSlides();
+      if (!mounted) return;
+      setState(() => _slides = slides);
+    } catch (_) {
+      // Keep the bundled fallback banners if slides can't be fetched.
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -148,7 +169,7 @@ class _HomePageState extends State<HomePage>
 
     _heroTimer = Timer.periodic(_heroInterval, (_) {
       if (!_autoScrollAllowed || !_heroPageController.hasClients) return;
-      _currentHeroIndex = (_currentHeroIndex + 1) % _heroBanners.length;
+      _currentHeroIndex = (_currentHeroIndex + 1) % _heroSources.length;
       _heroPageController.animateToPage(
         _currentHeroIndex,
         duration: const Duration(milliseconds: 1000),
@@ -319,9 +340,9 @@ class _HomePageState extends State<HomePage>
       child: PageView.builder(
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
-        itemCount: _heroBanners.length,
+        itemCount: _heroSources.length,
         itemBuilder: (context, index) =>
-            _BannerOnlyCard(imagePath: _heroBanners[index]),
+            _BannerOnlyCard(imagePath: _heroSources[index]),
       ),
     );
   }
@@ -557,7 +578,11 @@ class _BannerOnlyCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(32),
-        child: Image.asset(imagePath, fit: BoxFit.contain),
+        child: AppImage(
+          source: imagePath,
+          fit: BoxFit.contain,
+          fallback: Container(color: const Color(0xFFF1F5F3)),
+        ),
       ),
     );
   }

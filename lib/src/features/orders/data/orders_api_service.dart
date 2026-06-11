@@ -90,6 +90,21 @@ class OrdersApiService extends BaseApiService {
     }
   }
 
+  /// Uploads one image file (multipart) and returns its server path
+  /// (e.g. /uploads/<name>.jpg) for use in housePictures.
+  Future<String> uploadImage(String filePath) async {
+    try {
+      final form = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath),
+      });
+      final response = await dio.post('/api/upload', data: form);
+      return (response.data as Map<String, dynamic>)['url'] as String;
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to upload image');
+    }
+  }
+
   /// Validates a promo code against the backend. Returns the discount percent
   /// when valid; throws with the backend's message when invalid/expired.
   Future<double> validatePromo(String code) async {

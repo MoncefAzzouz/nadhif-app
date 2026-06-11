@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
@@ -106,19 +105,19 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     }
   }
 
-  /// Encodes the picked photos as base64 data URIs, the format the backend
-  /// stores in `housePictures` and the admin panel renders directly.
+  /// Uploads the picked photos to the backend (multipart) and returns their
+  /// server paths (/uploads/...) for `housePictures`.
   Future<List<String>> _encodePhotos() async {
-    final encoded = <String>[];
+    final api = locator<OrdersApiService>();
+    final urls = <String>[];
     for (final path in _selectedPhotos) {
       try {
-        final bytes = await File(path).readAsBytes();
-        encoded.add('data:image/jpeg;base64,${base64Encode(bytes)}');
+        urls.add(await api.uploadImage(path));
       } catch (_) {
-        // Skip unreadable files rather than failing the whole booking.
+        // Skip failed uploads rather than failing the whole booking.
       }
     }
-    return encoded;
+    return urls;
   }
 
   void _removePhoto(int index) {
