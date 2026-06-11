@@ -64,47 +64,78 @@ export interface PushPayload {
   data?: Record<string, string>;
 }
 
+export interface PushResult {
+  success: number;
+  failure: number;
+}
+
+// FCM allows at most 500 tokens per multicast request.
+const FCM_MULTICAST_LIMIT = 500;
+
+/**
+ * Sends a push notification to the given device tokens, chunked to respect the
+ * FCM multicast limit. Invalid/expired tokens are pruned from the database.
+ */
+export async function sendPushToTokens(
+  tokens: string[],
+  payload: PushPayload
+): Promise<PushResult> {
+  const result: PushResult = { success: 0, failure: 0 };
+  if (!ensureInitialized() || tokens.length === 0) return result;
+
+  const staleTokens: string[] = [];
+
+  for (let i = 0; i < tokens.length; i += FCM_MULTICAST_LIMIT) {
+    const chunk = tokens.slice(i, i + FCM_MULTICAST_LIMIT);
+    const message: MulticastMessage = {
+      tokens: chunk,
+      notification: { title: payload.title, body: payload.body },
+      data: payload.data ?? {},
+      android: { priority: 'high' },
+      apns: { payload: { aps: { sound: 'default' } } },
+    };
+
+    try {
+      const response = await getMessaging().sendEachForMulticast(message);
+      result.success += response.successCount;
+      result.failure += response.failureCount;
+      response.responses.forEach((res, idx) => {
+        if (!res.success) {
+          const code = res.error?.code;
+          if (
+            code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token' ||
+            code === 'messaging/invalid-argument'
+          ) {
+            staleTokens.push(chunk[idx]);
+          }
+        }
+      });
+    } catch (e) {
+      console.error('sendPushToTokens chunk failed:', e);
+      result.failure += chunk.length;
+    }
+  }
+
+  if (staleTokens.length > 0) {
+    await prisma.deviceToken.deleteMany({
+      where: { token: { in: staleTokens } },
+    });
+  }
+
+  return result;
+}
+
 /**
  * Sends a push notification to every device registered for `userId`.
- * Invalid/expired tokens are pruned from the database automatically.
  */
 export async function sendPushToUser(
   userId: string,
   payload: PushPayload
 ): Promise<void> {
-  if (!ensureInitialized()) return;
-
-  const tokens = await prisma.deviceToken.findMany({ where: { userId } });
-  if (tokens.length === 0) return;
-
-  const message: MulticastMessage = {
-    tokens: tokens.map((t) => t.token),
-    notification: { title: payload.title, body: payload.body },
-    data: payload.data ?? {},
-    android: { priority: 'high' },
-    apns: { payload: { aps: { sound: 'default' } } },
-  };
-
   try {
-    const response = await getMessaging().sendEachForMulticast(message);
-    const staleTokens: string[] = [];
-    response.responses.forEach((res, idx) => {
-      if (!res.success) {
-        const code = res.error?.code;
-        if (
-          code === 'messaging/registration-token-not-registered' ||
-          code === 'messaging/invalid-registration-token' ||
-          code === 'messaging/invalid-argument'
-        ) {
-          staleTokens.push(tokens[idx].token);
-        }
-      }
-    });
-    if (staleTokens.length > 0) {
-      await prisma.deviceToken.deleteMany({
-        where: { token: { in: staleTokens } },
-      });
-    }
+    const tokens = await prisma.deviceToken.findMany({ where: { userId } });
+    await sendPushToTokens(tokens.map((t) => t.token), payload);
   } catch (e) {
     console.error('sendPushToUser failed:', e);
   }
