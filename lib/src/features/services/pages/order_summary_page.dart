@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
@@ -55,9 +56,20 @@ class OrderSummaryPage extends StatefulWidget {
 
 class _OrderSummaryPageState extends State<OrderSummaryPage> {
   String? _appliedPromo;
+  double _promoDiscountPercent = 0;
   bool _isSubmitting = false;
   bool _isBookingConfigExpanded = false;
   final List<String> _selectedPhotos = [];
+  final TextEditingController _notesController = TextEditingController();
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  double get _discountAmount => widget.subtotal * _promoDiscountPercent / 100;
+  double get _grandTotal => widget.subtotal - _discountAmount;
 
   Future<void> _pickImageFromDevice() async {
     if (_selectedPhotos.length >= 5) {
@@ -74,35 +86,39 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 80,
+        imageQuality: 70,
+        maxWidth: 1280,
       );
 
-      if (image != null) {
+      if (image != null && mounted) {
         setState(() {
           _selectedPhotos.add(image.path);
         });
       }
     } catch (e) {
-      final errStr = e.toString();
-      if (errStr.contains('MissingPluginException') || errStr.contains('no implementation')) {
-        setState(() {
-          _selectedPhotos.add("MockPhoto_${_selectedPhotos.length + 1}");
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Mock photo added (please restart/rebuild the app to load native image picker)"),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Failed to pick image: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to pick image: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Encodes the picked photos as base64 data URIs, the format the backend
+  /// stores in `housePictures` and the admin panel renders directly.
+  Future<List<String>> _encodePhotos() async {
+    final encoded = <String>[];
+    for (final path in _selectedPhotos) {
+      try {
+        final bytes = await File(path).readAsBytes();
+        encoded.add('data:image/jpeg;base64,${base64Encode(bytes)}');
+      } catch (_) {
+        // Skip unreadable files rather than failing the whole booking.
       }
     }
+    return encoded;
   }
 
   void _removePhoto(int index) {
@@ -189,12 +205,40 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton(
-                    onPressed: () {
-                      if (codeController.text.isNotEmpty) {
+                    onPressed: () async {
+                      final code = codeController.text.trim().toUpperCase();
+                      if (code.isEmpty) return;
+                      Navigator.pop(builderContext);
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        final discount = await locator<OrdersApiService>()
+                            .validatePromo(code);
+                        if (!mounted) return;
                         setState(() {
-                          _appliedPromo = codeController.text;
+                          _appliedPromo = code;
+                          _promoDiscountPercent = discount;
                         });
-                        Navigator.pop(context);
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Promo $code applied: -${discount.toStringAsFixed(0)}%'),
+                            backgroundColor: ColorApp.primary,
+                          ),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        setState(() {
+                          _appliedPromo = null;
+                          _promoDiscountPercent = 0;
+                        });
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(e
+                                .toString()
+                                .replaceFirst('Exception: ', '')),
+                            backgroundColor: const Color(0xFFDC2626),
+                          ),
+                        );
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -319,6 +363,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
     setState(() => _isSubmitting = true);
     try {
+      final clientNote = _notesController.text.trim();
+      final housePictures = await _encodePhotos();
+
       if (hasServiceOrder) {
         await locator<OrdersApiService>().createServiceOrder(
           serviceId: widget.serviceId!,
@@ -329,6 +376,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           scheduledDate: widget.scheduledDate,
           address: widget.address,
           promoCode: _appliedPromo,
+          clientNote: clientNote,
+          housePictures: housePictures,
         );
       } else {
         await locator<OrdersApiService>().createCategoryOrder(
@@ -339,6 +388,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           scheduledDate: widget.scheduledDate,
           address: widget.address,
           promoCode: _appliedPromo,
+          clientNote: clientNote,
+          housePictures: housePictures,
         );
       }
       if (!mounted) return;
@@ -501,6 +552,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     ],
                   ),
                   child: TextField(
+                    controller: _notesController,
                     minLines: 3,
                     maxLines: 5,
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: ColorApp.textBlack),
@@ -642,8 +694,15 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                       _summaryRow("Subtotal", "${widget.subtotal.toStringAsFixed(2)} DZ"),
                       const SizedBox(height: 16),
                       _buildPromoSection(),
+                      if (_promoDiscountPercent > 0) ...[
+                        const SizedBox(height: 16),
+                        _summaryRow(
+                          "Discount (-${_promoDiscountPercent.toStringAsFixed(0)}%)",
+                          "-${_discountAmount.toStringAsFixed(2)} DZ",
+                        ),
+                      ],
                       const Divider(height: 32, thickness: 0.5),
-                      _summaryRow("Grand Total", "${widget.subtotal.toStringAsFixed(2)} DZ", isTotal: true),
+                      _summaryRow("Grand Total", "${_grandTotal.toStringAsFixed(2)} DZ", isTotal: true),
                     ],
                   ),
                 ),
@@ -680,7 +739,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                         ),
                       ),
                       Text(
-                        "${widget.subtotal.toStringAsFixed(0)}Da",
+                        "${_grandTotal.toStringAsFixed(0)}Da",
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,

@@ -24,6 +24,8 @@ class OrdersApiService extends BaseApiService {
     required DateTime scheduledDate,
     required String address,
     String? promoCode,
+    String? clientNote,
+    List<String>? housePictures,
   }) async {
     try {
       await dio.post(
@@ -39,6 +41,9 @@ class OrdersApiService extends BaseApiService {
           'scheduledDate': scheduledDate.toIso8601String(),
           'address': address,
           if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
+          if (clientNote != null && clientNote.isNotEmpty) 'clientNote': clientNote,
+          if (housePictures != null && housePictures.isNotEmpty)
+            'housePictures': housePictures,
         },
       );
     } on DioException catch (e) {
@@ -55,6 +60,8 @@ class OrdersApiService extends BaseApiService {
     required DateTime scheduledDate,
     required String address,
     String? promoCode,
+    String? clientNote,
+    List<String>? housePictures,
   }) async {
     try {
       await dio.post(
@@ -72,11 +79,27 @@ class OrdersApiService extends BaseApiService {
           'scheduledDate': scheduledDate.toIso8601String(),
           'address': address,
           if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
+          if (clientNote != null && clientNote.isNotEmpty) 'clientNote': clientNote,
+          if (housePictures != null && housePictures.isNotEmpty)
+            'housePictures': housePictures,
         },
       );
     } on DioException catch (e) {
       final error = handleError(e);
       throw Exception(error['message'] ?? 'Failed to create order');
+    }
+  }
+
+  /// Validates a promo code against the backend. Returns the discount percent
+  /// when valid; throws with the backend's message when invalid/expired.
+  Future<double> validatePromo(String code) async {
+    try {
+      final response = await dio.get('/api/promos/$code');
+      final data = response.data as Map<String, dynamic>;
+      return (data['discountPercent'] as num).toDouble();
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Invalid promo code');
     }
   }
 }
