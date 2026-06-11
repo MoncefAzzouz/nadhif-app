@@ -180,6 +180,8 @@ router.delete('/delete-account', authenticateToken, async (req: AuthenticatedReq
     await prisma.$transaction([
       prisma.deviceToken.deleteMany({ where: { userId } }),
       prisma.order.deleteMany({ where: { userId } }),
+      prisma.subscriptionSession.deleteMany({ where: { subscription: { userId } } }),
+      prisma.subscriptionPayment.deleteMany({ where: { subscription: { userId } } }),
       prisma.subscription.deleteMany({ where: { userId } }),
       prisma.user.delete({ where: { id: userId } }),
     ]);

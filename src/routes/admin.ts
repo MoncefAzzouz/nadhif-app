@@ -48,12 +48,118 @@ router.delete('/users/:id', async (req: AuthenticatedRequest, res: Response) => 
     await prisma.$transaction([
       prisma.deviceToken.deleteMany({ where: { userId: id } }),
       prisma.order.deleteMany({ where: { userId: id } }),
+      prisma.subscriptionSession.deleteMany({ where: { subscription: { userId: id } } }),
+      prisma.subscriptionPayment.deleteMany({ where: { subscription: { userId: id } } }),
       prisma.subscription.deleteMany({ where: { userId: id } }),
       prisma.user.delete({ where: { id } }),
     ]);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/users (Create User)
+router.post('/users', async (req: AuthenticatedRequest, res: Response) => {
+  const { email, phone, fullName, role, password } = req.body;
+  if (!email || !phone || !fullName || !role || !password) {
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
+  }
+
+  try {
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email }, { phone }] }
+    });
+    if (existing) {
+      res.status(409).json({ error: 'User with this email or phone already exists' });
+      return;
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        phone,
+        fullName,
+        role,
+        passwordHash
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        role: true,
+        createdAt: true
+      }
+    });
+
+    res.status(201).json(user);
+  } catch (err) {
+    console.error('Create user failed:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/admin/users/:id (Edit User)
+router.put('/users/:id', async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { email, phone, fullName, role, password } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (email && email !== user.email) {
+      const emailExists = await prisma.user.findUnique({ where: { email } });
+      if (emailExists) {
+        res.status(409).json({ error: 'Email already in use' });
+        return;
+      }
+    }
+    if (phone && phone !== user.phone) {
+      const phoneExists = await prisma.user.findUnique({ where: { phone } });
+      if (phoneExists) {
+        res.status(409).json({ error: 'Phone already in use' });
+        return;
+      }
+    }
+
+    const data: any = {
+      email,
+      phone,
+      fullName,
+      role
+    };
+
+    if (password) {
+      const bcrypt = require('bcryptjs');
+      data.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        role: true,
+        createdAt: true
+      }
+    });
+
+    res.json(updatedUser);
+  } catch (err) {
+    console.error('Update user failed:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
