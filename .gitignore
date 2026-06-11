@@ -7,3 +7,6 @@ node_modules
 # Firebase service account (never commit)
 secrets/
 firebase-admin*.json
+
+# Uploaded images (runtime data, never commit)
+uploads/
