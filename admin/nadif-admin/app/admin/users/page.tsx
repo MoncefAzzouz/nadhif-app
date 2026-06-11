@@ -82,7 +82,7 @@ export default function UsersManager() {
   };
 
   return (
-    <div className="space-y-10 font-gilmer max-w-7xl mx-auto animate-fadeIn relative">
+    <div className="space-y-10 font-gilmer max-w-full mx-auto px-4 lg:px-8 animate-fadeIn relative">
       <AnimatePresence>
         {successToast && (
           <motion.div
@@ -199,7 +199,7 @@ export default function UsersManager() {
           </div>
         ) : (
           <div className="overflow-x-auto rounded-[2rem] border border-slate-50">
-            <table className="w-full border-collapse text-left min-w-[800px]">
+            <table className="w-full border-collapse text-left min-w-[1100px]">
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 bg-slate-50/50">
                   <th className="py-4 pl-6">Client / Unique ID</th>
