@@ -21,8 +21,16 @@ prisma.$executeRawUnsafe('ALTER TABLE "Order" DROP CONSTRAINT IF EXISTS "Order_c
 
 const app = express();
 
+// Allowed browser origins for the admin website. Configurable via CORS_ORIGINS
+// (comma-separated) so deployments can add the VPS/admin URL without code edits.
+const corsOrigins = (process.env.CORS_ORIGINS ||
+  'http://localhost:3000,http://127.0.0.1:3000')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: corsOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
