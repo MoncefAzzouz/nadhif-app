@@ -1,4 +1,5 @@
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
 import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,6 +12,14 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthInitial());
   }
 
+  /// Emits the authenticated state and registers this device's push token with
+  /// the backend so it can be targeted for the now-logged-in user.
+  void _authenticated(String identifier) {
+    emit(AuthAuthenticated(identifier));
+    // Fire-and-forget: token sync must never block or fail the login flow.
+    notificationService.syncToken();
+  }
+
   Future<bool> login({
     required String email,
     required String password,
@@ -18,7 +27,7 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       await locator<AuthApiService>().login(email: email, password: password);
-      emit(AuthAuthenticated(email));
+      _authenticated(email);
       return true;
     } catch (e) {
       emit(AuthError(e.toString().replaceFirst('Exception: ', '')));
@@ -40,7 +49,7 @@ class AuthCubit extends Cubit<AuthState> {
         password: password,
         fullName: fullName,
       );
-      emit(AuthAuthenticated(email));
+      _authenticated(email);
       return true;
     } catch (e) {
       emit(AuthError(e.toString().replaceFirst('Exception: ', '')));
@@ -55,7 +64,7 @@ class AuthCubit extends Cubit<AuthState> {
         return false;
       }
       final user = await locator<AuthApiService>().me();
-      emit(AuthAuthenticated(user.phone));
+      _authenticated(user.phone);
       return true;
     } catch (_) {
       await locator<AuthTokenStore>().clear();
@@ -81,7 +90,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final success = await locator<AuthApiService>().verifyOtp(phone, code);
       if (success) {
-        emit(AuthAuthenticated(phone));
+        _authenticated(phone);
       } else {
         emit(AuthInitial());
       }
@@ -104,7 +113,7 @@ class AuthCubit extends Cubit<AuthState> {
         lastName: lastName,
         phoneNumber: phoneNumber,
       );
-      emit(AuthAuthenticated(phoneNumber));
+      _authenticated(phoneNumber);
       return true;
     } catch (e) {
       emit(AuthError(e.toString().replaceFirst('Exception: ', '')));

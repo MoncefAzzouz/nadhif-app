@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
+import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
@@ -36,6 +39,7 @@ class _OrdersPageState extends State<OrdersPage> {
   bool _isLoading = true;
   String? _error;
   OrderFilter _activeFilter = OrderFilter.active;
+  StreamSubscription<void>? _orderUpdateSub;
 
   @override
   void initState() {
@@ -43,6 +47,16 @@ class _OrdersPageState extends State<OrdersPage> {
     _activeOrders = widget.repository.getActiveOrders();
     _scheduledOrders = widget.repository.getScheduledOrders();
     _loadOrders();
+    // Refresh live when an order-status push arrives (no manual pull needed).
+    _orderUpdateSub = notificationService.onOrderUpdate.listen((_) {
+      if (mounted) _loadOrders();
+    });
+  }
+
+  @override
+  void dispose() {
+    _orderUpdateSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadOrders() async {

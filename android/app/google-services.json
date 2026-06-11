@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "457823581164",
+    "project_id": "nadif-app-d19f3",
+    "storage_bucket": "nadif-app-d19f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457823581164:android:41dc446797f342733186c9",
+        "android_client_info": {
+          "package_name": "com.nadif.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4udXWEv5sH691OQTOx_EJdF3jaSrd3J4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

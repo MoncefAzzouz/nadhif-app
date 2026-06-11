@@ -1,4 +1,4 @@
-package com.example.cleanapp
+package com.nadif.app
 
 import io.flutter.embedding.android.FlutterActivity
 
