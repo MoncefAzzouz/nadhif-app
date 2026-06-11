@@ -2,20 +2,20 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ClipboardList, 
-  Search, 
-  MapPin, 
-  Phone, 
-  Calendar, 
-  Clock3, 
-  CheckCircle, 
-  XCircle, 
-  ThumbsUp, 
-  Trash2, 
-  Eye, 
+import {
+  ClipboardList,
+  Search,
+  MapPin,
+  Phone,
+  Calendar,
+  Clock3,
+  CheckCircle,
+  XCircle,
+  ThumbsUp,
+  Trash2,
+  Eye,
   Navigation,
-  Sparkles, 
+  Sparkles,
   X,
   ChevronDown,
   RefreshCw,
@@ -25,42 +25,46 @@ import {
   Package,
   Wrench,
   Plus,
-  Lock
+  Lock,
+  Code,
+  Copy,
+  Check,
+  Users
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill } from '../../lib/api';
 
-const LocationPicker = dynamic(() => import('../../components/LocationPicker'), { 
-  ssr: false, 
-  loading: () => <div className="h-[250px] w-full bg-slate-50 rounded-2xl animate-pulse border border-slate-100 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-400">Loading Map Core...</div> 
+const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
+  ssr: false,
+  loading: () => <div className="h-[250px] w-full bg-slate-50 rounded-2xl animate-pulse border border-slate-100 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-400">Loading Map Core...</div>
 });
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_LABELS: Record<ApiOrder['status'], string> = {
-  PENDING:          'En Attente',
-  CALLED_NOT_PAID:  'Appelé (Non Payé)',
-  CONFIRMED:        'Confirmé',
-  IN_PROGRESS:      'In Progress',
-  COMPLETED:        'Completed',
-  CANCELLED:        'Cancelled',
+  PENDING: 'En Attente',
+  CALLED_NOT_PAID: 'Appelé (Non Payé)',
+  CONFIRMED: 'Confirmé',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
 };
 
 const STATUS_STYLES: Record<ApiOrder['status'], string> = {
-  PENDING:          'bg-amber-50 text-amber-600 border-amber-100',
-  CALLED_NOT_PAID:  'bg-cyan-50 text-cyan-600 border-cyan-100',
-  CONFIRMED:        'bg-blue-50 text-blue-600 border-blue-100',
-  IN_PROGRESS:      'bg-violet-50 text-violet-600 border-violet-100',
-  COMPLETED:        'bg-emerald-50 text-emerald-600 border-emerald-100',
-  CANCELLED:        'bg-rose-50 text-rose-600 border-rose-100',
+  PENDING: 'bg-amber-50 text-amber-600 border-amber-100',
+  CALLED_NOT_PAID: 'bg-cyan-50 text-cyan-600 border-cyan-100',
+  CONFIRMED: 'bg-blue-50 text-blue-600 border-blue-100',
+  IN_PROGRESS: 'bg-violet-50 text-violet-600 border-violet-100',
+  COMPLETED: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  CANCELLED: 'bg-rose-50 text-rose-600 border-rose-100',
 };
 
 const STATUS_DOT: Record<ApiOrder['status'], string> = {
-  PENDING:          'bg-amber-500 animate-pulse',
-  CALLED_NOT_PAID:  'bg-cyan-500 animate-pulse',
-  CONFIRMED:        'bg-blue-500',
-  IN_PROGRESS:      'bg-violet-500',
-  COMPLETED:        'bg-emerald-500',
-  CANCELLED:        'bg-rose-500',
+  PENDING: 'bg-amber-500 animate-pulse',
+  CALLED_NOT_PAID: 'bg-cyan-500 animate-pulse',
+  CONFIRMED: 'bg-blue-500',
+  IN_PROGRESS: 'bg-violet-500',
+  COMPLETED: 'bg-emerald-500',
+  CANCELLED: 'bg-rose-500',
 };
 
 type FilterStatus = 'all' | ApiOrder['status'];
@@ -73,13 +77,16 @@ export default function CommandsPage() {
   const [services, setServices] = useState<ApiService[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [cleaners, setCleaners] = useState<ApiCleaner[]>([]);
+  const [skills, setSkills] = useState<ApiSkill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [bookingTypeFilter, setBookingTypeFilter] = useState<'all' | 'service' | 'category'>('all');
   const [addFormType, setAddFormType] = useState<'service' | 'category'>('service');
-  
+  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const [selectedOrder, setSelectedOrder] = useState<ApiOrder | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -96,16 +103,17 @@ export default function CommandsPage() {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
-    fullName: '', phone: '', address: '', 
-    serviceId: '' as string | null, houseConfigId: '' as string | null, 
+    fullName: '', phone: '', address: '',
+    serviceId: '' as string | null, houseConfigId: '' as string | null,
     categoryId: '' as string | null, categoryServiceId: '' as string | null,
     scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
+    isRapid: false,
     latitude: undefined as number | undefined, longitude: undefined as number | undefined,
     sizeM2: undefined as number | undefined,
     clientNote: '',
     housePictures: [] as string[]
   });
-  
+
   const selectedAddService = services.find(s => s.id === addFormData.serviceId);
   const selectedAddCategory = categories.find(c => c.id === addFormData.categoryId);
 
@@ -164,15 +172,17 @@ export default function CommandsPage() {
         categoryId: addFormType === 'category' ? addFormData.categoryId : null,
         categoryServiceId: addFormType === 'category' ? addFormData.categoryServiceId : null,
         extraWorkers: addFormType === 'service' ? addFormData.extraWorkers : 0,
+        isRapid: addFormData.isRapid
       };
       await ordersApi.createAdminOrder(payload);
       setIsAddModalOpen(false);
       fetchOrders();
       setAddFormData({
-        fullName: '', phone: '', address: '', 
-        serviceId: '', houseConfigId: '', 
+        fullName: '', phone: '', address: '',
+        serviceId: '', houseConfigId: '',
         categoryId: '', categoryServiceId: '',
         scheduledDate: '', extraWorkers: 0, useMaterials: false, productOrigin: 'NONE',
+        isRapid: false,
         latitude: undefined, longitude: undefined,
         sizeM2: undefined,
         clientNote: '',
@@ -189,18 +199,20 @@ export default function CommandsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [data, srvData, catData, clnData, lockedDaysData] = await Promise.all([
+      const [data, srvData, catData, clnData, lockedDaysData, skData] = await Promise.all([
         ordersApi.getAll(),
         servicesApi.getAll(),
         categoriesApi.getAll(),
         cleanersApi.getAll().catch(() => [] as ApiCleaner[]),
-        lockedDaysApi.getAll().catch(() => [] as string[])
+        lockedDaysApi.getAll().catch(() => [] as string[]),
+        skillsApi.getAll().catch(() => [] as ApiSkill[])
       ]);
       setOrders(data);
       setServices(srvData);
       setCategories(catData);
       setCleaners(clnData);
       setLockedDays(lockedDaysData);
+      setSkills(skData);
     } catch (err: any) {
       setError(err.message || 'Failed to load orders. Is the backend running?');
     } finally {
@@ -291,7 +303,7 @@ export default function CommandsPage() {
 
   const modalReqCount = selectedOrder ? getRequiredCleanersCount(selectedOrder) : 0;
   const modalAvCount = selectedOrder ? getAvailableCleaners(selectedOrder).length : 0;
-  const modalIsShort = selectedOrder 
+  const modalIsShort = selectedOrder
     ? (selectedOrder.status === 'PENDING' || selectedOrder.status === 'CALLED_NOT_PAID') && modalAvCount < modalReqCount
     : false;
 
@@ -300,7 +312,7 @@ export default function CommandsPage() {
 
     const date = new Date(order.scheduledDate);
     const slots = [
-      "08:00", "09:00", "10:00", "11:00", "12:00", 
+      "08:00", "09:00", "10:00", "11:00", "12:00",
       "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
     ];
 
@@ -432,7 +444,7 @@ export default function CommandsPage() {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   const formatDate = (iso: string) => {
-    try { return new Date(iso).toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short', year: 'numeric' }); } 
+    try { return new Date(iso).toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short', year: 'numeric' }); }
     catch { return iso; }
   };
   const formatTime = (iso: string) => {
@@ -453,8 +465,9 @@ export default function CommandsPage() {
 
   if (addFormType === 'service') {
     const addSelectedHouse = selectedAddService?.houseConfigs.find(hc => hc.id === addFormData.houseConfigId);
-    addBasePrice = addSelectedHouse?.basePrice || 0;
-    addExtraWorkerPriceTotal = (addFormData.extraWorkers || 0) * (selectedAddService?.extraWorkerPrice || 0);
+    addBasePrice = addFormData.isRapid ? (addSelectedHouse?.rapidBasePrice || 0) : (addSelectedHouse?.basePrice || 0);
+    const extraPriceUnit = addFormData.isRapid ? (selectedAddService?.rapidExtraWorkerPrice || 0) : (selectedAddService?.extraWorkerPrice || 0);
+    addExtraWorkerPriceTotal = (addFormData.extraWorkers || 0) * extraPriceUnit;
     addUseMaterials = addFormData.useMaterials || selectedAddService?.materialsMandatory || false;
     addMaterialsPrice = addUseMaterials ? (selectedAddService?.materialPrice || 0) : 0;
     if (addFormData.productOrigin === 'LOCAL' || (selectedAddService?.productsMandatory && (!addFormData.productOrigin || addFormData.productOrigin === 'NONE'))) {
@@ -464,7 +477,7 @@ export default function CommandsPage() {
     }
     addFinalTotal = addBasePrice + addExtraWorkerPriceTotal + addMaterialsPrice + addProductsPrice;
   } else {
-    addBasePrice = selectedAddCategoryService?.basePrice || 0;
+    addBasePrice = addFormData.isRapid ? (selectedAddCategoryService?.rapidBasePrice || 0) : (selectedAddCategoryService?.basePrice || 0);
     addExtraWorkerPriceTotal = 0;
     addUseMaterials = addFormData.useMaterials || selectedAddCategory?.materialsMandatory || false;
     addMaterialsPrice = addUseMaterials ? (selectedAddCategory?.materialPrice || 0) : 0;
@@ -570,6 +583,12 @@ export default function CommandsPage() {
     );
   };
 
+  const handleCopyJson = () => {
+    navigator.clipboard.writeText(JSON.stringify(orders, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-10 font-gilmer max-w-7xl mx-auto">
 
@@ -588,6 +607,12 @@ export default function CommandsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsJsonModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-wider text-slate-300 hover:text-white hover:bg-slate-950 transition-all shadow-sm cursor-pointer"
+          >
+            <Code size={14} /> View API JSON
+          </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-[0_4px_15px_-3px_rgba(37,99,235,0.4)] hover:shadow-[0_8px_20px_-3px_rgba(37,99,235,0.5)] hover:-translate-y-0.5 transition-all cursor-pointer"
@@ -625,7 +650,7 @@ export default function CommandsPage() {
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Bookings</p>
           <p className="text-3xl font-black text-slate-800 mt-2">{orders.length}</p>
         </div>
-        {(['PENDING','CALLED_NOT_PAID','CONFIRMED','COMPLETED','CANCELLED'] as ApiOrder['status'][]).map(s => (
+        {(['PENDING', 'CALLED_NOT_PAID', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] as ApiOrder['status'][]).map(s => (
           <div key={s} className={`border p-6 rounded-3xl shadow-sm flex flex-col justify-between ${STATUS_STYLES[s].replace('text-', 'border-').split('border-')[1] ? '' : ''} bg-white border-slate-100`}>
             <p className={`text-[9px] font-black uppercase tracking-widest ${STATUS_STYLES[s].split(' ')[1]}`}>
               {STATUS_LABELS[s]}
@@ -640,45 +665,42 @@ export default function CommandsPage() {
       <div className="flex border-b border-slate-100 gap-4">
         <button
           onClick={() => setBookingTypeFilter('all')}
-          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
-            bookingTypeFilter === 'all' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`}
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-1.5 ${bookingTypeFilter === 'all'
+            ? 'text-primary border-primary'
+            : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`}
         >
-          <span>All Commands ({orders.length})</span>
+          All Commands ({orders.length})
           {orders.filter(o => o.status === 'PENDING').length > 0 && (
-            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-rose-500 rounded-full animate-pulse shrink-0">
+            <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0">
               {orders.filter(o => o.status === 'PENDING').length}
             </span>
           )}
         </button>
         <button
           onClick={() => setBookingTypeFilter('service')}
-          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
-            bookingTypeFilter === 'service' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`}
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-1.5 ${bookingTypeFilter === 'service'
+            ? 'text-primary border-primary'
+            : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`}
         >
-          <span>Service Commands ({orders.filter(o => o.serviceId).length})</span>
+          Service Commands ({orders.filter(o => o.serviceId).length})
           {orders.filter(o => o.serviceId && o.status === 'PENDING').length > 0 && (
-            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-rose-500 rounded-full animate-pulse shrink-0">
+            <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0">
               {orders.filter(o => o.serviceId && o.status === 'PENDING').length}
             </span>
           )}
         </button>
         <button
           onClick={() => setBookingTypeFilter('category')}
-          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-2 ${
-            bookingTypeFilter === 'category' 
-              ? 'text-primary border-primary' 
-              : 'text-slate-400 border-transparent hover:text-slate-600'
-          }`}
+          className={`pb-4 px-6 text-xs font-black uppercase tracking-wider transition-all border-b-2 relative cursor-pointer flex items-center gap-1.5 ${bookingTypeFilter === 'category'
+            ? 'text-primary border-primary'
+            : 'text-slate-400 border-transparent hover:text-slate-600'
+            }`}
         >
-          <span>Category Commands ({orders.filter(o => o.categoryId).length})</span>
+          Category Commands ({orders.filter(o => o.categoryId).length})
           {orders.filter(o => o.categoryId && o.status === 'PENDING').length > 0 && (
-            <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[9px] font-black leading-none text-white bg-rose-500 rounded-full animate-pulse shrink-0">
+            <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shrink-0">
               {orders.filter(o => o.categoryId && o.status === 'PENDING').length}
             </span>
           )}
@@ -710,11 +732,10 @@ export default function CommandsPage() {
             <button
               key={tab.id}
               onClick={() => setStatusFilter(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                statusFilter === tab.id
-                  ? 'bg-primary text-white border-primary shadow-md shadow-primary/10'
-                  : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
-              }`}
+              className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${statusFilter === tab.id
+                ? 'bg-primary text-white border-primary shadow-md shadow-primary/10'
+                : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                }`}
             >
               {tab.label}
             </button>
@@ -770,155 +791,188 @@ export default function CommandsPage() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         key={order.id}
-                        className={`group transition-colors font-semibold border-l-4 ${
-                          isShort 
-                            ? 'bg-rose-50/40 hover:bg-rose-50/60 border-l-rose-500' 
-                            : 'hover:bg-slate-50/50 border-l-transparent'
-                        }`}
+                        className={`group transition-colors font-semibold border-l-4 ${isShort
+                          ? 'bg-rose-50/40 hover:bg-rose-50/60 border-l-rose-500'
+                          : 'hover:bg-slate-50/50 border-l-transparent'
+                          }`}
                       >
-                      {/* CMD ID */}
-                      <td className="py-5 pl-4 font-mono text-[10px] text-slate-400 font-black uppercase tracking-wider">
-                        {shortId(order.id)}
-                      </td>
+                        {/* CMD ID */}
+                        <td className="py-5 pl-4 font-mono text-[10px] text-slate-400 font-black uppercase tracking-wider">
+                          {shortId(order.id)}
+                        </td>
 
-                      {/* Client */}
-                      <td className="py-5">
-                        <span className="text-sm font-bold uppercase tracking-tight text-slate-800 block">
-                          {order.user?.fullName ?? '—'}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
-                          {order.user?.email ?? ''}
-                        </span>
-                      </td>
-
-                      {/* Phone */}
-                      <td className="py-5 text-xs text-slate-600 font-bold">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Phone size={12} className="text-slate-400" />
-                          {order.user?.phone ?? '—'}
-                        </span>
-                      </td>
-
-                      {/* Location */}
-                      <td className="py-5">
-                        {order.latitude && order.longitude ? (
-                          <button
-                            onClick={() => handleOpenGoogleMaps(order.latitude, order.longitude)}
-                            className="px-2.5 py-1.5 bg-rose-50/50 hover:bg-rose-50 text-rose-600 border border-rose-100/50 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95"
-                          >
-                            <MapPin size={11} className="fill-rose-100" />
-                            View Map
-                          </button>
-                        ) : (
-                          <button 
-                            onClick={() => handleOpenGoogleMaps(null, null, order.address)}
-                            className="text-[10px] text-slate-500 font-bold uppercase truncate max-w-[120px] block hover:text-primary hover:underline cursor-pointer text-left" title={order.address}
-                          >
-                            {order.address?.slice(0, 20) || '—'}
-                          </button>
-                        )}
-                      </td>
-
-                      {/* Service */}
-                      <td className="py-5 max-w-[180px]">
-                        <span className="text-xs font-bold text-primary block leading-none">
-                          {order.service?.name || order.category?.name || '—'}
-                        </span>
-                        <span className="text-[9px] text-slate-400 block mt-1 uppercase">
-                          {order.houseConfig?.type?.toUpperCase() || order.categoryService?.name?.toUpperCase() || ''} • {order.productOrigin}
-                        </span>
-                        {((order.sizeM2 !== undefined && order.sizeM2 !== null) || (order.housePictures && order.housePictures.length > 0)) && (
-                          <span className="text-[10px] text-slate-700 font-bold block mt-1">
-                            {order.sizeM2 !== undefined && order.sizeM2 !== null ? `${order.sizeM2} m²` : ''} 
-                            {order.sizeM2 !== undefined && order.sizeM2 !== null && order.housePictures && order.housePictures.length > 0 ? ' • ' : ''}
-                            {order.housePictures && order.housePictures.length > 0 ? `${order.housePictures.length} photo(s)` : ''}
+                        {/* Client */}
+                        <td className="py-5">
+                          <span className="text-sm font-bold uppercase tracking-tight text-slate-800 block">
+                            {order.user?.fullName ?? '—'}
                           </span>
-                        )}
-                        {order.clientNote && (
-                          <span className="text-[10px] text-slate-500 italic block mt-0.5 max-w-[180px] truncate" title={order.clientNote}>
-                            Note: {order.clientNote}
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                            {order.user?.email ?? ''}
                           </span>
-                        )}
-                        {isShort && (
-                          <span className="text-[10px] text-rose-500 font-bold block mt-1 uppercase tracking-wider animate-pulse">
-                            ⚠️ Indisponible • Proposer décalage
+                        </td>
+
+                        {/* Phone */}
+                        <td className="py-5 text-xs text-slate-600 font-bold">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Phone size={12} className="text-slate-400" />
+                            {order.user?.phone ?? '—'}
                           </span>
-                        )}
-                        {order.cleanerId && (
-                          <span className="text-[9px] text-emerald-600 font-black block mt-1 uppercase tracking-wider">
-                            Cleaners: {getCleanerNames(order.cleanerId)}
+                        </td>
+
+                        {/* Location */}
+                        <td className="py-5">
+                          {order.latitude && order.longitude ? (
+                            <button
+                              onClick={() => handleOpenGoogleMaps(order.latitude, order.longitude)}
+                              className="px-2.5 py-1.5 bg-rose-50/50 hover:bg-rose-50 text-rose-600 border border-rose-100/50 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95"
+                            >
+                              <MapPin size={11} className="fill-rose-100" />
+                              View Map
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenGoogleMaps(null, null, order.address)}
+                              className="text-[10px] text-slate-500 font-bold uppercase truncate max-w-[120px] block hover:text-primary hover:underline cursor-pointer text-left" title={order.address}
+                            >
+                              {order.address?.slice(0, 20) || '—'}
+                            </button>
+                          )}
+                        </td>
+
+                        {/* Service */}
+                        <td className="py-5 max-w-[180px]">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span className="text-xs font-bold text-primary block leading-none">
+                              {order.service?.name || order.category?.name || '—'}
+                            </span>
+                            {order.isRapid && (
+                              <span className="px-1.5 py-0.5 bg-amber-500 text-white text-[8px] font-black uppercase rounded tracking-wider inline-flex items-center gap-0.5 animate-pulse">
+                                ⚡ Rapide
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[9px] text-slate-400 block mt-1 uppercase">
+                            {order.houseConfig?.type?.toUpperCase() || order.categoryService?.name?.toUpperCase() || ''} • {order.productOrigin}
                           </span>
-                        )}
-                      </td>
+                          {((order.sizeM2 !== undefined && order.sizeM2 !== null) || (order.housePictures && order.housePictures.length > 0)) && (
+                            <span className="text-[10px] text-slate-700 font-bold block mt-1">
+                              {order.sizeM2 !== undefined && order.sizeM2 !== null ? `${order.sizeM2} m²` : ''}
+                              {order.sizeM2 !== undefined && order.sizeM2 !== null && order.housePictures && order.housePictures.length > 0 ? ' • ' : ''}
+                              {order.housePictures && order.housePictures.length > 0 ? `${order.housePictures.length} photo(s)` : ''}
+                            </span>
+                          )}
+                          {order.clientNote && (
+                            <span className="text-[10px] text-slate-500 italic block mt-0.5 max-w-[180px] truncate" title={order.clientNote}>
+                              Note: {order.clientNote}
+                            </span>
+                          )}
+                          {isShort && (
+                            <span className="text-[10px] text-rose-500 font-bold block mt-1 uppercase tracking-wider animate-pulse">
+                              ⚠️ select another time
+                            </span>
+                          )}
+                          {order.cleanerId && (
+                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                              <span className="text-[9px] text-emerald-600 font-black uppercase tracking-wider">
+                                Cleaners: {getCleanerNames(order.cleanerId)}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setOrderToConfirm(order);
+                                  setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
+                                  setIsAssignModalOpen(true);
+                                }}
+                                className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-100 rounded text-[8px] font-bold uppercase transition-all cursor-pointer"
+                                title="Modifier les cleaners"
+                              >
+                                Modifier
+                              </button>
+                            </div>
+                          )}
+                        </td>
 
-                      {/* Scheduled */}
-                      <td className="py-5">
-                        <span className="text-xs text-slate-700 block font-bold">{formatDate(order.scheduledDate)}</span>
-                        <span className="text-xs text-primary font-black block mt-0.5">{formatTime(order.scheduledDate)}</span>
-                        <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
-                          {`${order.houseConfig?.durationHours ?? order.categoryService?.durationHours ?? order.service?.durationHours ?? 3}h clean`}
-                        </span>
-                      </td>
+                        {/* Scheduled */}
+                        <td className="py-5">
+                          <span className="text-xs text-slate-700 block font-bold">{formatDate(order.scheduledDate)}</span>
+                          <span className="text-xs text-primary font-black block mt-0.5">{formatTime(order.scheduledDate)}</span>
+                          <span className="text-[9px] text-slate-400 font-bold block mt-0.5">
+                            {`${order.houseConfig?.durationHours ?? order.categoryService?.durationHours ?? order.service?.durationHours ?? 3}h clean`}
+                          </span>
+                        </td>
 
-                      {/* Total */}
-                      <td className="py-5 text-sm font-black text-emerald-500">
-                        {order.totalPrice.toLocaleString('fr-DZ')} DA
-                      </td>
+                        {/* Total */}
+                        <td className="py-5 text-sm font-black text-emerald-500">
+                          {order.totalPrice.toLocaleString('fr-DZ')} DA
+                        </td>
 
-                      {/* Status dropdown */}
-                      <td className="py-5">
-                        <div className="relative inline-block">
-                          <select
-                            value={order.status}
-                            onChange={e => {
-                              const val = e.target.value as ApiOrder['status'];
-                              if (val === 'CONFIRMED') {
-                                setOrderToConfirm(order);
-                                setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
-                                setIsAssignModalOpen(true);
-                              } else {
-                                handleUpdateStatus(order.id, val);
-                              }
-                            }}
-                            disabled={updatingId === order.id}
-                            className={`pl-3 pr-8 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest outline-none border cursor-pointer appearance-none disabled:opacity-60 ${STATUS_STYLES[order.status]}`}
-                          >
-                            {(Object.keys(STATUS_LABELS) as ApiOrder['status'][]).map(s => (
-                              <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-70" />
-                        </div>
-                      </td>
+                        {/* Status dropdown */}
+                        <td className="py-5">
+                          <div className="relative inline-block">
+                            <select
+                              value={order.status}
+                              onChange={e => {
+                                const val = e.target.value as ApiOrder['status'];
+                                if (val === 'CONFIRMED') {
+                                  setOrderToConfirm(order);
+                                  setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
+                                  setIsAssignModalOpen(true);
+                                } else {
+                                  handleUpdateStatus(order.id, val);
+                                }
+                              }}
+                              disabled={updatingId === order.id}
+                              className={`pl-3 pr-8 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest outline-none border cursor-pointer appearance-none disabled:opacity-60 ${STATUS_STYLES[order.status]}`}
+                            >
+                              {(Object.keys(STATUS_LABELS) as ApiOrder['status'][]).map(s => (
+                                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-70" />
+                          </div>
+                        </td>
 
-                      {/* Actions */}
-                      <td className="py-5 pr-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => { setSelectedOrder(order); setIsDetailsModalOpen(true); }}
-                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-primary/10 hover:text-primary text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
-                            title="View details"
-                          >
-                            <Eye size={13} />
-                          </button>
-                          <button
-                            onClick={() => router.push(`/admin/commands/${order.id}`)}
-                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
-                            title="Edit order"
-                          >
-                            <Wrench size={13} />
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); setOrderToDelete(order); setIsDeleteModalOpen(true); }}
-                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-400 border border-slate-100 flex items-center justify-center transition-all cursor-pointer"
-                            title="Delete order"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  );})}
+                        {/* Actions */}
+                        <td className="py-5 pr-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {order.status === 'CONFIRMED' && (
+                              <button
+                                onClick={() => {
+                                  setOrderToConfirm(order);
+                                  setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
+                                  setIsAssignModalOpen(true);
+                                }}
+                                className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
+                                title="Modifier les cleaners"
+                              >
+                                <Users size={13} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setSelectedOrder(order); setIsDetailsModalOpen(true); }}
+                              className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-primary/10 hover:text-primary text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
+                              title="View details"
+                            >
+                              <Eye size={13} />
+                            </button>
+                            <button
+                              onClick={() => router.push(`/admin/commands/${order.id}`)}
+                              className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 text-slate-500 flex items-center justify-center border border-slate-100 transition-all cursor-pointer"
+                              title="Edit order"
+                            >
+                              <Wrench size={13} />
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); setOrderToDelete(order); setIsDeleteModalOpen(true); }}
+                              className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-rose-600 text-slate-400 border border-slate-100 flex items-center justify-center transition-all cursor-pointer"
+                              title="Delete order"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
                 </AnimatePresence>
               </tbody>
             </table>
@@ -1067,9 +1121,21 @@ export default function CommandsPage() {
                       </div>
                     )}
                     {selectedOrder.cleanerId && (
-                      <div className="flex justify-between py-2">
+                      <div className="flex justify-between py-2 items-center">
                         <span className="text-slate-400">Cleaners Assignés:</span>
-                        <span className="text-slate-800 font-bold">{getCleanerNames(selectedOrder.cleanerId)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-800 font-bold">{getCleanerNames(selectedOrder.cleanerId)}</span>
+                          <button
+                            onClick={() => {
+                              setOrderToConfirm(selectedOrder);
+                              setSelectedCleanerIds(selectedOrder.cleanerId ? selectedOrder.cleanerId.split(',') : []);
+                              setIsAssignModalOpen(true);
+                            }}
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Modifier
+                          </button>
+                        </div>
                       </div>
                     )}
                     <div className="flex justify-between py-2 border-t border-slate-200 pt-3">
@@ -1106,9 +1172,9 @@ export default function CommandsPage() {
                           <div className="grid grid-cols-3 gap-2">
                             {selectedOrder.housePictures.map((pic, idx) => (
                               <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 group cursor-zoom-in">
-                                <img 
-                                  src={pic} 
-                                  alt={`House ${idx + 1}`} 
+                                <img
+                                  src={pic}
+                                  alt={`House ${idx + 1}`}
                                   className="w-full h-full object-cover transition-transform group-hover:scale-110"
                                   onClick={() => setLightboxImage(pic)}
                                 />
@@ -1138,11 +1204,10 @@ export default function CommandsPage() {
                           }
                         }}
                         disabled={updatingId === selectedOrder.id}
-                        className={`py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 disabled:opacity-50 ${
-                          selectedOrder.status === s
-                            ? `${STATUS_STYLES[s]} shadow-md`
-                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                        }`}
+                        className={`py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 disabled:opacity-50 ${selectedOrder.status === s
+                          ? `${STATUS_STYLES[s]} shadow-md`
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                          }`}
                       >
                         {s === 'PENDING' && <Clock3 size={14} />}
                         {s === 'CONFIRMED' && <Sparkles size={14} />}
@@ -1252,10 +1317,10 @@ export default function CommandsPage() {
               <div className="p-8 space-y-6">
                 <div className="space-y-1">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                    Confirmation de Commande
+                    {orderToConfirm.status === 'CONFIRMED' ? 'Modification de Commande' : 'Confirmation de Commande'}
                   </span>
                   <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
-                    Assigner un Cleaner
+                    {orderToConfirm.status === 'CONFIRMED' ? 'Modifier les Cleaners' : 'Assigner un Cleaner'}
                   </h2>
                   <p className="text-xs text-slate-400 font-bold">
                     Sélectionnez un agent disponible pour le {formatDate(orderToConfirm.scheduledDate)} à {formatTime(orderToConfirm.scheduledDate)}.
@@ -1271,11 +1336,11 @@ export default function CommandsPage() {
                       {selectedCleanerIds.length} / {getRequiredCleanersCount(orderToConfirm)} Sélectionné(s)
                     </span>
                   </div>
-                  
+
                   {(() => {
                     const requiredCount = getRequiredCleanersCount(orderToConfirm);
                     const availableCleaners = getAvailableCleaners(orderToConfirm);
-                    
+
                     if (availableCleaners.length < requiredCount) {
                       return (
                         <div className="space-y-4">
@@ -1315,12 +1380,36 @@ export default function CommandsPage() {
                       );
                     }
 
+                    // Sort cleaners with matching skills to the top
+                    const serviceId = orderToConfirm.serviceId;
+                    const categoryId = orderToConfirm.categoryId;
+                    const serviceName = orderToConfirm.service?.name || orderToConfirm.category?.name || '';
+                    
+                    const getHasMatching = (cln: ApiCleaner) => {
+                      return cln.skills.some(sName => {
+                        const skObj = skills.find(s => s.name.toLowerCase() === sName.toLowerCase());
+                        if (skObj) {
+                          const matchesService = serviceId && skObj.services?.some(s => s.id === serviceId);
+                          const matchesCategory = categoryId && skObj.categories?.some(c => c.id === categoryId);
+                          if (matchesService || matchesCategory) return true;
+                        }
+                        return sName.toLowerCase() === serviceName.toLowerCase();
+                      });
+                    };
+
+                    const sortedCleaners = [...availableCleaners].sort((a, b) => {
+                      const hasA = getHasMatching(a);
+                      const hasB = getHasMatching(b);
+                      if (hasA && !hasB) return -1;
+                      if (!hasA && hasB) return 1;
+                      return 0;
+                    });
+
                     return (
                       <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
-                        {availableCleaners.map(cleaner => {
+                        {sortedCleaners.map(cleaner => {
                           const isSelected = selectedCleanerIds.includes(cleaner.id);
-                          const serviceName = orderToConfirm.service?.name || orderToConfirm.category?.name || '';
-                          const hasMatchingSkill = cleaner.skills.some(s => s.toLowerCase() === serviceName.toLowerCase());
+                          const hasMatchingSkill = getHasMatching(cleaner);
 
                           return (
                             <button
@@ -1341,20 +1430,18 @@ export default function CommandsPage() {
                                   }
                                 }
                               }}
-                              className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
-                                isSelected
-                                  ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
-                                  : 'bg-slate-50/60 border-slate-100 hover:border-slate-200 text-slate-700 hover:bg-slate-50'
-                              }`}
+                              className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-1.5 ${isSelected
+                                ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
+                                : 'bg-slate-50/60 border-slate-100 hover:border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
                             >
                               <div className="flex items-center justify-between w-full">
                                 <span className="text-xs font-black uppercase tracking-tight">
                                   {cleaner.fullName}
                                 </span>
                                 {hasMatchingSkill && (
-                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
-                                    isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
-                                  }`}>
+                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                                    }`}>
                                     Compétence Validée
                                   </span>
                                 )}
@@ -1387,7 +1474,7 @@ export default function CommandsPage() {
                     {updatingId === orderToConfirm.id ? (
                       <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      'Confirmer & Assigner'
+                      orderToConfirm.status === 'CONFIRMED' ? 'Enregistrer les modifications' : 'Confirmer & Assigner'
                     )}
                   </button>
                 </div>
@@ -1436,15 +1523,15 @@ export default function CommandsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                   {/* Left Side: Form */}
                   <form id="add-command-form" onSubmit={handleAddSubmit} className="lg:col-span-7 space-y-8">
-                    
+
                     {/* Customer Profile */}
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Customer Profile</h4>
                       <div className="space-y-2">
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Full Name</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={addFormData.fullName}
                             onChange={e => setAddFormData(prev => ({ ...prev, fullName: e.target.value }))}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -1453,9 +1540,9 @@ export default function CommandsPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
-                          <input 
-                            type="tel" 
-                            required 
+                          <input
+                            type="tel"
+                            required
                             value={addFormData.phone}
                             onChange={e => setAddFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -1475,9 +1562,8 @@ export default function CommandsPage() {
                             setAddFormType('service');
                             setAddFormData(prev => ({ ...prev, categoryId: null, categoryServiceId: null }));
                           }}
-                          className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
-                            addFormType === 'service' ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
-                          }`}
+                          className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${addFormType === 'service' ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                            }`}
                         >
                           Service Package
                         </button>
@@ -1487,11 +1573,38 @@ export default function CommandsPage() {
                             setAddFormType('category');
                             setAddFormData(prev => ({ ...prev, serviceId: null, houseConfigId: null }));
                           }}
-                          className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
-                            addFormType === 'category' ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
-                          }`}
+                          className={`py-3 text-[10px] font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${addFormType === 'category' ? 'bg-primary text-white border-primary shadow' : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                            }`}
                         >
                           Category Layout
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Speed Priority Toggle */}
+                    <div className="space-y-4 pt-6 border-t border-slate-100">
+                      <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-tight text-amber-600 flex items-center gap-1">
+                            ⚡ Service Rapide
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                            Appliquer le tarif rapide (Urgence / Réservation le jour même)
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAddFormData(prev => ({ ...prev, isRapid: !prev.isRapid }))}
+                          className={`w-12 h-7 rounded-full transition-colors cursor-pointer relative p-1 ${
+                            addFormData.isRapid ? 'bg-amber-500' : 'bg-slate-300'
+                          }`}
+                        >
+                          <motion.div 
+                            layout
+                            className="w-5 h-5 bg-white rounded-full shadow-sm"
+                            animate={{ x: addFormData.isRapid ? 20 : 0 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                          />
                         </button>
                       </div>
                     </div>
@@ -1503,8 +1616,8 @@ export default function CommandsPage() {
                         <div className="space-y-2">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Service Type</label>
-                            <select 
-                              required 
+                            <select
+                              required
                               value={addFormData.serviceId || ''}
                               onChange={e => setAddFormData(prev => ({ ...prev, serviceId: e.target.value, houseConfigId: '' }))}
                               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -1515,8 +1628,8 @@ export default function CommandsPage() {
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Layout</label>
-                            <select 
-                              required 
+                            <select
+                              required
                               value={addFormData.houseConfigId || ''}
                               onChange={e => setAddFormData(prev => ({ ...prev, houseConfigId: e.target.value }))}
                               disabled={!selectedAddService}
@@ -1530,16 +1643,15 @@ export default function CommandsPage() {
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Scheduled Date</label>
-                            <input 
-                              type="datetime-local" 
-                              required 
+                            <input
+                              type="datetime-local"
+                              required
                               value={addFormData.scheduledDate}
                               onChange={e => setAddFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                              className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${
-                                isDateLocked(addFormData.scheduledDate) || isAddCleanersShort
-                                  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/10'
-                                  : 'border-slate-200 focus:border-primary focus:ring-primary'
-                              }`}
+                              className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${isDateLocked(addFormData.scheduledDate) || isAddCleanersShort
+                                ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/10'
+                                : 'border-slate-200 focus:border-primary focus:ring-primary'
+                                }`}
                             />
                             {isDateLocked(addFormData.scheduledDate) && (
                               <p className="text-[10px] text-rose-500 font-bold mt-1">
@@ -1556,8 +1668,8 @@ export default function CommandsPage() {
                         <div className="space-y-2">
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Category</label>
-                            <select 
-                              required 
+                            <select
+                              required
                               value={addFormData.categoryId || ''}
                               onChange={e => setAddFormData(prev => ({ ...prev, categoryId: e.target.value, categoryServiceId: '' }))}
                               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -1568,8 +1680,8 @@ export default function CommandsPage() {
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Category Service Layout</label>
-                            <select 
-                              required 
+                            <select
+                              required
                               value={addFormData.categoryServiceId || ''}
                               onChange={e => setAddFormData(prev => ({ ...prev, categoryServiceId: e.target.value }))}
                               disabled={!selectedAddCategory}
@@ -1583,16 +1695,15 @@ export default function CommandsPage() {
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Scheduled Date</label>
-                            <input 
-                              type="datetime-local" 
-                              required 
+                            <input
+                              type="datetime-local"
+                              required
                               value={addFormData.scheduledDate}
                               onChange={e => setAddFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                              className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${
-                                isDateLocked(addFormData.scheduledDate) || isAddCleanersShort
-                                  ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/10'
-                                  : 'border-slate-200 focus:border-primary focus:ring-primary'
-                              }`}
+                              className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm font-medium focus:outline-none focus:ring-1 ${isDateLocked(addFormData.scheduledDate) || isAddCleanersShort
+                                ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/10'
+                                : 'border-slate-200 focus:border-primary focus:ring-primary'
+                                }`}
                             />
                             {isDateLocked(addFormData.scheduledDate) && (
                               <p className="text-[10px] text-rose-500 font-bold mt-1">
@@ -1621,11 +1732,10 @@ export default function CommandsPage() {
                         )}
 
                         {/* Materials */}
-                        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                          (addFormType === 'service' ? selectedAddService?.materialsMandatory : selectedAddCategory?.materialsMandatory)
-                            ? 'border-primary/30 bg-primary/5 text-slate-800' 
-                            : 'border-slate-200 bg-slate-50 text-slate-800'
-                        }`}>
+                        <div className={`p-4 rounded-xl border flex flex-col justify-between ${(addFormType === 'service' ? selectedAddService?.materialsMandatory : selectedAddCategory?.materialsMandatory)
+                          ? 'border-primary/30 bg-primary/5 text-slate-800'
+                          : 'border-slate-200 bg-slate-50 text-slate-800'
+                          }`}>
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF MATERIALS</p>
@@ -1638,7 +1748,7 @@ export default function CommandsPage() {
                                 <Lock size={8} /> Forced
                               </div>
                             ) : (
-                              <button 
+                              <button
                                 type="button"
                                 disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                                 onClick={() => setAddFormData(prev => ({ ...prev, useMaterials: !prev.useMaterials }))}
@@ -1651,11 +1761,10 @@ export default function CommandsPage() {
                         </div>
 
                         {/* Products */}
-                        <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                          (addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory)
-                            ? 'border-primary/30 bg-primary/5 text-slate-800' 
-                            : 'border-slate-200 bg-slate-50 text-slate-800'
-                        }`}>
+                        <div className={`p-4 rounded-xl border flex flex-col justify-between ${(addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory)
+                          ? 'border-primary/30 bg-primary/5 text-slate-800'
+                          : 'border-slate-200 bg-slate-50 text-slate-800'
+                          }`}>
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-[9px] font-black uppercase text-slate-500 tracking-wider">NADIF PRODUCTS</p>
@@ -1673,9 +1782,8 @@ export default function CommandsPage() {
                                 type="button"
                                 disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                                 onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'NONE' }))}
-                                className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
-                                  addFormData.productOrigin === 'NONE' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
-                                }`}
+                                className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${addFormData.productOrigin === 'NONE' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                                  }`}
                               >
                                 <span className="block">Own</span>
                                 <span className="block text-[7px] font-bold opacity-70 mt-0.5">(0 DA)</span>
@@ -1685,12 +1793,10 @@ export default function CommandsPage() {
                               type="button"
                               disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                               onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'LOCAL' }))}
-                              className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
-                                (addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) ? 'col-span-1.5' : ''
-                              } ${
-                                (addFormData.productOrigin === 'LOCAL' || ((addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) && addFormData.productOrigin === 'NONE'))
+                              className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${(addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) ? 'col-span-1.5' : ''
+                                } ${(addFormData.productOrigin === 'LOCAL' || ((addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) && addFormData.productOrigin === 'NONE'))
                                   ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
-                              }`}
+                                }`}
                             >
                               <span className="block">Local</span>
                               {addFormType === 'service' && selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.localProductPrice} DA)</span>}
@@ -1700,11 +1806,9 @@ export default function CommandsPage() {
                               type="button"
                               disabled={addFormType === 'service' ? !selectedAddService : !selectedAddCategory}
                               onClick={() => setAddFormData(prev => ({ ...prev, productOrigin: 'IMPORTED' }))}
-                              className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${
-                                (addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) ? 'col-span-1.5' : ''
-                              } ${
-                                addFormData.productOrigin === 'IMPORTED' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
-                              }`}
+                              className={`py-2 text-[8px] font-black uppercase tracking-wider rounded-lg border transition-all cursor-pointer disabled:opacity-50 ${(addFormType === 'service' ? selectedAddService?.productsMandatory : selectedAddCategory?.productsMandatory) ? 'col-span-1.5' : ''
+                                } ${addFormData.productOrigin === 'IMPORTED' ? 'bg-primary text-white border-primary shadow' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'
+                                }`}
                             >
                               <span className="block">Imported</span>
                               {addFormType === 'service' && selectedAddService && <span className="block text-[7px] font-bold opacity-70 mt-0.5">(+{selectedAddService.importedProductPrice} DA)</span>}
@@ -1723,8 +1827,8 @@ export default function CommandsPage() {
                         {addFormType === 'service' && (
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Size (m²)</label>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               value={addFormData.sizeM2 ?? ''}
                               onChange={e => {
                                 const val = e.target.value;
@@ -1739,7 +1843,7 @@ export default function CommandsPage() {
                         )}
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Client Note</label>
-                          <textarea 
+                          <textarea
                             value={addFormData.clientNote ?? ''}
                             onChange={e => setAddFormData(prev => ({ ...prev, clientNote: e.target.value }))}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary min-h-[80px]"
@@ -1749,9 +1853,9 @@ export default function CommandsPage() {
                         <div className="space-y-2">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">House Pictures</label>
                           <div className="flex flex-col gap-3">
-                            <input 
-                              type="file" 
-                              multiple 
+                            <input
+                              type="file"
+                              multiple
                               accept="image/*"
                               onChange={e => {
                                 const files = e.target.files;
@@ -1804,9 +1908,9 @@ export default function CommandsPage() {
                       <div className="space-y-4">
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Address</label>
-                          <input 
-                            type="text" 
-                            required 
+                          <input
+                            type="text"
+                            required
                             value={addFormData.address}
                             onChange={e => setAddFormData(prev => ({ ...prev, address: e.target.value }))}
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -1815,7 +1919,7 @@ export default function CommandsPage() {
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Map Location</label>
-                          <LocationPicker 
+                          <LocationPicker
                             latitude={addFormData.latitude}
                             longitude={addFormData.longitude}
                             onChange={(lat, lng) => setAddFormData(prev => ({ ...prev, latitude: lat, longitude: lng }))}
@@ -1832,7 +1936,7 @@ export default function CommandsPage() {
                         <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 border-b border-slate-200 pb-3">
                           Bill Calculations
                         </h4>
-                        
+
                         <div className="space-y-3 font-semibold text-xs text-slate-600">
                           {addFormType === 'service' ? (
                             <>
@@ -1891,7 +1995,7 @@ export default function CommandsPage() {
                           </div>
                         </div>
 
-                        <button 
+                        <button
                           form="add-command-form"
                           type="submit"
                           disabled={isDateLocked(addFormData.scheduledDate) || isAddCleanersShort}
@@ -1915,7 +2019,7 @@ export default function CommandsPage() {
           </div>
         )}
       </AnimatePresence>
-      
+
       {/* Lightbox Modal */}
       <AnimatePresence>
         {lightboxImage && (
@@ -1940,6 +2044,58 @@ export default function CommandsPage() {
                 <X size={18} />
               </button>
               <img src={lightboxImage} alt="House Pic Fullsize" className="max-w-full max-h-[85vh] object-contain" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── API JSON VIEWER MODAL ── */}
+      <AnimatePresence>
+        {isJsonModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsJsonModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-[700px] bg-slate-950 text-slate-200 rounded-[3rem] shadow-2xl border border-white/10 relative z-10 overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="p-8 border-b border-white/5 flex justify-between items-center shrink-0">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Code size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">Commands API</span>
+                  </div>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">
+                    Orders JSON
+                  </h2>
+                </div>
+                <button 
+                  onClick={() => setIsJsonModalOpen(false)}
+                  className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white border border-white/10 transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 font-mono text-xs text-emerald-400 bg-slate-900/60 leading-relaxed">
+                <pre>{JSON.stringify(orders, null, 2)}</pre>
+              </div>
+
+              <div className="p-8 border-t border-white/5 bg-slate-950 flex gap-4 shrink-0 justify-end">
+                <button 
+                  onClick={handleCopyJson}
+                  className="px-6 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-wider text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-2"
+                >
+                  {copied ? <><Check size={14} strokeWidth={3} /> Copied! </> : <><Copy size={14} /> Copy JSON API</>}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

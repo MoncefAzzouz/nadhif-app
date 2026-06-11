@@ -69,6 +69,7 @@ export default function CategoriesPage() {
   const [newServiceNameAr, setNewServiceNameAr] = useState('');
   const [newServiceWorkers, setNewServiceWorkers] = useState<number>(3);
   const [newServiceBasePrice, setNewServiceBasePrice] = useState<number>(3000);
+  const [newServiceRapidBasePrice, setNewServiceRapidBasePrice] = useState<number>(0);
   const [newServiceDuration, setNewServiceDuration] = useState<number>(3);
   const [editingServiceName, setEditingServiceName] = useState<string | null>(null);
 
@@ -149,13 +150,14 @@ export default function CategoriesPage() {
 
     setIsActive(true);
     setCategoryServices([
-      { name: 'service 1', nameFr: 'service 1', nameAr: 'خدمة 1', workers: 3, basePrice: 3000, durationHours: 3 },
+      { name: 'service 1', nameFr: 'service 1', nameAr: 'خدمة 1', workers: 3, basePrice: 3000, rapidBasePrice: 4000, durationHours: 3 },
     ]);
     setNewServiceName('');
     setNewServiceNameFr('');
     setNewServiceNameAr('');
     setNewServiceWorkers(3);
     setNewServiceBasePrice(3000);
+    setNewServiceRapidBasePrice(0);
     setNewServiceDuration(3);
     setEditingServiceName(null);
     setFormError('');
@@ -188,6 +190,7 @@ export default function CategoriesPage() {
       nameAr: cs.nameAr || '',
       workers: cs.workers,
       basePrice: cs.basePrice,
+      rapidBasePrice: cs.rapidBasePrice || 0,
       durationHours: cs.durationHours
     })));
     setNewServiceName('');
@@ -195,6 +198,7 @@ export default function CategoriesPage() {
     setNewServiceNameAr('');
     setNewServiceWorkers(3);
     setNewServiceBasePrice(3000);
+    setNewServiceRapidBasePrice(0);
     setNewServiceDuration(3);
     setEditingServiceName(null);
     setFormError('');
@@ -249,6 +253,7 @@ export default function CategoriesPage() {
     setNewServiceNameAr(config.nameAr || '');
     setNewServiceWorkers(config.workers);
     setNewServiceBasePrice(config.basePrice);
+    setNewServiceRapidBasePrice(config.rapidBasePrice || 0);
     setNewServiceDuration(config.durationHours ?? 3);
     setEditingServiceName(config.name);
   };
@@ -261,6 +266,10 @@ export default function CategoriesPage() {
       setFormError(`Base price must be a positive rate.`);
       return;
     }
+    if (newServiceRapidBasePrice < 0) {
+      setFormError(`Rapid price must be positive.`);
+      return;
+    }
 
     if (editingServiceName) {
       if (editingServiceName.toLowerCase() !== nameCleaned.toLowerCase() && categoryServices.some((config: any) => config.name.toLowerCase() === nameCleaned.toLowerCase())) {
@@ -269,7 +278,7 @@ export default function CategoriesPage() {
       }
       setCategoryServices(prev => prev.map((config: any) => 
         config.name === editingServiceName 
-          ? { ...config, name: nameCleaned, nameFr: newServiceNameFr.trim(), nameAr: newServiceNameAr.trim(), workers: newServiceWorkers, basePrice: newServiceBasePrice, durationHours: newServiceDuration } 
+          ? { ...config, name: nameCleaned, nameFr: newServiceNameFr.trim(), nameAr: newServiceNameAr.trim(), workers: newServiceWorkers, basePrice: newServiceBasePrice, rapidBasePrice: newServiceRapidBasePrice, durationHours: newServiceDuration } 
           : config
       ));
       setEditingServiceName(null);
@@ -278,7 +287,7 @@ export default function CategoriesPage() {
         setFormError(`Configuration for '${nameCleaned}' already exists.`);
         return;
       }
-      setCategoryServices(prev => [...prev, { name: nameCleaned, nameFr: newServiceNameFr.trim(), nameAr: newServiceNameAr.trim(), workers: newServiceWorkers, basePrice: newServiceBasePrice, durationHours: newServiceDuration }]);
+      setCategoryServices(prev => [...prev, { name: nameCleaned, nameFr: newServiceNameFr.trim(), nameAr: newServiceNameAr.trim(), workers: newServiceWorkers, basePrice: newServiceBasePrice, rapidBasePrice: newServiceRapidBasePrice, durationHours: newServiceDuration }]);
     }
 
     setNewServiceName('');
@@ -286,6 +295,7 @@ export default function CategoriesPage() {
     setNewServiceNameAr('');
     setNewServiceWorkers(3);
     setNewServiceBasePrice(3000);
+    setNewServiceRapidBasePrice(0);
     setNewServiceDuration(3);
     setFormError('');
   };
@@ -300,6 +310,7 @@ export default function CategoriesPage() {
       setNewServiceNameAr('');
       setNewServiceWorkers(3);
       setNewServiceBasePrice(3000);
+      setNewServiceRapidBasePrice(0);
       setNewServiceDuration(3);
     }
   };
@@ -831,7 +842,7 @@ export default function CategoriesPage() {
                     <div className="flex flex-wrap gap-2">
                       {category.categoryServices.map((cs) => (
                         <span key={cs.id} className="px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[9px] font-bold text-slate-500 uppercase">
-                          {cs.name}: <strong className="text-slate-800">{cs.basePrice} DA</strong> ({cs.workers}W, {cs.durationHours}h)
+                          {cs.name}: <strong className="text-slate-800">{cs.basePrice} DA</strong> <span className="text-amber-600 font-bold ml-1">⚡ {cs.rapidBasePrice || 0} DA</span> ({cs.workers}W, {cs.durationHours}h)
                         </span>
                       ))}
                     </div>
@@ -1269,7 +1280,10 @@ export default function CategoriesPage() {
                               <span className="text-[9px] text-slate-400 font-bold ml-2">({config.workers} Workers, {config.durationHours ?? 3}h)</span>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="font-black text-primary">{config.basePrice} DA Base</span>
+                              <div className="flex flex-col items-end mr-2">
+                                <span className="font-black text-primary text-[11px] leading-tight">{config.basePrice} DA Base</span>
+                                <span className="text-[10px] font-black text-amber-500 leading-tight">⚡ {config.rapidBasePrice || 0} DA</span>
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => handleEditServiceConfig(config)}
@@ -1328,7 +1342,7 @@ export default function CategoriesPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-4 gap-2">
                         <div className="space-y-1">
                           <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Workers Required</label>
                           <input
@@ -1346,6 +1360,16 @@ export default function CategoriesPage() {
                             placeholder="Base Price"
                             value={newServiceBasePrice || ''}
                             onChange={(e) => setNewServiceBasePrice(Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-center"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Rapid Price (DA)</label>
+                          <input
+                            type="number"
+                            placeholder="Rapid Price"
+                            value={newServiceRapidBasePrice || ''}
+                            onChange={(e) => setNewServiceRapidBasePrice(Number(e.target.value))}
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-center"
                           />
                         </div>

@@ -98,6 +98,7 @@ export interface ApiHouseConfig {
   typeFr?: string;
   workers: number;
   basePrice: number;
+  rapidBasePrice: number;
   durationHours: number;
 }
 
@@ -111,6 +112,7 @@ export interface ApiService {
   descriptionFr?: string;
   picture: string;
   extraWorkerPrice: number;
+  rapidExtraWorkerPrice: number;
   durationHours: number;
   materialPrice: number;
   materialsMandatory: boolean;
@@ -140,6 +142,7 @@ export interface ApiOrder {
   address: string;
   latitude?: number;
   longitude?: number;
+  isRapid?: boolean;
   sizeM2?: number;
   clientNote?: string;
   housePictures?: string[];
@@ -275,6 +278,7 @@ export interface ApiCategoryService {
   nameFr?: string;
   workers: number;
   basePrice: number;
+  rapidBasePrice: number;
   durationHours: number;
 }
 
@@ -379,4 +383,33 @@ export const lockedDaysApi = {
       body: JSON.stringify({ lockedDays }),
     }),
 };
+
+export interface ApiSkill {
+  id: string;
+  name: string;
+  nameAr: string;
+  nameFr: string;
+  description: string;
+  color: string;
+  services: ApiService[];
+  categories: ApiCategory[];
+  createdAt: string;
+}
+
+export const skillsApi = {
+  getAll: () => apiFetch<ApiSkill[]>('/api/admin/skills'),
+  create: (payload: { name: string; nameAr?: string; nameFr?: string; description?: string; color?: string; serviceIds?: string[]; categoryIds?: string[] }) =>
+    apiFetch<ApiSkill>('/api/admin/skills', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: { name: string; nameAr?: string; nameFr?: string; description?: string; color?: string; serviceIds?: string[]; categoryIds?: string[] }) =>
+    apiFetch<ApiSkill>(`/api/admin/skills/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  delete: (id: string) =>
+    apiFetch<{ success: boolean }>(`/api/admin/skills/${id}`, { method: 'DELETE' }),
+};
+
 

@@ -53,6 +53,7 @@ export default function ServicesPage() {
   const [formLangTab, setFormLangTab] = useState<'en' | 'fr' | 'ar'>('en');
   const [pictureBase64, setPictureBase64] = useState('');
   const [extraWorkerPrice, setExtraWorkerPrice] = useState<number>(0);
+  const [rapidExtraWorkerPrice, setRapidExtraWorkerPrice] = useState<number>(0);
   const [durationHours, setDurationHours] = useState<number>(4);
   
   // Materials Form States
@@ -73,6 +74,7 @@ export default function ServicesPage() {
   const [newHouseTypeAr, setNewHouseTypeAr] = useState('');
   const [newHouseWorkers, setNewHouseWorkers] = useState<number>(3);
   const [newHouseBasePrice, setNewHouseBasePrice] = useState<number>(3000);
+  const [newHouseRapidBasePrice, setNewHouseRapidBasePrice] = useState<number>(0);
   const [newHouseDuration, setNewHouseDuration] = useState<number>(3);
   const [editingHouseType, setEditingHouseType] = useState<string | null>(null);
 
@@ -146,6 +148,7 @@ export default function ServicesPage() {
     setFormLangTab('en');
     setPictureBase64('');
     setExtraWorkerPrice(1000);
+    setRapidExtraWorkerPrice(1200);
     setDurationHours(4);
     
     setMaterialPrice(1500);
@@ -157,15 +160,16 @@ export default function ServicesPage() {
     
     setIsActive(true);
     setHouseConfigs([
-      { type: 'f2', typeFr: 'f2', typeAr: 'ف2', workers: 3, basePrice: 3000, durationHours: 3 },
-      { type: 'f3', typeFr: 'f3', typeAr: 'ف3', workers: 4, basePrice: 4000, durationHours: 3 },
-      { type: 'f4', typeFr: 'f4', typeAr: 'ف4', workers: 5, basePrice: 5000, durationHours: 3 }
+      { type: 'f2', typeFr: 'f2', typeAr: 'ف2', workers: 3, basePrice: 3000, rapidBasePrice: 4000, durationHours: 3 },
+      { type: 'f3', typeFr: 'f3', typeAr: 'ف3', workers: 4, basePrice: 4000, rapidBasePrice: 5000, durationHours: 3 },
+      { type: 'f4', typeFr: 'f4', typeAr: 'ف4', workers: 5, basePrice: 5000, rapidBasePrice: 6500, durationHours: 3 }
     ]);
     setNewHouseType('');
     setNewHouseTypeFr('');
     setNewHouseTypeAr('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
+    setNewHouseRapidBasePrice(0);
     setNewHouseDuration(3);
     setEditingHouseType(null);
     setFormError('');
@@ -184,6 +188,7 @@ export default function ServicesPage() {
     setFormLangTab('en');
     setPictureBase64(service.picture);
     setExtraWorkerPrice(service.extraWorkerPrice);
+    setRapidExtraWorkerPrice(service.rapidExtraWorkerPrice || 0);
     setDurationHours(service.durationHours);
     
     setMaterialPrice(service.materialPrice);
@@ -202,6 +207,7 @@ export default function ServicesPage() {
       typeAr: hc.typeAr || '',
       workers: hc.workers,
       basePrice: hc.basePrice,
+      rapidBasePrice: hc.rapidBasePrice || 0,
       durationHours: hc.durationHours
     })));
     setNewHouseType('');
@@ -209,6 +215,7 @@ export default function ServicesPage() {
     setNewHouseTypeAr('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
+    setNewHouseRapidBasePrice(0);
     setNewHouseDuration(3);
     setEditingHouseType(null);
     setFormError('');
@@ -258,6 +265,7 @@ export default function ServicesPage() {
     setNewHouseTypeAr(config.typeAr || '');
     setNewHouseWorkers(config.workers);
     setNewHouseBasePrice(config.basePrice);
+    setNewHouseRapidBasePrice(config.rapidBasePrice || 0);
     setNewHouseDuration(config.durationHours ?? 3);
     setEditingHouseType(config.type);
   };
@@ -270,6 +278,10 @@ export default function ServicesPage() {
       setFormError(`Base price must be a positive rate.`);
       return;
     }
+    if (newHouseRapidBasePrice < 0) {
+      setFormError(`Rapid price must be positive.`);
+      return;
+    }
 
     if (editingHouseType) {
       if (editingHouseType !== typeCleaned && houseConfigs.some((config: any) => config.type === typeCleaned)) {
@@ -278,7 +290,7 @@ export default function ServicesPage() {
       }
       setHouseConfigs(prev => prev.map((config: any) => 
         config.type === editingHouseType 
-          ? { ...config, type: typeCleaned, typeFr: newHouseTypeFr.trim(), typeAr: newHouseTypeAr.trim(), workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration } 
+          ? { ...config, type: typeCleaned, typeFr: newHouseTypeFr.trim(), typeAr: newHouseTypeAr.trim(), workers: newHouseWorkers, basePrice: newHouseBasePrice, rapidBasePrice: newHouseRapidBasePrice, durationHours: newHouseDuration } 
           : config
       ));
       setEditingHouseType(null);
@@ -287,7 +299,7 @@ export default function ServicesPage() {
         setFormError(`Configuration for '${typeCleaned}' already exists.`);
         return;
       }
-      setHouseConfigs(prev => [...prev, { type: typeCleaned, typeFr: newHouseTypeFr.trim(), typeAr: newHouseTypeAr.trim(), workers: newHouseWorkers, basePrice: newHouseBasePrice, durationHours: newHouseDuration }]);
+      setHouseConfigs(prev => [...prev, { type: typeCleaned, typeFr: newHouseTypeFr.trim(), typeAr: newHouseTypeAr.trim(), workers: newHouseWorkers, basePrice: newHouseBasePrice, rapidBasePrice: newHouseRapidBasePrice, durationHours: newHouseDuration }]);
     }
 
     setNewHouseType('');
@@ -295,6 +307,7 @@ export default function ServicesPage() {
     setNewHouseTypeAr('');
     setNewHouseWorkers(3);
     setNewHouseBasePrice(3000);
+    setNewHouseRapidBasePrice(0);
     setNewHouseDuration(3);
     setFormError('');
   };
@@ -308,6 +321,8 @@ export default function ServicesPage() {
       setNewHouseTypeFr('');
       setNewHouseTypeAr('');
       setNewHouseWorkers(3);
+      setNewHouseBasePrice(3000);
+      setNewHouseRapidBasePrice(0);
       setNewHouseBasePrice(3000);
       setNewHouseDuration(3);
     }
@@ -347,6 +362,7 @@ export default function ServicesPage() {
           picture: pictureBase64, 
           houseConfigs, 
           extraWorkerPrice, 
+          rapidExtraWorkerPrice,
           durationHours, 
           materialPrice, 
           materialsMandatory, 
@@ -369,6 +385,7 @@ export default function ServicesPage() {
           picture: pictureBase64,
           houseConfigs,
           extraWorkerPrice,
+          rapidExtraWorkerPrice,
           durationHours,
           materialPrice,
           materialsMandatory,
@@ -956,7 +973,7 @@ export default function ServicesPage() {
                       <div className="flex flex-wrap gap-2">
                         {service.houseConfigs.map((config: HouseConfig) => (
                           <span key={config.type} className="px-2.5 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[9px] font-bold text-slate-500 uppercase">
-                            {config.type}: <strong className="text-slate-800">{config.basePrice} DA</strong> ({config.workers}W, {config.durationHours}h)
+                            {config.type}: <strong className="text-slate-800">{config.basePrice} DA</strong> <span className="text-amber-600 font-bold ml-1">⚡ {config.rapidBasePrice || 0} DA</span> ({config.workers}W, {config.durationHours}h)
                           </span>
                         ))}
                       </div>
@@ -966,7 +983,7 @@ export default function ServicesPage() {
                     <div className="space-y-1.5 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 text-[9px] font-semibold text-slate-500">
                       <div className="flex justify-between">
                         <span>Extra Worker Rate:</span>
-                        <strong className="text-slate-800">+{service.extraWorkerPrice} DA</strong>
+                        <strong className="text-slate-800">+{service.extraWorkerPrice} DA / ⚡ +{service.rapidExtraWorkerPrice || 0} DA</strong>
                       </div>
                       <div className="flex justify-between border-t border-slate-100/50 pt-1.5">
                         <span>Materials Surcharge:</span>
@@ -1063,12 +1080,12 @@ export default function ServicesPage() {
                           <div className="flex flex-wrap gap-1 max-w-[180px]">
                             {service.houseConfigs.map((c: HouseConfig) => (
                               <span key={c.type} className="px-1.5 py-0.5 bg-slate-100 text-[8px] font-black text-slate-600 rounded uppercase">
-                                {c.type}: {c.basePrice} DA ({c.workers}W, {c.durationHours}h)
+                                {c.type}: {c.basePrice} DA / ⚡ {c.rapidBasePrice || 0} DA ({c.workers}W, {c.durationHours}h)
                               </span>
                             ))}
                           </div>
                         </td>
-                        <td className="py-4 text-sm text-slate-700">{service.extraWorkerPrice} DA</td>
+                        <td className="py-4 text-xs text-slate-700 font-bold">{service.extraWorkerPrice} DA / ⚡ {service.rapidExtraWorkerPrice || 0} DA</td>
                         <td className="py-4 text-sm text-slate-700">
                           {service.materialPrice} DA 
                           {service.materialsMandatory && <span className="ml-1.5 text-[8px] bg-primary/10 text-primary font-black uppercase px-1.5 py-0.5 rounded">Forced</span>}
@@ -1388,17 +1405,31 @@ export default function ServicesPage() {
                   )}
 
                   {/* Pricing and Details Grid */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     {/* Extra Worker Price */}
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
-                        Extra Worker Surcharge (DA)
+                        Extra Worker (DA)
                       </label>
                       <input 
                         type="number"
                         placeholder="1000"
                         value={extraWorkerPrice || ''}
                         onChange={(e) => setExtraWorkerPrice(Number(e.target.value))}
+                        className="w-full px-5 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-bold text-slate-800 text-sm placeholder-slate-300 transition-all"
+                      />
+                    </div>
+
+                    {/* Rapid Extra Worker Price */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
+                        Rapid Extra Worker (DA)
+                      </label>
+                      <input 
+                        type="number"
+                        placeholder="1200"
+                        value={rapidExtraWorkerPrice || ''}
+                        onChange={(e) => setRapidExtraWorkerPrice(Number(e.target.value))}
                         className="w-full px-5 py-4 bg-slate-50 rounded-2xl border border-transparent focus:border-primary/20 focus:bg-white outline-none font-bold text-slate-800 text-sm placeholder-slate-300 transition-all"
                       />
                     </div>
@@ -1610,7 +1641,10 @@ export default function ServicesPage() {
                               <span className="text-[9px] text-slate-400 font-bold ml-2">({config.workers} Workers, {config.durationHours ?? 3}h)</span>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="font-black text-primary">{config.basePrice} DA Base</span>
+                              <div className="flex flex-col items-end mr-2">
+                                <span className="font-black text-primary text-[11px] leading-tight">{config.basePrice} DA Base</span>
+                                <span className="text-[10px] font-black text-amber-500 leading-tight">⚡ {config.rapidBasePrice || 0} DA</span>
+                              </div>
                               <button 
                                 type="button"
                                 onClick={() => handleEditHouseConfig(config)}
@@ -1687,6 +1721,16 @@ export default function ServicesPage() {
                             placeholder="Base Price"
                             value={newHouseBasePrice || ''}
                             onChange={(e) => setNewHouseBasePrice(Number(e.target.value))}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-center"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest pl-1">Rapid Price (DA)</label>
+                          <input 
+                            type="number"
+                            placeholder="Rapid Price"
+                            value={newHouseRapidBasePrice || ''}
+                            onChange={(e) => setNewHouseRapidBasePrice(Number(e.target.value))}
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none text-slate-800 focus:border-primary/40 text-center"
                           />
                         </div>

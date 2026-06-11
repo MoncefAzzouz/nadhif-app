@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar } from 'lucide-react';
+import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar, Zap } from 'lucide-react';
 import { getToken, getUser, clearAuth, type ApiUser, ordersApi } from '../lib/api';
 
 interface NavItem {
@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/admin/dashboard-mock', icon: LayoutDashboard, disabled: true },
   { name: 'Categories', href: '/admin/categories', icon: Layers, disabled: false },
   { name: 'Services', href: '/admin/services', icon: ShoppingBag, disabled: false },
+  { name: 'Service Rapide', href: '/admin/rapid', icon: Zap, disabled: false },
   { name: 'Commands', href: '/admin/commands', icon: ClipboardList, disabled: false },
   { name: 'Calendar', href: '/admin/calendar', icon: Calendar, disabled: false },
   { name: 'Utilisateurs', href: '/admin/users', icon: Users, disabled: false },
@@ -42,6 +43,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [hasPendingOrders, setHasPendingOrders] = useState(false);
+  const [hasPendingRapidOrders, setHasPendingRapidOrders] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -50,6 +52,8 @@ export default function AdminLayout({
         const orders = await ordersApi.getAll();
         const hasPending = orders.some(o => o.status === 'PENDING');
         setHasPendingOrders(hasPending);
+        const hasPendingRapid = orders.some(o => o.isRapid && o.status === 'PENDING');
+        setHasPendingRapidOrders(hasPendingRapid);
       } catch (err) {
         console.error("Error fetching orders for layout:", err);
       }
@@ -147,6 +151,9 @@ export default function AdminLayout({
                 <Icon size={20} className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary'}`} />
                 <span className="text-sm font-bold uppercase tracking-wider">{item.name}</span>
                 {item.name === 'Commands' && hasPendingOrders && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
+                )}
+                {item.name === 'Service Rapide' && hasPendingRapidOrders && (
                   <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
                 )}
                 {isActive && (
@@ -253,6 +260,9 @@ export default function AdminLayout({
                       <Icon size={20} />
                       <span className="text-sm font-bold uppercase tracking-wider">{item.name}</span>
                       {item.name === 'Commands' && hasPendingOrders && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
+                      )}
+                      {item.name === 'Service Rapide' && hasPendingRapidOrders && (
                         <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
                       )}
                     </Link>
