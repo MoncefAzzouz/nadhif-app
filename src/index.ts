@@ -1,4 +1,4 @@
-// Restart trigger: pick up updated Prisma Client enums and subscriptionServiceTiers
+// Restart trigger: pick up updated Prisma Client enums, subscriptionServiceTiers, and Slides
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
