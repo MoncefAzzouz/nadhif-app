@@ -25,7 +25,10 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
     scheduledDate,
     address,
     latitude,
-    longitude
+    longitude,
+    sizeM2,
+    clientNote,
+    housePictures
   } = req.body;
 
   if ((!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate || !address) {
@@ -168,7 +171,10 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
         address,
         latitude: latitude ? parseFloat(latitude.toString()) : null,
         longitude: longitude ? parseFloat(longitude.toString()) : null,
-        status: OrderStatus.PENDING
+        status: OrderStatus.PENDING,
+        sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null,
+        clientNote: clientNote || null,
+        housePictures: Array.isArray(housePictures) ? housePictures : []
       },
       include: {
         service: true,
@@ -299,9 +305,13 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
 
     if (role === 'ADMIN') {
       // Admin has full control
+      const dataToUpdate: any = { status: newStatus };
+      if (newStatus === OrderStatus.PENDING || newStatus === OrderStatus.CALLED_NOT_PAID) {
+        dataToUpdate.cleanerId = null;
+      }
       const updated = await prisma.order.update({
         where: { id },
-        data: { status: newStatus },
+        data: dataToUpdate,
         include: { service: true, houseConfig: true, category: true, categoryService: true }
       });
       res.json(updated);
@@ -317,8 +327,8 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
         res.status(400).json({ error: 'Customers can only cancel orders' });
         return;
       }
-      if (order.status !== OrderStatus.PENDING) {
-        res.status(400).json({ error: 'Orders can only be cancelled while pending' });
+      if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CALLED_NOT_PAID) {
+        res.status(400).json({ error: 'Orders can only be cancelled while pending or called but unpaid' });
         return;
       }
 
@@ -348,7 +358,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
     return;
   }
 
-  const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId } = req.body;
+  const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, sizeM2, clientNote, housePictures } = req.body;
 
   try {
     const order = await prisma.order.findUnique({ where: { id } });
@@ -376,7 +386,9 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
       data: {
         ...(address !== undefined && { address }),
         ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
-        ...(cleanerId !== undefined && { cleanerId }),
+        cleanerId: (status === 'PENDING' || status === 'CALLED_NOT_PAID') 
+          ? null 
+          : (cleanerId !== undefined ? cleanerId : undefined),
         ...(extraWorkers !== undefined && { extraWorkers }),
         ...(useMaterials !== undefined && { useMaterials }),
         ...(productOrigin !== undefined && { productOrigin }),
@@ -388,6 +400,9 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         ...(categoryServiceId !== undefined && { categoryServiceId }),
         ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude.toString()) : null }),
         ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude.toString()) : null }),
+        ...(sizeM2 !== undefined && { sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null }),
+        ...(clientNote !== undefined && { clientNote: clientNote || null }),
+        ...(housePictures !== undefined && { housePictures: Array.isArray(housePictures) ? housePictures : [] }),
       },
       include: {
         user: { select: { id: true, email: true, fullName: true, phone: true } },

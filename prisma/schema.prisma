@@ -3,7 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider     = "postgresql"
+  relationMode = "prisma"
   // url moved to prisma.config.ts
 }
 
@@ -15,6 +16,7 @@ enum Role {
 
 enum OrderStatus {
   PENDING
+  CALLED_NOT_PAID
   CONFIRMED
   IN_PROGRESS
   COMPLETED
@@ -55,7 +57,11 @@ model Cleaner {
 model Service {
   id                    String    @id @default(uuid())
   name                  String
+  nameAr                String    @default("")
+  nameFr                String    @default("")
   description           String
+  descriptionAr         String    @default("")
+  descriptionFr         String    @default("")
   picture               String
   extraWorkerPrice      Float
   durationHours         Int
@@ -78,8 +84,11 @@ model HouseConfig {
   id            String    @id @default(uuid())
   serviceId     String
   type          String    // e.g., f2, f3, f4
+  typeAr        String    @default("")
+  typeFr        String    @default("")
   workers       Int
   basePrice     Float
+  rapidBasePrice Float   @default(0)
   durationHours Int       @default(3)
 
   service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
@@ -89,7 +98,11 @@ model HouseConfig {
 model Category {
   id                    String              @id @default(uuid())
   name                  String
+  nameAr                String              @default("")
+  nameFr                String              @default("")
   description           String
+  descriptionAr         String              @default("")
+  descriptionFr         String              @default("")
   picture               String
   
   materialPrice         Float               @default(0)
@@ -110,8 +123,11 @@ model CategoryService {
   id            String    @id @default(uuid())
   categoryId    String
   name          String
+  nameAr        String    @default("")
+  nameFr        String    @default("")
   workers       Int
   basePrice     Float
+  rapidBasePrice Float   @default(0)
   durationHours Int       @default(3)
 
   category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -150,6 +166,11 @@ model Order {
   address           String
   latitude          Float?
   longitude         Float?
+  
+  isRapid           Boolean     @default(false)
+  sizeM2            Float?
+  clientNote        String?
+  housePictures     String[]    @default([])
   
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt

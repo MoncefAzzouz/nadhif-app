@@ -204,7 +204,7 @@ router.delete('/promos/:id', async (req: AuthenticatedRequest, res: Response) =>
 // POST /api/admin/services
 router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
   const {
-    name, description, picture,
+    name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
     extraWorkerPrice, durationHours,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
@@ -220,7 +220,11 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
     const service = await prisma.service.create({
       data: {
         name,
+        nameAr: nameAr || '',
+        nameFr: nameFr || '',
         description,
+        descriptionAr: descriptionAr || '',
+        descriptionFr: descriptionFr || '',
         picture: picture || '',
         extraWorkerPrice: parseFloat(extraWorkerPrice ?? 0),
         durationHours: parseInt(durationHours ?? 4),
@@ -234,8 +238,11 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
           ? {
               create: houseConfigs.map((hc: any) => ({
                 type: hc.type,
+                typeAr: hc.typeAr || '',
+                typeFr: hc.typeFr || '',
                 workers: parseInt(hc.workers),
                 basePrice: parseFloat(hc.basePrice),
+                rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
                 durationHours: parseInt(hc.durationHours ?? 3),
               })),
             }
@@ -254,7 +261,7 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
 router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
   const {
-    name, description, picture,
+    name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
     extraWorkerPrice, durationHours,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
@@ -266,7 +273,11 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
       where: { id },
       data: {
         name,
+        nameAr: nameAr !== undefined ? nameAr : undefined,
+        nameFr: nameFr !== undefined ? nameFr : undefined,
         description,
+        descriptionAr: descriptionAr !== undefined ? descriptionAr : undefined,
+        descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
         picture,
         extraWorkerPrice: extraWorkerPrice != null ? parseFloat(extraWorkerPrice) : undefined,
         durationHours: durationHours != null ? parseInt(durationHours) : undefined,
@@ -295,8 +306,11 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
             where: { id: hc.id },
             data: {
               type: hc.type,
+              typeAr: hc.typeAr !== undefined ? hc.typeAr : undefined,
+              typeFr: hc.typeFr !== undefined ? hc.typeFr : undefined,
               workers: parseInt(hc.workers),
               basePrice: parseFloat(hc.basePrice),
+              rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
               durationHours: parseInt(hc.durationHours ?? 3),
             }
           });
@@ -305,8 +319,11 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
             data: {
               serviceId: id,
               type: hc.type,
+              typeAr: hc.typeAr || '',
+              typeFr: hc.typeFr || '',
               workers: parseInt(hc.workers),
               basePrice: parseFloat(hc.basePrice),
+              rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
               durationHours: parseInt(hc.durationHours ?? 3),
             }
           });
@@ -340,7 +357,7 @@ router.delete('/services/:id', async (req: AuthenticatedRequest, res: Response) 
 router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
   const {
     fullName, phone, address, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, scheduledDate,
-    extraWorkers, useMaterials, productOrigin, promoCode
+    extraWorkers, useMaterials, productOrigin, promoCode, sizeM2, clientNote, housePictures
   } = req.body;
 
   if (!phone || !address || (!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate) {
@@ -472,10 +489,13 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
         extraWorkers: workersCount,
         useMaterials: materialsFlag,
         productOrigin: origin,
-        latitude: latitude || 0,
-        longitude: longitude || 0,
+        latitude: latitude ? parseFloat(latitude.toString()) : null,
+        longitude: longitude ? parseFloat(longitude.toString()) : null,
         address,
-        promoId: finalPromoId
+        promoId: finalPromoId || null,
+        sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null,
+        clientNote: clientNote || null,
+        housePictures: Array.isArray(housePictures) ? housePictures : []
       },
       include: {
         user: { select: { id: true, fullName: true, phone: true } },
@@ -513,7 +533,7 @@ router.get('/categories', async (req: AuthenticatedRequest, res: Response) => {
 // POST /api/admin/categories
 router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
   const {
-    name, description, picture,
+    name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
     isActive, categoryServices,
@@ -528,7 +548,11 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
     const category = await prisma.category.create({
       data: {
         name,
+        nameAr: nameAr || '',
+        nameFr: nameFr || '',
         description,
+        descriptionAr: descriptionAr || '',
+        descriptionFr: descriptionFr || '',
         picture: picture || '',
         materialPrice: parseFloat(materialPrice ?? 0),
         materialsMandatory: materialsMandatory ?? false,
@@ -540,6 +564,8 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
           ? {
               create: categoryServices.map((cs: any) => ({
                 name: cs.name,
+                nameAr: cs.nameAr || '',
+                nameFr: cs.nameFr || '',
                 workers: parseInt(cs.workers),
                 basePrice: parseFloat(cs.basePrice),
                 durationHours: parseInt(cs.durationHours ?? 3),
@@ -560,7 +586,7 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
 router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
   const {
-    name, description, picture,
+    name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
     isActive, categoryServices,
@@ -574,7 +600,11 @@ router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) =
       where: { id },
       data: {
         name,
+        nameAr: nameAr !== undefined ? nameAr : undefined,
+        nameFr: nameFr !== undefined ? nameFr : undefined,
         description,
+        descriptionAr: descriptionAr !== undefined ? descriptionAr : undefined,
+        descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
         picture: picture || '',
         materialPrice: parseFloat(materialPrice ?? 0),
         materialsMandatory: materialsMandatory ?? false,
@@ -586,6 +616,8 @@ router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) =
           ? {
               create: categoryServices.map((cs: any) => ({
                 name: cs.name,
+                nameAr: cs.nameAr || '',
+                nameFr: cs.nameFr || '',
                 workers: parseInt(cs.workers),
                 basePrice: parseFloat(cs.basePrice),
                 durationHours: parseInt(cs.durationHours ?? 3),
@@ -752,3 +784,4 @@ router.post('/locked-days', async (req: AuthenticatedRequest, res: Response) => 
 });
 
 export default router;
+// Trigger reload for Prisma client regeneration updates.
