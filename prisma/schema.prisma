@@ -216,6 +216,17 @@ model AppSetting {
   value String
 }
 
+model Slide {
+  id          String   @id @default(uuid())
+  title       String   @default("")
+  description String   @default("")
+  imageUrl    String   // base64 data URI or external URL
+  actionRoute String   @default("")
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
 model Skill {
   id          String   @id @default(uuid())
   name        String   @unique

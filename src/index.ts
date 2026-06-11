@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin';
 import notificationsRoutes from './routes/notifications';
 import subscriptionsRoutes from './routes/subscriptions';
 import promosRoutes from './routes/promos';
+import slidesRoutes from './routes/slides';
 
 import prisma from './lib/prisma';
 
@@ -52,6 +53,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/promos', promosRoutes);
+app.use('/api/slides', slidesRoutes);
 
 const PORT = process.env.PORT || 5001;
 
