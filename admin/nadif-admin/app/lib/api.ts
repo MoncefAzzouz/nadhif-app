@@ -227,6 +227,18 @@ export const usersApi = {
 
   delete: (id: string) =>
     apiFetch<{ success: boolean }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
+
+  create: (data: Partial<ApiUser> & { password?: string }) =>
+    apiFetch<ApiUser>('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<ApiUser> & { password?: string }) =>
+    apiFetch<ApiUser>(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ─── Admin: Cleaners ──────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, UserPlus, Search, Trash2, Shield, Sparkles, CheckCircle, 
-  Mail, Phone, Calendar, X, UserCheck, RefreshCw, AlertCircle 
+  Mail, Phone, Calendar, X, UserCheck, RefreshCw, AlertCircle, Edit2
 } from 'lucide-react';
 import { usersApi, type ApiUser } from '../../lib/api';
 
@@ -20,6 +20,87 @@ export default function UsersManager() {
   const [userToDelete, setUserToDelete] = useState<ApiUser | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // Creation & Editing States
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [addForm, setAddForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    role: 'CUSTOMER' as ApiUser['role'],
+    password: ''
+  });
+
+  const [editForm, setEditForm] = useState({
+    id: '',
+    fullName: '',
+    email: '',
+    phone: '',
+    role: 'CUSTOMER' as ApiUser['role'],
+    password: ''
+  });
+
+  const handleStartEdit = (user: ApiUser) => {
+    setEditForm({
+      id: user.id,
+      fullName: user.fullName || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      role: user.role,
+      password: ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addForm.fullName || !addForm.email || !addForm.phone || !addForm.password) {
+      alert('Please fill out all fields.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const created = await usersApi.create(addForm);
+      setUsers(prev => [created, ...prev]);
+      triggerToast(`Account for ${created.fullName} created successfully.`);
+      setIsAddModalOpen(false);
+      setAddForm({ fullName: '', email: '', phone: '', role: 'CUSTOMER', password: '' });
+    } catch (err: any) {
+      alert(`Failed to create account: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm.fullName || !editForm.email || !editForm.phone) {
+      alert('Please fill out all required fields.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const payload: any = {
+        fullName: editForm.fullName,
+        email: editForm.email,
+        phone: editForm.phone,
+        role: editForm.role
+      };
+      if (editForm.password) payload.password = editForm.password;
+
+      const updated = await usersApi.update(editForm.id, payload);
+      setUsers(prev => prev.map(u => u.id === editForm.id ? { ...u, ...updated } : u));
+      triggerToast(`Account for ${updated.fullName} updated successfully.`);
+      setIsEditModalOpen(false);
+    } catch (err: any) {
+      alert(`Failed to update account: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -112,14 +193,22 @@ export default function UsersManager() {
           </p>
         </div>
 
-        <button
-          onClick={fetchUsers}
-          disabled={isLoading}
-          className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 cursor-pointer self-start md:self-center"
-        >
-          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-[0_4px_15px_-3px_rgba(37,99,235,0.4)] hover:shadow-[0_8px_20px_-3px_rgba(37,99,235,0.5)] hover:-translate-y-0.5 transition-all cursor-pointer"
+          >
+            <UserPlus size={14} /> Add Account
+          </button>
+          <button
+            onClick={fetchUsers}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-wider text-slate-500 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -261,6 +350,13 @@ export default function UsersManager() {
                       <td className="py-4 pr-6 text-right">
                         <div className="flex justify-end gap-2">
                           <button
+                            onClick={() => handleStartEdit(user)}
+                            className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-100 text-slate-500 flex items-center justify-center transition-all cursor-pointer"
+                            title="Edit Account"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
                             onClick={() => { setUserToDelete(user); setIsDeleteModalOpen(true); }}
                             className="w-8 h-8 rounded-lg bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-100 text-rose-400 flex items-center justify-center transition-all cursor-pointer"
                             title="Delete Account"
@@ -315,6 +411,233 @@ export default function UsersManager() {
                   {isDeleting ? 'Deleting...' : 'Confirm Delete'}
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Create User Modal */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !isSubmitting && setIsAddModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                    <UserPlus size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black uppercase tracking-tight text-slate-800">Add Account</h2>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-inter">Create new system user</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Nom Complet</label>
+                  <input
+                    type="text"
+                    required
+                    value={addForm.fullName}
+                    onChange={e => setAddForm(prev => ({ ...prev, fullName: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="e.g. Moncef Azzouz"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={addForm.email}
+                    onChange={e => setAddForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="e.g. moncef@nadif.com"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Téléphone</label>
+                  <input
+                    type="tel"
+                    required
+                    value={addForm.phone}
+                    onChange={e => setAddForm(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="e.g. 0555123456"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={addForm.password}
+                    onChange={e => setAddForm(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="Enter account password"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Role System</label>
+                  <select
+                    value={addForm.role}
+                    onChange={e => setAddForm(prev => ({ ...prev, role: e.target.value as ApiUser['role'] }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider focus:outline-none focus:border-primary cursor-pointer text-slate-700"
+                  >
+                    <option value="CUSTOMER">Client (Customer)</option>
+                    <option value="ADMIN">Admin (Super Administrator)</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                  >
+                    {isSubmitting ? 'Creating...' : 'Create Account'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit User Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !isSubmitting && setIsEditModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                    <Edit2 size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black uppercase tracking-tight text-slate-800">Edit Account</h2>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-inter">Update system credentials</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Nom Complet</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.fullName}
+                    onChange={e => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="e.g. Moncef Azzouz"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={editForm.email}
+                    onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="e.g. moncef@nadif.com"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Téléphone</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editForm.phone}
+                    onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="e.g. 0555123456"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Change Password (Optionnel)</label>
+                  <input
+                    type="password"
+                    value={editForm.password}
+                    onChange={e => setEditForm(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary"
+                    placeholder="Laissez vide pour conserver le mot de passe actuel"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Role System</label>
+                  <select
+                    value={editForm.role}
+                    onChange={e => setEditForm(prev => ({ ...prev, role: e.target.value as ApiUser['role'] }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider focus:outline-none focus:border-primary cursor-pointer text-slate-700"
+                  >
+                    <option value="CUSTOMER">Client (Customer)</option>
+                    <option value="ADMIN">Admin (Super Administrator)</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
