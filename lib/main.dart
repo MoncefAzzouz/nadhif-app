@@ -5,6 +5,8 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/home/cubit/home_content_cubit.dart';
+import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
 import 'package:cleanapp/src/features/splash/pages/splash_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -21,11 +23,18 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   setupLocator();
   await locator<NotificationService>().init();
+  // Load the last cached home content so the home screen renders real data
+  // on its first frame instead of the static placeholders.
+  await locator<HomeContentRepository>().hydrate();
   runApp(
     MultiBlocProvider(
       providers: [
         BlocProvider(create: (context) => AuthCubit()),
         BlocProvider(create: (context) => LocaleCubit()),
+        BlocProvider(
+          create: (context) =>
+              HomeContentCubit(locator<HomeContentRepository>()),
+        ),
       ],
       child: const CleanApp(),
     ),

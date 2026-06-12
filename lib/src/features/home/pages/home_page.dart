@@ -5,10 +5,11 @@ import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
+import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
+import 'package:cleanapp/src/features/home/cubit/home_content_cubit.dart';
 import 'package:cleanapp/src/features/home/cubit/home_tab_cubit.dart';
-import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
@@ -50,6 +51,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static const Duration _heroInterval = Duration(seconds: 5);
 
   late final HomeTabCubit _tabCubit;
+  late final HomeContentCubit _contentCubit;
   late final ScrollController _recommendedController;
   late final PageController _heroPageController;
 
@@ -58,23 +60,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentRecommendedIndex = 0;
   int _currentHeroIndex = 0;
 
-  // Backend carousel slides; when present they replace the static banners.
-  List<AppSlide> _slides = const [];
-
   /// Image sources driving the hero carousel: backend slides if any, else the
   /// bundled fallback banners.
-  List<String> get _heroSources => _slides.isNotEmpty
-      ? _slides.map((s) => s.imageUrl).toList()
-      : _heroBanners;
+  List<String> get _heroSources {
+    final slides = _contentCubit.state.slides;
+    return slides.isNotEmpty
+        ? slides.map((s) => s.imageUrl).toList()
+        : _heroBanners;
+  }
+
   bool _isAppActive = true;
   late String _currentLocation;
   UserProfile? _profile;
   int _activeOrdersCount = 0;
-  List<AppCategory> _backendCategories = const [];
-
-  // Backend services powering the "Recommended Services" rail (the grid below
-  // stays categories-only).
-  List<AppService> _recommendedServices = const [];
 
   // Actual number of cards in the rail (dynamic once backend data loads).
   int _recommendedCardsCount = _recommendedCount;
@@ -83,38 +81,24 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _tabCubit = HomeTabCubit(widget.initialIndex);
+    _contentCubit = context.read<HomeContentCubit>();
     _recommendedController = ScrollController();
     _heroPageController = PageController();
     _currentLocation = 'Setif center ville';
     _loadProfile();
     _loadOrdersCount();
-    _loadHomeContent();
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
   }
 
-  Future<void> _loadHomeContent({bool forceRefresh = false}) async {
-    try {
-      final content = await locator<HomeContentRepository>()
-          .getHomeContent(forceRefresh: forceRefresh);
-      if (!mounted) return;
-      setState(() {
-        _slides = content.slides;
-        _backendCategories = content.categories;
-        _recommendedServices = content.services;
-      });
-    } catch (_) {
-      // Keep bundled banners and fallback rails if content can't be fetched.
-    }
-  }
-
   /// Opens the service/category named by the slide's actionRoute, if any.
-  Future<void> _openSlide(AppSlide slide) async {
+  void _openSlide(AppSlide slide) {
     final route = slide.actionRoute.trim().toLowerCase();
     if (route.isEmpty) return;
     final localeCode = Localizations.localeOf(context).languageCode;
+    final content = _contentCubit.state;
 
-    for (final category in _backendCategories) {
+    for (final category in content.categories) {
       if (category.name.toLowerCase() == route) {
         Navigator.push(
           context,
@@ -130,30 +114,43 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
     }
 
-    try {
-      final services = await locator<HomeContentRepository>().getServices();
-      if (!mounted) return;
-      for (final service in services) {
-        if (service.name.toLowerCase() == route) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ServiceDetailsPage(
-                serviceName: service.nameFor(localeCode),
-                service: service,
-                serviceImage: service.picture,
-              ),
+    for (final service in content.services) {
+      if (service.name.toLowerCase() == route) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServiceDetailsPage(
+              serviceName: service.nameFor(localeCode),
+              service: service,
+              serviceImage: service.picture,
             ),
-          );
-          return;
-        }
+          ),
+        );
+        return;
       }
-    } catch (_) {
-      // No matching target: the slide stays a plain banner.
     }
+    // No matching target: the slide stays a plain banner.
   }
 
   Future<void> _loadProfile() async {
+    // Seed the greeting from the locally stored user so the name shows on
+    // the first frame instead of flashing "Customer".
+    try {
+      final storedUser = await locator<AuthTokenStore>().readUser();
+      if (storedUser != null && mounted && _profile == null) {
+        setState(() {
+          _profile = UserProfile(
+            fullName: storedUser.fullName,
+            email: storedUser.email,
+            phone: storedUser.phone,
+            location: _currentLocation,
+          );
+        });
+      }
+    } catch (_) {
+      // Fall through to the network fetch.
+    }
+
     try {
       final profile = await widget.profileRepository.getCurrentUser();
       if (!mounted) return;
@@ -189,7 +186,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _isAppActive = nextActive;
     if (_isAppActive) {
       _loadOrdersCount();
-      _loadHomeContent(forceRefresh: true);
+      _contentCubit.refresh(force: true);
       _startAutoScrolls();
     } else {
       _cancelAutoScrolls();
@@ -273,6 +270,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Widget _buildHomeView(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final content = context.watch<HomeContentCubit>().state;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -281,13 +279,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         children: [
           _buildHeader(context),
           const SizedBox(height: 2),
-          _buildHeroCarousel(),
+          _buildHeroCarousel(content.slides),
           const SizedBox(height: 2),
           _SectionHeader(title: l10n.recommendedServices, showViewAll: true),
-          _buildHorizontalServices(context),
+          _buildHorizontalServices(context, content.services),
           const SizedBox(height: 0),
           _SectionHeader(title: l10n.ourServices),
-          _buildServiceGrid(context),
+          _buildServiceGrid(context, content.categories),
           const SizedBox(height: 10),
           _buildSubscriptionBanner(context),
           const SizedBox(height: 10),
@@ -383,17 +381,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildHeroCarousel() {
+  Widget _buildHeroCarousel(List<AppSlide> slides) {
+    final sources = slides.isNotEmpty
+        ? slides.map((s) => s.imageUrl).toList()
+        : _heroBanners;
     return SizedBox(
       height: 184,
       child: PageView.builder(
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
-        itemCount: _heroSources.length,
+        itemCount: sources.length,
         itemBuilder: (context, index) => GestureDetector(
           // Backend slides can deep-link to a service via actionRoute.
-          onTap: _slides.isNotEmpty ? () => _openSlide(_slides[index]) : null,
-          child: _BannerOnlyCard(imagePath: _heroSources[index]),
+          onTap: slides.isNotEmpty ? () => _openSlide(slides[index]) : null,
+          child: _BannerOnlyCard(imagePath: sources[index]),
         ),
       ),
     );
@@ -458,14 +459,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   /// Cards from the admin panel: one per service, a ⚡ variant for services
   /// with rapid pricing, and the subscription packs entry.
   List<_RecommendedCardData> _backendRecommendedCards(
-      AppLocalizations l10n, String localeCode) {
+      AppLocalizations l10n, String localeCode, List<AppService> services) {
     const tints = [ColorApp.tintRose, ColorApp.tintMint, ColorApp.tintSky];
     var tintIndex = 0;
     Color nextTint() => tints[tintIndex++ % tints.length];
 
     final cards = <_RecommendedCardData>[];
 
-    for (final service in _recommendedServices) {
+    for (final service in services) {
       final config = service.defaultHouseConfig;
       cards.add(_RecommendedCardData(
         title: service.nameFor(localeCode),
@@ -477,7 +478,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ));
     }
 
-    for (final service in _recommendedServices) {
+    for (final service in services) {
       final rapidPrice = service.defaultHouseConfig?.rapidBasePrice ?? 0;
       if (rapidPrice <= 0) continue;
       cards.add(_RecommendedCardData(
@@ -504,11 +505,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return cards;
   }
 
-  Widget _buildHorizontalServices(BuildContext context) {
+  Widget _buildHorizontalServices(
+      BuildContext context, List<AppService> services) {
     final l10n = AppLocalizations.of(context)!;
     final localeCode = Localizations.localeOf(context).languageCode;
-    final cards = _recommendedServices.isNotEmpty
-        ? _backendRecommendedCards(l10n, localeCode)
+    final cards = services.isNotEmpty
+        ? _backendRecommendedCards(l10n, localeCode, services)
         : _demoRecommendedCards(l10n);
     _recommendedCardsCount = cards.length;
 
@@ -592,12 +594,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildServiceGrid(BuildContext context) {
+  Widget _buildServiceGrid(BuildContext context, List<AppCategory> categories) {
     // "Our services" on the home page shows only what the admin adds at
     // /admin/categories (backend categories). Items from /admin/services are
     // intentionally excluded here.
     final localeCode = Localizations.localeOf(context).languageCode;
-    final tiles = _backendCategories
+    final tiles = categories
         .map(
           (category) => _ServiceTile(
             name: category.nameFor(localeCode),
