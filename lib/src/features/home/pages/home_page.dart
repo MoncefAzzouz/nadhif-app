@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
@@ -74,6 +73,13 @@ class _HomePageState extends State<HomePage>
   int _activeOrdersCount = 0;
   List<AppCategory> _backendCategories = const [];
 
+  // Backend services powering the "Recommended Services" rail (the grid below
+  // stays categories-only).
+  List<AppService> _recommendedServices = const [];
+
+  // Actual number of cards in the rail (dynamic once backend data loads).
+  int _recommendedCardsCount = _recommendedCount;
+
   @override
   void initState() {
     super.initState();
@@ -85,8 +91,19 @@ class _HomePageState extends State<HomePage>
     _loadOrdersCount();
     _loadCategories();
     _loadSlides();
+    _loadRecommendedServices();
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
+  }
+
+  Future<void> _loadRecommendedServices() async {
+    try {
+      final services = await locator<ServicesApiService>().getServices();
+      if (!mounted) return;
+      setState(() => _recommendedServices = services);
+    } catch (_) {
+      // Rail falls back to the bundled demo cards.
+    }
   }
 
   Future<void> _loadSlides() async {
@@ -204,8 +221,9 @@ class _HomePageState extends State<HomePage>
     _cancelAutoScrolls();
     _recommendedTimer = Timer.periodic(_recommendedInterval, (_) {
       if (!_autoScrollAllowed || !_recommendedController.hasClients) return;
+      if (_recommendedCardsCount <= 0) return;
       _currentRecommendedIndex =
-          (_currentRecommendedIndex + 1) % _recommendedCount;
+          (_currentRecommendedIndex + 1) % _recommendedCardsCount;
       _recommendedController.animateTo(
         _currentRecommendedIndex * _recommendedCardWidth,
         duration: const Duration(milliseconds: 1000),
@@ -398,32 +416,109 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  /// Demo cards shown until/unless backend services are available.
+  List<_RecommendedCardData> _demoRecommendedCards(AppLocalizations l10n) => [
+        _RecommendedCardData(
+          title: l10n.urgentCleaning,
+          subtitle: l10n.startingHours(3),
+          price: 'DA 69',
+          bgColor: ColorApp.tintRose,
+          imageUrl: 'assets/images/urgent.png',
+        ),
+        _RecommendedCardData(
+          title: l10n.subscriptionPack,
+          subtitle: l10n.fullMaintenance,
+          price: 'DA 120',
+          bgColor: ColorApp.tintMint,
+          imageUrl: 'assets/images/pack.png',
+          isNew: true,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const SubscriptionsPage()),
+          ),
+        ),
+        _RecommendedCardData(
+          title: l10n.acServices,
+          subtitle: l10n.foamDeepCleaning,
+          price: 'DA 150',
+          bgColor: ColorApp.tintSky,
+          imageUrl: MediaRes.acRepairIcon,
+        ),
+      ];
+
+  void _openServiceDetails(AppService service, String localeCode) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiceDetailsPage(
+          serviceName: service.nameFor(localeCode),
+          service: service,
+          serviceImage: service.picture,
+        ),
+      ),
+    );
+  }
+
+  /// Cards from the admin panel: one per service, a ⚡ variant for services
+  /// with rapid pricing, and the subscription packs entry.
+  List<_RecommendedCardData> _backendRecommendedCards(
+      AppLocalizations l10n, String localeCode) {
+    const tints = [ColorApp.tintRose, ColorApp.tintMint, ColorApp.tintSky];
+    var tintIndex = 0;
+    Color nextTint() => tints[tintIndex++ % tints.length];
+
+    final cards = <_RecommendedCardData>[];
+
+    for (final service in _recommendedServices) {
+      final config = service.defaultHouseConfig;
+      cards.add(_RecommendedCardData(
+        title: service.nameFor(localeCode),
+        subtitle: l10n.startingHours(config?.durationHours ?? 3),
+        price: 'DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}',
+        bgColor: nextTint(),
+        imageUrl: service.picture,
+        onTap: () => _openServiceDetails(service, localeCode),
+      ));
+    }
+
+    for (final service in _recommendedServices) {
+      final rapidPrice = service.defaultHouseConfig?.rapidBasePrice ?? 0;
+      if (rapidPrice <= 0) continue;
+      cards.add(_RecommendedCardData(
+        title: '⚡ ${service.nameFor(localeCode)}',
+        subtitle: 'Priority scheduling',
+        price: 'DA ${rapidPrice.toStringAsFixed(0)}',
+        bgColor: nextTint(),
+        imageUrl: service.picture,
+        isNew: true,
+        onTap: () => _openServiceDetails(service, localeCode),
+      ));
+    }
+
+    cards.add(_RecommendedCardData(
+      title: l10n.subscriptionPack,
+      subtitle: l10n.fullMaintenance,
+      price: 'Monthly',
+      bgColor: nextTint(),
+      imageUrl: 'assets/images/pack.png',
+      isNew: true,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const SubscriptionsPage()),
+      ),
+    ));
+
+    return cards;
+  }
+
   Widget _buildHorizontalServices(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final cards = <_RecommendedCardData>[
-      _RecommendedCardData(
-        title: l10n.urgentCleaning,
-        subtitle: l10n.startingHours(3),
-        price: 'DA 69',
-        bgColor: ColorApp.tintRose,
-        imageUrl: 'assets/images/urgent.png',
-      ),
-      _RecommendedCardData(
-        title: l10n.subscriptionPack,
-        subtitle: l10n.fullMaintenance,
-        price: 'DA 120',
-        bgColor: ColorApp.tintMint,
-        imageUrl: 'assets/images/pack.png',
-        isNew: true,
-      ),
-      _RecommendedCardData(
-        title: l10n.acServices,
-        subtitle: l10n.foamDeepCleaning,
-        price: 'DA 150',
-        bgColor: ColorApp.tintSky,
-        imageUrl: MediaRes.acRepairIcon,
-      ),
-    ];
+    final localeCode = Localizations.localeOf(context).languageCode;
+    final cards = _recommendedServices.isNotEmpty
+        ? _backendRecommendedCards(l10n, localeCode)
+        : _demoRecommendedCards(l10n);
+    _recommendedCardsCount = cards.length;
 
     return SizedBox(
       height: 220,
@@ -713,6 +808,7 @@ class _RecommendedCardData {
   final Color bgColor;
   final String imageUrl;
   final bool isNew;
+  final VoidCallback? onTap;
 
   const _RecommendedCardData({
     required this.title,
@@ -721,6 +817,7 @@ class _RecommendedCardData {
     required this.bgColor,
     required this.imageUrl,
     this.isNew = false,
+    this.onTap,
   });
 }
 
@@ -732,18 +829,19 @@ class _HorizontalServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ServiceDetailsPage(
-              serviceName: data.title,
-              serviceImage: data.imageUrl,
-              fromRecommendation: true,
-            ),
-          ),
-        );
-      },
+      onTap: data.onTap ??
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ServiceDetailsPage(
+                  serviceName: data.title,
+                  serviceImage: data.imageUrl,
+                  fromRecommendation: true,
+                ),
+              ),
+            );
+          },
       child: Align(
         alignment: Alignment.topCenter,
         child: SizedBox(
@@ -769,20 +867,15 @@ class _HorizontalServiceCard extends StatelessWidget {
                             topLeft: Radius.circular(28),
                             topRight: Radius.circular(28),
                           ),
-                          child: data.imageUrl.startsWith('http')
-                              ? CachedNetworkImage(
-                                  imageUrl: data.imageUrl,
-                                  fit: BoxFit.fitWidth,
-                                  placeholder: (_, __) => Container(
-                                    color: ColorApp.softGrey,
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: ColorApp.softGrey,
-                                    child: const Icon(Icons.image_not_supported,
-                                        color: ColorApp.textGrey),
-                                  ),
-                                )
-                              : Image.asset(data.imageUrl, fit: BoxFit.fitWidth),
+                          child: AppImage(
+                            source: data.imageUrl,
+                            fit: BoxFit.fitWidth,
+                            fallback: Container(
+                              color: ColorApp.softGrey,
+                              child: const Icon(Icons.image_not_supported,
+                                  color: ColorApp.textGrey),
+                            ),
+                          ),
                         ),
                       ),
                       if (data.isNew)
