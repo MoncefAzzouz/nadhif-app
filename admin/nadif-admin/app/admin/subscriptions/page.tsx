@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
@@ -35,7 +35,8 @@ import {
   Info,
   Code,
   Copy,
-  Check
+  Check,
+  UploadCloud
 } from 'lucide-react';
 import {
   subscriptionsApi,
@@ -130,7 +131,9 @@ export default function SubscriptionsPage() {
   // Property type and service tier form modal state
   const [isPropTypeModalOpen, setIsPropTypeModalOpen] = useState(false);
   const [editingPropType, setEditingPropType] = useState<ApiSubscriptionPropertyType | null>(null);
-  const [propTypeForm, setPropTypeForm] = useState({ name: '', nameAr: '', nameFr: '', isActive: true });
+  const [propTypeForm, setPropTypeForm] = useState({ name: '', nameAr: '', nameFr: '', picture: '', isActive: true });
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isServiceTierModalOpen, setIsServiceTierModalOpen] = useState(false);
   const [editingServiceTier, setEditingServiceTier] = useState<ApiSubscriptionServiceTier | null>(null);
@@ -510,6 +513,45 @@ export default function SubscriptionsPage() {
     }
   };
 
+  // Drag and drop handlers for property type pictures
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleImageFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageFile(file);
+    }
+  };
+
+  const handleImageFile = (file: File) => {
+    if (file.type !== 'image/png') {
+      alert('Only PNG files are allowed.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPropTypeForm(prev => ({ ...prev, picture: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Property Type CRUD Actions
   const handleSavePropType = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -523,7 +565,7 @@ export default function SubscriptionsPage() {
       }
       setIsPropTypeModalOpen(false);
       setEditingPropType(null);
-      setPropTypeForm({ name: '', nameAr: '', nameFr: '', isActive: true });
+      setPropTypeForm({ name: '', nameAr: '', nameFr: '', picture: '', isActive: true });
       fetchData();
     } catch (err: any) {
       alert(`Error saving configuration: ${err.message}`);
@@ -915,7 +957,7 @@ export default function SubscriptionsPage() {
             <button
               onClick={() => {
                 setEditingPropType(null);
-                setPropTypeForm({ name: '', nameAr: '', nameFr: '', isActive: true });
+                setPropTypeForm({ name: '', nameAr: '', nameFr: '', picture: '', isActive: true });
                 setIsPropTypeModalOpen(true);
               }}
               className="flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
@@ -938,8 +980,9 @@ export default function SubscriptionsPage() {
                           setEditingPropType(type);
                           setPropTypeForm({
                             name: type.name,
-                            nameAr: type.nameAr,
-                            nameFr: type.nameFr,
+                            nameAr: type.nameAr || '',
+                            nameFr: type.nameFr || '',
+                            picture: type.picture || '',
                             isActive: type.isActive
                           });
                           setIsPropTypeModalOpen(true);
@@ -956,10 +999,25 @@ export default function SubscriptionsPage() {
                       </button>
                     </div>
                   </div>
-                  <h4 className="text-lg font-black text-slate-800 mt-3">{type.name}</h4>
-                  <div className="space-y-1 mt-2 text-[11px] text-slate-400 font-bold">
-                    <div>Français : {type.nameFr || '—'}</div>
-                    <div>Arabe : {type.nameAr || '—'}</div>
+
+                  {/* Image Display */}
+                  <div className="flex items-center gap-4 mt-4">
+                    {type.picture ? (
+                      <div className="w-14 h-14 relative rounded-2xl overflow-hidden shadow-sm border border-slate-100 shrink-0 bg-slate-50">
+                        <img src={imgUrl(type.picture)} alt={type.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-lg shrink-0 bg-slate-50">
+                        🏠
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="text-base font-black text-slate-800 leading-tight">{type.name}</h4>
+                      <div className="space-y-0.5 mt-1 text-[10px] text-slate-400 font-bold font-inter">
+                        <div>Français : {type.nameFr || '—'}</div>
+                        <div>Arabe : {type.nameAr || '—'}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1828,6 +1886,70 @@ export default function SubscriptionsPage() {
                       className="w-full bg-slate-50 border border-slate-200 focus:border-primary/50 rounded-2xl px-4 py-3 text-xs font-bold outline-none text-slate-700 transition-all"
                     />
                   </div>
+
+                  {/* PNG Icon / Image Asset Upload */}
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                      Icône / Image PNG (Optionnel)
+                    </label>
+
+                    {propTypeForm.picture ? (
+                      // Preview state
+                      <div className="relative border border-slate-100 rounded-3xl p-4 flex items-center gap-4 bg-slate-50/50">
+                        <div className="w-16 h-16 relative rounded-2xl overflow-hidden border border-slate-100 shadow-sm shrink-0 bg-slate-50">
+                          <img src={imgUrl(propTypeForm.picture)} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-800 uppercase truncate">
+                            Icône Sélectionnée
+                          </p>
+                          <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1 mt-0.5 font-inter">
+                            <Check size={10} strokeWidth={3} /> Prêt à enregistrer
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPropTypeForm(prev => ({ ...prev, picture: '' }));
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="w-10 h-10 rounded-xl bg-white hover:bg-rose-50 hover:text-rose-600 text-slate-400 border border-slate-100 flex items-center justify-center transition-all cursor-pointer"
+                          title="Remove Icon"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      // Drag zone state
+                      <div
+                        onDragEnter={handleDrag}
+                        onDragOver={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-3xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 ${dragActive
+                            ? 'border-primary bg-primary/5 text-primary scale-[0.99]'
+                            : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 text-slate-400'
+                          }`}
+                      >
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          accept="image/png"
+                          className="hidden"
+                        />
+                        <UploadCloud size={24} className={`mb-2 ${dragActive ? 'text-primary animate-bounce' : 'text-slate-300'}`} />
+                        <p className="text-xs font-bold text-slate-700">
+                          Glissez & déposez une image PNG ici, ou <span className="text-primary hover:underline">parcourir</span>
+                        </p>
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider mt-1.5 bg-slate-100 px-2 py-0.5 rounded">
+                          Format PNG Uniquement
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     <input
                       type="checkbox"
