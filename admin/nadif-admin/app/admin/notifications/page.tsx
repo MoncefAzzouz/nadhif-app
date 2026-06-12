@@ -296,7 +296,7 @@ export default function NotificationsPage() {
                     className="w-full px-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-primary/20 appearance-none cursor-pointer"
                   >
                     <option value="all_users">All Registered Clients</option>
-                    <option value="cleaners_only">Cleaning Partners / Workers</option>
+                    
                     <option value="specific_client">Specific Client Direct Message</option>
                   </select>
                   <Users size={14} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
