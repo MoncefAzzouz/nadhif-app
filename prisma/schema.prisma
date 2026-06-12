@@ -259,6 +259,7 @@ model SubscriptionPropertyType {
   name      String   @unique
   nameAr    String   @default("")
   nameFr    String   @default("")
+  picture   String   @default("")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
