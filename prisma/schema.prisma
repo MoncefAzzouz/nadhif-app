@@ -92,7 +92,10 @@ model Service {
   
   isActive              Boolean   @default(true)
   createdAt             DateTime  @default(now())
-  
+
+  // Mobile details page content (objective/includes/duration/additional + ar/fr)
+  details               Json?
+
   houseConfigs          HouseConfig[]
   orders                Order[]
   skills                Skill[]
@@ -132,7 +135,10 @@ model Category {
   
   isActive              Boolean             @default(true)
   createdAt             DateTime            @default(now())
-  
+
+  // Mobile details page content (objective/includes/duration/additional + ar/fr)
+  details               Json?
+
   categoryServices      CategoryService[]
   orders                Order[]
   skills                Skill[]

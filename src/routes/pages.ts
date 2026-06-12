@@ -50,6 +50,27 @@ router.get('/about', async (req: Request, res: Response) => {
   }
 });
 
+// Get Subscription Pack details (mobile details page content)
+router.get('/subscription-details', async (req: Request, res: Response) => {
+  try {
+    const setting = await prisma.appSetting.findUnique({
+      where: { key: 'subscription_details' }
+    });
+    if (setting) {
+      try {
+        res.json(JSON.parse(setting.value));
+      } catch (e) {
+        res.json(null);
+      }
+    } else {
+      res.json(null);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get Locked Days
 router.get('/locked-days', async (req: Request, res: Response) => {
   try {

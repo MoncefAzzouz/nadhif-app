@@ -319,7 +319,7 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
     extraWorkerPrice, rapidExtraWorkerPrice, durationHours,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
-    isActive, houseConfigs,
+    isActive, houseConfigs, details,
   } = req.body;
 
   if (!name || !description) {
@@ -337,6 +337,7 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
         descriptionAr: descriptionAr || '',
         descriptionFr: descriptionFr || '',
         picture: picture || '',
+        details: details !== undefined ? details : undefined,
         extraWorkerPrice: parseFloat(extraWorkerPrice ?? 0),
         rapidExtraWorkerPrice: parseFloat(rapidExtraWorkerPrice ?? 0),
         durationHours: parseInt(durationHours ?? 4),
@@ -377,7 +378,7 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
     extraWorkerPrice, rapidExtraWorkerPrice, durationHours,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
-    isActive, houseConfigs,
+    isActive, houseConfigs, details,
   } = req.body;
 
   try {
@@ -391,6 +392,7 @@ router.put('/services/:id', async (req: AuthenticatedRequest, res: Response) => 
         descriptionAr: descriptionAr !== undefined ? descriptionAr : undefined,
         descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
         picture,
+        details: details !== undefined ? details : undefined,
         extraWorkerPrice: extraWorkerPrice != null ? parseFloat(extraWorkerPrice) : undefined,
         rapidExtraWorkerPrice: rapidExtraWorkerPrice != null ? parseFloat(rapidExtraWorkerPrice) : undefined,
         durationHours: durationHours != null ? parseInt(durationHours) : undefined,
@@ -652,7 +654,7 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
     name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
-    isActive, categoryServices,
+    isActive, categoryServices, details,
   } = req.body;
 
   if (!name || !description) {
@@ -670,6 +672,7 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
         descriptionAr: descriptionAr || '',
         descriptionFr: descriptionFr || '',
         picture: picture || '',
+        details: details !== undefined ? details : undefined,
         materialPrice: parseFloat(materialPrice ?? 0),
         materialsMandatory: materialsMandatory ?? false,
         localProductPrice: parseFloat(localProductPrice ?? 0),
@@ -706,7 +709,7 @@ router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) =
     name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture,
     materialPrice, materialsMandatory,
     localProductPrice, importedProductPrice, productsMandatory,
-    isActive, categoryServices,
+    isActive, categoryServices, details,
   } = req.body;
 
   try {
@@ -723,6 +726,7 @@ router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) =
         descriptionAr: descriptionAr !== undefined ? descriptionAr : undefined,
         descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
         picture: picture || '',
+        details: details !== undefined ? details : undefined,
         materialPrice: parseFloat(materialPrice ?? 0),
         materialsMandatory: materialsMandatory ?? false,
         localProductPrice: parseFloat(localProductPrice ?? 0),
@@ -861,6 +865,22 @@ router.post('/pages/about', async (req: AuthenticatedRequest, res: Response) => 
       where: { key: 'about_us' },
       update: { value: JSON.stringify(aboutData) },
       create: { key: 'about_us', value: JSON.stringify(aboutData) }
+    });
+    res.json(JSON.parse(setting.value));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/admin/pages/subscription-details
+router.post('/pages/subscription-details', async (req: AuthenticatedRequest, res: Response) => {
+  const detailsData = req.body;
+  try {
+    const setting = await prisma.appSetting.upsert({
+      where: { key: 'subscription_details' },
+      update: { value: JSON.stringify(detailsData) },
+      create: { key: 'subscription_details', value: JSON.stringify(detailsData) }
     });
     res.json(JSON.parse(setting.value));
   } catch (err) {
