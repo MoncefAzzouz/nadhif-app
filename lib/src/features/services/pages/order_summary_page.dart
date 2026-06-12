@@ -180,8 +180,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: ColorApp.softGrey, shape: BoxShape.circle),
-                        child: const Icon(Icons.close_rounded, size: 20, color: ColorApp.textGrey),
+                        decoration: const BoxDecoration(
+                            color: ColorApp.softGrey, shape: BoxShape.circle),
+                        child: const Icon(Icons.close_rounded,
+                            size: 20, color: ColorApp.textGrey),
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
@@ -191,12 +193,14 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 TextField(
                   controller: codeController,
                   textCapitalization: TextCapitalization.characters,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16),
                   decoration: InputDecoration(
                     hintText: l10n.tapYourCodeHere,
                     filled: true,
                     fillColor: ColorApp.softGrey,
-                    prefixIcon: const Icon(Icons.confirmation_num_outlined, color: ColorApp.primary),
+                    prefixIcon: const Icon(Icons.confirmation_num_outlined,
+                        color: ColorApp.primary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
@@ -237,9 +241,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                         });
                         messenger.showSnackBar(
                           SnackBar(
-                            content: Text(e
-                                .toString()
-                                .replaceFirst('Exception: ', '')),
+                            content: Text(
+                                e.toString().replaceFirst('Exception: ', '')),
                             backgroundColor: const Color(0xFFDC2626),
                           ),
                         );
@@ -247,12 +250,16 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorApp.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
                       elevation: 0,
                     ),
                     child: Text(
                       l10n.apply,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16),
                     ),
                   ),
                 ),
@@ -426,7 +433,6 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       extendBodyBehindAppBar: true,
@@ -442,11 +448,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         leading: Padding(
           padding: const EdgeInsets.all(8.0),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: ColorApp.textBlack, size: 18),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: ColorApp.textBlack, size: 18),
             onPressed: () => Navigator.pop(context),
             style: IconButton.styleFrom(
               backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ),
@@ -476,16 +484,19 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 80, 24, 180),
+            padding: EdgeInsets.fromLTRB(
+                24, MediaQuery.of(context).padding.top + 80, 24, 180),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPlainCard(
                   child: Column(
                     children: [
-                      _buildInfoRow(Icons.calendar_today_rounded, "Date", widget.date),
+                      _buildInfoRow(
+                          Icons.calendar_today_rounded, "Date", widget.date),
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.access_time_rounded, "Hour", widget.time),
+                      _buildInfoRow(
+                          Icons.access_time_rounded, "Hour", widget.time),
                       const Divider(height: 32, thickness: 0.5),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,7 +507,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                               color: ColorApp.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.location_on_rounded, color: ColorApp.primary, size: 20),
+                            child: const Icon(Icons.location_on_rounded,
+                                color: ColorApp.primary, size: 20),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -505,7 +517,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                               children: [
                                 const Text(
                                   "Service Address",
-                                  style: TextStyle(fontSize: 12, color: ColorApp.textGrey, fontWeight: FontWeight.w600),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: ColorApp.textGrey,
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 4),
                                 TextField(
@@ -541,7 +556,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                               color: ColorApp.softGrey,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.map_outlined, color: ColorApp.textGrey, size: 24),
+                            child: const Icon(Icons.map_outlined,
+                                color: ColorApp.textGrey, size: 24),
                           ),
                         ],
                       ),
@@ -553,14 +569,23 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   title: "Booking Configuration",
                   icon: Icons.settings_outlined,
                   isExpanded: _isBookingConfigExpanded,
-                  onTap: () => setState(() => _isBookingConfigExpanded = !_isBookingConfigExpanded),
+                  onTap: () => setState(() =>
+                      _isBookingConfigExpanded = !_isBookingConfigExpanded),
                   child: Column(
                     children: [
                       const Divider(height: 24, thickness: 0.5),
-                      _detailRow("Duration", "${widget.duration} Hours", Icons.timer_outlined),
-                      _detailRow("Cleaners", "${widget.cleaners} Professionals", Icons.people_outline_rounded),
-                      _detailRow("Materials", widget.needMaterials ? "Provided" : "Not needed", Icons.inventory_2_outlined),
-                      _detailRow("Equipment", widget.needEquipment ? "Provided" : "Not needed", Icons.handyman_outlined),
+                      _detailRow("Duration", "${widget.duration} Hours",
+                          Icons.timer_outlined),
+                      _detailRow("Cleaners", "${widget.cleaners} Professionals",
+                          Icons.people_outline_rounded),
+                      _detailRow(
+                          "Materials",
+                          widget.needMaterials ? "Provided" : "Not needed",
+                          Icons.inventory_2_outlined),
+                      _detailRow(
+                          "Equipment",
+                          widget.needEquipment ? "Provided" : "Not needed",
+                          Icons.handyman_outlined),
                     ],
                   ),
                 ),
@@ -569,7 +594,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   padding: EdgeInsets.only(left: 4),
                   child: Text(
                     "Notes",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: ColorApp.textBlack),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -578,30 +606,42 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4)),
                     ],
                   ),
                   child: TextField(
                     controller: _notesController,
                     minLines: 3,
                     maxLines: 5,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: ColorApp.textBlack),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: ColorApp.textBlack),
                     decoration: InputDecoration(
                       hintText: "Add any special instructions or notes...",
-                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w500),
+                      hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500),
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
+                        borderSide:
+                            BorderSide(color: Colors.grey.shade200, width: 1.5),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey.shade100, width: 1.5),
+                        borderSide:
+                            BorderSide(color: Colors.grey.shade100, width: 1.5),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: ColorApp.primary, width: 1.5),
+                        borderSide: const BorderSide(
+                            color: ColorApp.primary, width: 1.5),
                       ),
                       contentPadding: const EdgeInsets.all(20),
                     ),
@@ -612,7 +652,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   padding: EdgeInsets.only(left: 4),
                   child: Text(
                     "Photos (optional)",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: ColorApp.textBlack),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -627,7 +670,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                             Container(
                               width: 80,
                               height: 80,
-                              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                              margin: const EdgeInsets.only(
+                                  right: 12, top: 8, bottom: 8),
                               decoration: BoxDecoration(
                                 color: ColorApp.softGrey,
                                 borderRadius: BorderRadius.circular(16),
@@ -643,7 +687,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                                   errorBuilder: (_, __, ___) => Container(
                                     color: const Color(0xFFE6ECE9),
                                     child: const Center(
-                                      child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF0E4337), size: 32),
+                                      child: Icon(
+                                          Icons.image_not_supported_outlined,
+                                          color: Color(0xFF0E4337),
+                                          size: 32),
                                     ),
                                   ),
                                 ),
@@ -660,7 +707,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                                     color: Colors.red,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 12),
+                                  child: const Icon(Icons.close_rounded,
+                                      color: Colors.white, size: 12),
                                 ),
                               ),
                             ),
@@ -721,7 +769,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                   icon: Icons.account_balance_wallet_outlined,
                   child: Column(
                     children: [
-                      _summaryRow("Subtotal", "${widget.subtotal.toStringAsFixed(2)} DZ"),
+                      _summaryRow("Subtotal",
+                          "${widget.subtotal.toStringAsFixed(2)} DZ"),
                       const SizedBox(height: 16),
                       _buildPromoSection(),
                       if (_promoDiscountPercent > 0) ...[
@@ -732,7 +781,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                         ),
                       ],
                       const Divider(height: 32, thickness: 0.5),
-                      _summaryRow("Grand Total", "${_grandTotal.toStringAsFixed(2)} DZ", isTotal: true),
+                      _summaryRow(
+                          "Grand Total", "${_grandTotal.toStringAsFixed(2)} DZ",
+                          isTotal: true),
                     ],
                   ),
                 ),
@@ -748,9 +799,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, -5)),
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, -5)),
                 ],
               ),
               child: Column(
@@ -788,11 +843,14 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ColorApp.primary,
                         disabledBackgroundColor: ColorApp.softGrey,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                         elevation: 0,
                       ),
                       child: Text(
-                        _isSubmitting ? "Creating Booking..." : "Confirm Booking",
+                        _isSubmitting
+                            ? "Creating Booking..."
+                            : "Confirm Booking",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -811,7 +869,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     );
   }
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSectionCard(
+      {required String title, required IconData icon, required Widget child}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -819,7 +878,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -864,7 +926,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -885,7 +950,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 ),
                 const Spacer(),
                 Icon(
-                  isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                  isExpanded
+                      ? Icons.keyboard_arrow_down_rounded
+                      : Icons.keyboard_arrow_right_rounded,
                   color: ColorApp.textGrey,
                   size: 20,
                 ),
@@ -894,7 +961,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
             AnimatedCrossFade(
               firstChild: const SizedBox.shrink(),
               secondChild: child,
-              crossFadeState: isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              crossFadeState: isExpanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 200),
             ),
           ],
@@ -911,7 +980,10 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: child,
@@ -925,11 +997,17 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         const SizedBox(width: 8),
         Text(
           "$label: ",
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ColorApp.textGrey),
+          style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: ColorApp.textGrey),
         ),
         Text(
           text,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ColorApp.textBlack),
+          style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: ColorApp.textBlack),
         ),
       ],
     );
@@ -942,15 +1020,21 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         children: [
           Icon(icon, size: 18, color: ColorApp.textGrey.withValues(alpha: 0.5)),
           const SizedBox(width: 12),
-          Text(label, style: const TextStyle(color: ColorApp.textGrey, fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(label,
+              style: const TextStyle(
+                  color: ColorApp.textGrey,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500)),
           const Spacer(),
-          Text(value, style: const TextStyle(color: ColorApp.textBlack, fontWeight: FontWeight.w700, fontSize: 14)),
+          Text(value,
+              style: const TextStyle(
+                  color: ColorApp.textBlack,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14)),
         ],
       ),
     );
   }
-
-
 
   Widget _buildPromoSection() {
     return GestureDetector(
@@ -964,22 +1048,30 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.confirmation_num_outlined, color: Colors.green, size: 20),
+            const Icon(Icons.confirmation_num_outlined,
+                color: Colors.green, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _appliedPromo != null ? "Code: $_appliedPromo" : "Have a promo code?",
-                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w800, fontSize: 13),
+                    _appliedPromo != null
+                        ? "Code: $_appliedPromo"
+                        : "Have a promo code?",
+                    style: const TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13),
                   ),
                   if (_appliedPromo == null)
-                    const Text("Tap here to apply a discount", style: TextStyle(color: Colors.green, fontSize: 11)),
+                    const Text("Tap here to apply a discount",
+                        style: TextStyle(color: Colors.green, fontSize: 11)),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.green, size: 14),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Colors.green, size: 14),
           ],
         ),
       ),

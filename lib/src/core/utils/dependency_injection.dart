@@ -3,6 +3,7 @@ import 'package:cleanapp/src/core/config/app_config.dart';
 import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
+import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
 import 'package:cleanapp/src/features/notifications/data/notifications_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/pages/data/pages_api_service.dart';
@@ -14,6 +15,21 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 final locator = GetIt.instance;
+
+const _publicApiPaths = {
+  '/api/home',
+  '/api/slides',
+  '/api/categories',
+  '/api/services',
+  '/api/pages/about',
+  '/api/pages/locked-days',
+};
+
+bool _isPublicApiPath(String path) {
+  if (_publicApiPaths.contains(path)) return true;
+  return path.startsWith('/api/categories/') ||
+      path.startsWith('/api/services/');
+}
 
 void setupLocator() {
   if (locator.isRegistered<Dio>()) return;
@@ -32,6 +48,11 @@ void setupLocator() {
       )
         ..interceptors.add(InterceptorsWrapper(
           onRequest: (options, handler) async {
+            if (_isPublicApiPath(options.path)) {
+              handler.next(options);
+              return;
+            }
+
             final token = await locator<AuthTokenStore>().readToken();
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';
@@ -43,9 +64,6 @@ void setupLocator() {
           requestHeader: true,
           requestBody: true,
           responseBody: false,
-          responseHeader: false,
-          error: true,
-          compact: true,
         )));
 
   locator.registerLazySingleton<FlutterSecureStorage>(
@@ -56,6 +74,9 @@ void setupLocator() {
 
   locator.registerLazySingleton<AuthTokenStore>(
     () => AuthTokenStore(locator<FlutterSecureStorage>()),
+  );
+  locator.registerLazySingleton<HomeContentRepository>(
+    () => HomeContentRepository(),
   );
   locator.registerLazySingleton<AuthApiService>(() => AuthApiService());
   locator.registerLazySingleton<ServicesApiService>(() => ServicesApiService());

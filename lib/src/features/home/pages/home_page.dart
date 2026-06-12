@@ -5,21 +5,21 @@ import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
-import 'package:cleanapp/src/features/home/cubit/home_tab_cubit.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
+import 'package:cleanapp/src/features/home/cubit/home_tab_cubit.dart';
+import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
+import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
+import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
-import 'package:cleanapp/src/features/services/data/service_models.dart';
-import 'package:cleanapp/src/features/services/data/services_api_service.dart';
+import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
 import 'package:cleanapp/src/features/subscriptions/pages/subscriptions_page.dart';
-import 'package:cleanapp/src/features/services/pages/services_page.dart';
-import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -37,8 +37,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage>
-    with WidgetsBindingObserver {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   static const List<String> _heroBanners = <String>[
     MediaRes.promoBanner,
     MediaRes.cleanAirBanner,
@@ -89,30 +88,23 @@ class _HomePageState extends State<HomePage>
     _currentLocation = 'Setif center ville';
     _loadProfile();
     _loadOrdersCount();
-    _loadCategories();
-    _loadSlides();
-    _loadRecommendedServices();
+    _loadHomeContent();
     WidgetsBinding.instance.addObserver(this);
     _startAutoScrolls();
   }
 
-  Future<void> _loadRecommendedServices() async {
+  Future<void> _loadHomeContent({bool forceRefresh = false}) async {
     try {
-      final services = await locator<ServicesApiService>().getServices();
+      final content = await locator<HomeContentRepository>()
+          .getHomeContent(forceRefresh: forceRefresh);
       if (!mounted) return;
-      setState(() => _recommendedServices = services);
+      setState(() {
+        _slides = content.slides;
+        _backendCategories = content.categories;
+        _recommendedServices = content.services;
+      });
     } catch (_) {
-      // Rail falls back to the bundled demo cards.
-    }
-  }
-
-  Future<void> _loadSlides() async {
-    try {
-      final slides = await locator<SlidesApiService>().getSlides();
-      if (!mounted) return;
-      setState(() => _slides = slides);
-    } catch (_) {
-      // Keep the bundled fallback banners if slides can't be fetched.
+      // Keep bundled banners and fallback rails if content can't be fetched.
     }
   }
 
@@ -139,7 +131,7 @@ class _HomePageState extends State<HomePage>
     }
 
     try {
-      final services = await locator<ServicesApiService>().getServices();
+      final services = await locator<HomeContentRepository>().getServices();
       if (!mounted) return;
       for (final service in services) {
         if (service.name.toLowerCase() == route) {
@@ -190,17 +182,6 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  Future<void> _loadCategories() async {
-    try {
-      final categories = await locator<ServicesApiService>().getCategories();
-      if (!mounted) return;
-      setState(() => _backendCategories = categories);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _backendCategories = const []);
-    }
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final bool nextActive = state == AppLifecycleState.resumed;
@@ -208,7 +189,7 @@ class _HomePageState extends State<HomePage>
     _isAppActive = nextActive;
     if (_isAppActive) {
       _loadOrdersCount();
-      _loadCategories();
+      _loadHomeContent(forceRefresh: true);
       _startAutoScrolls();
     } else {
       _cancelAutoScrolls();
@@ -321,9 +302,10 @@ class _HomePageState extends State<HomePage>
 
   Widget _buildHeader(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final firstName = (_profile?.fullName.trim().split(RegExp(r'\s+')).first ?? '').isEmpty
-        ? 'Customer'
-        : _profile!.fullName.trim().split(RegExp(r'\s+')).first;
+    final firstName =
+        (_profile?.fullName.trim().split(RegExp(r'\s+')).first ?? '').isEmpty
+            ? 'Customer'
+            : _profile!.fullName.trim().split(RegExp(r'\s+')).first;
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 50, 24, 12),
       decoration: const BoxDecoration(
@@ -340,7 +322,8 @@ class _HomePageState extends State<HomePage>
             onTap: () async {
               final newLocation = await Navigator.push<String>(
                 context,
-                MaterialPageRoute(builder: (context) => const LocationSetupPage()),
+                MaterialPageRoute(
+                    builder: (context) => const LocationSetupPage()),
               );
               if (newLocation != null) {
                 setState(() {
@@ -636,8 +619,7 @@ class _HomePageState extends State<HomePage>
         childAspectRatio: 0.7,
       ),
       itemCount: tiles.length,
-      itemBuilder: (context, index) =>
-          _ServiceGridTile(service: tiles[index]),
+      itemBuilder: (context, index) => _ServiceGridTile(service: tiles[index]),
     );
   }
 
@@ -719,8 +701,8 @@ class _HomePageState extends State<HomePage>
                 ),
                 const SizedBox(height: 20),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
                     color: ColorApp.primary,
                     borderRadius: BorderRadius.circular(12),

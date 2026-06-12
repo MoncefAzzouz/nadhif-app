@@ -5,8 +5,8 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
+import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
-import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -15,7 +15,8 @@ class ServicesPage extends StatefulWidget {
   State<ServicesPage> createState() => _ServicesPageState();
 }
 
-class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver {
+class _ServicesPageState extends State<ServicesPage>
+    with WidgetsBindingObserver {
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
   List<AppService> _backendServices = const [];
@@ -23,7 +24,7 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
   bool _isLoading = true;
   String? _error;
 
-  List<String> _getCategories(AppLocalizations l10n) => 
+  List<String> _getCategories(AppLocalizations l10n) =>
       [l10n.all, l10n.cleaning, l10n.repair, l10n.laundry, l10n.maintenance];
 
   List<Map<String, dynamic>> _getServices(AppLocalizations l10n) => [
@@ -94,7 +95,8 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
         "image": service.picture,
         "desc": service.descriptionFor(localeCode),
         "category": l10n.cleaning,
-        "price": l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
+        "price":
+            l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
         "backendService": service,
       };
     });
@@ -143,14 +145,11 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
       _error = null;
     });
     try {
-      final servicesFuture = locator<ServicesApiService>().getServices();
-      final categoriesFuture = locator<ServicesApiService>().getCategories();
-      final services = await servicesFuture;
-      final categories = await categoriesFuture;
+      final content = await locator<HomeContentRepository>().getHomeContent();
       if (!mounted) return;
       setState(() {
-        _backendServices = services;
-        _backendCategories = categories;
+        _backendServices = content.services;
+        _backendCategories = content.categories;
         _isLoading = false;
       });
     } catch (e) {
@@ -185,8 +184,12 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
     }
 
     final filteredServices = services.where((service) {
-      final matchesCategory = _selectedCategory == l10n.all || service['category'] == _selectedCategory;
-      final matchesSearch = service['name'].toString().toLowerCase().contains(_searchController.text.toLowerCase());
+      final matchesCategory = _selectedCategory == l10n.all ||
+          service['category'] == _selectedCategory;
+      final matchesSearch = service['name']
+          .toString()
+          .toLowerCase()
+          .contains(_searchController.text.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
 
@@ -229,7 +232,8 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
             // Search Bar Section
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -247,8 +251,11 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                     onChanged: (val) => setState(() {}),
                     decoration: InputDecoration(
                       hintText: l10n.searchServices,
-                      hintStyle: TextStyle(color: ColorApp.textGrey.withValues(alpha: 0.5), fontSize: 14),
-                      prefixIcon: const Icon(Icons.search_rounded, color: ColorApp.primary),
+                      hintStyle: TextStyle(
+                          color: ColorApp.textGrey.withValues(alpha: 0.5),
+                          fontSize: 14),
+                      prefixIcon: const Icon(Icons.search_rounded,
+                          color: ColorApp.primary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 16),
                     ),
@@ -261,7 +268,8 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
             SliverToBoxAdapter(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: categories.map((cat) {
@@ -272,13 +280,14 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                         onTap: () => setState(() => _selectedCategory = cat),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 250),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
                           decoration: BoxDecoration(
                             color: isSelected ? ColorApp.primary : Colors.white,
                             borderRadius: BorderRadius.circular(30),
                             boxShadow: [
                               BoxShadow(
-                                color: isSelected 
+                                color: isSelected
                                     ? ColorApp.primary.withValues(alpha: 0.3)
                                     : Colors.black.withValues(alpha: 0.03),
                                 blurRadius: 15,
@@ -289,8 +298,11 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                           child: Text(
                             cat,
                             style: TextStyle(
-                              color: isSelected ? Colors.white : ColorApp.textGrey,
-                              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                              color:
+                                  isSelected ? Colors.white : ColorApp.textGrey,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                               fontSize: 14,
                             ),
                           ),
@@ -313,7 +325,8 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
             else if (_error != null && !hasBackendData)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -323,7 +336,8 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.cloud_off_rounded, color: Color(0xFFDC2626)),
+                        const Icon(Icons.cloud_off_rounded,
+                            color: Color(0xFFDC2626)),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -335,7 +349,9 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                             ),
                           ),
                         ),
-                        TextButton(onPressed: _loadServices, child: const Text('Retry')),
+                        TextButton(
+                            onPressed: _loadServices,
+                            child: const Text('Retry')),
                       ],
                     ),
                   ),
@@ -356,7 +372,8 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                             MaterialPageRoute(
                               builder: (context) => ServiceDetailsPage(
                                 serviceName: service["name"] as String,
-                                service: service["backendService"] as AppService?,
+                                service:
+                                    service["backendService"] as AppService?,
                                 category:
                                     service["backendCategory"] as AppCategory?,
                                 serviceImage: service["image"] as String?,
@@ -366,105 +383,109 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
                           );
                         },
                         child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            // Icon Container
-                            Container(
-                              width: 62,
-                              height: 62,
-                              decoration: BoxDecoration(
-                                color: ColorApp.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                child: AppImage(
-                                  source: service['image'] as String?,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  fallback: Icon(
-                                    service['icon'] as IconData,
-                                    color: ColorApp.primary,
-                                    size: 30,
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              // Icon Container
+                              Container(
+                                width: 62,
+                                height: 62,
+                                decoration: BoxDecoration(
+                                  color:
+                                      ColorApp.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: AppImage(
+                                    source: service['image'] as String?,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fallback: Icon(
+                                      service['icon'] as IconData,
+                                      color: ColorApp.primary,
+                                      size: 30,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 20),
-                            // Details
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    service['name'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w900,
-                                      color: ColorApp.textBlack,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    service['desc'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: ColorApp.textGrey,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        service['price'] as String,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w800,
-                                          color: ColorApp.primary,
-                                        ),
+                              const SizedBox(width: 20),
+                              // Details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      service['name'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w900,
+                                        color: ColorApp.textBlack,
+                                        letterSpacing: -0.5,
                                       ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF1F5F9),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                        child: Text(
-                                          l10n.book,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      service['desc'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: ColorApp.textGrey,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          service['price'] as String,
                                           style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w900,
-                                            color: Color(0xFF475569),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: ColorApp.primary,
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF1F5F9),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            l10n.book,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF475569),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
                   childCount: filteredServices.length,
                 ),
               ),
