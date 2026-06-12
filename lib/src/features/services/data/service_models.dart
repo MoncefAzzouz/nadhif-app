@@ -6,6 +6,52 @@ String _localized(String locale, String base, String ar, String fr) {
   return base;
 }
 
+/// Admin-managed content for the service details page (objective, includes
+/// bullets, duration text, additional notes) with AR/FR translations.
+class AppServiceDetails {
+  const AppServiceDetails(this.raw);
+
+  final Map<String, dynamic> raw;
+
+  String _str(String key) => (raw[key] as String? ?? '').trim();
+
+  List<String> _list(String key) {
+    final v = raw[key];
+    if (v is! List) return const [];
+    return v
+        .map((e) => e.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  String _localizedStr(String base, String locale) {
+    if (locale == 'ar' && _str('${base}Ar').isNotEmpty) return _str('${base}Ar');
+    if (locale == 'fr' && _str('${base}Fr').isNotEmpty) return _str('${base}Fr');
+    return _str(base);
+  }
+
+  List<String> _localizedList(String base, String locale) {
+    if (locale == 'ar' && _list('${base}Ar').isNotEmpty) return _list('${base}Ar');
+    if (locale == 'fr' && _list('${base}Fr').isNotEmpty) return _list('${base}Fr');
+    return _list(base);
+  }
+
+  String objectiveFor(String locale) => _localizedStr('objective', locale);
+  List<String> includesFor(String locale) => _localizedList('includes', locale);
+  String durationTextFor(String locale) => _localizedStr('durationText', locale);
+  String additionalFor(String locale) => _localizedStr('additional', locale);
+
+  /// Whether the admin actually filled anything in.
+  bool get hasContent =>
+      _str('objective').isNotEmpty ||
+      _list('includes').isNotEmpty ||
+      _str('durationText').isNotEmpty ||
+      _str('additional').isNotEmpty;
+
+  static AppServiceDetails? fromJson(dynamic json) =>
+      json is Map<String, dynamic> ? AppServiceDetails(json) : null;
+}
+
 class AppService {
   const AppService({
     required this.id,
@@ -24,6 +70,7 @@ class AppService {
     required this.importedProductPrice,
     required this.productsMandatory,
     required this.houseConfigs,
+    this.details,
   });
 
   final String id;
@@ -42,6 +89,7 @@ class AppService {
   final double importedProductPrice;
   final bool productsMandatory;
   final List<AppHouseConfig> houseConfigs;
+  final AppServiceDetails? details;
 
   String nameFor(String locale) => _localized(locale, name, nameAr, nameFr);
   String descriptionFor(String locale) =>
@@ -70,6 +118,7 @@ class AppService {
       houseConfigs: ((json['houseConfigs'] as List<dynamic>?) ?? [])
           .map((item) => AppHouseConfig.fromJson(item as Map<String, dynamic>))
           .toList(),
+      details: AppServiceDetails.fromJson(json['details']),
     );
   }
 }
@@ -127,6 +176,7 @@ class AppCategory {
     required this.importedProductPrice,
     required this.productsMandatory,
     required this.categoryServices,
+    this.details,
   });
 
   final String id;
@@ -143,6 +193,7 @@ class AppCategory {
   final double importedProductPrice;
   final bool productsMandatory;
   final List<AppCategoryService> categoryServices;
+  final AppServiceDetails? details;
 
   String nameFor(String locale) => _localized(locale, name, nameAr, nameFr);
   String descriptionFor(String locale) =>
@@ -170,6 +221,7 @@ class AppCategory {
           .map((item) =>
               AppCategoryService.fromJson(item as Map<String, dynamic>))
           .toList(),
+      details: AppServiceDetails.fromJson(json['details']),
     );
   }
 }

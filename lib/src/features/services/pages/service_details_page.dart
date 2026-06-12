@@ -1,5 +1,7 @@
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/pages/data/pages_api_service.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
@@ -52,10 +54,49 @@ class ServiceDetailsPage extends StatefulWidget {
 class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   AppHouseConfig? _selectedConfig;
 
+  // Admin-managed details for the Subscription Pack flow (fetched lazily;
+  // services/categories carry theirs on the model already).
+  AppServiceDetails? _subscriptionDetails;
+
   @override
   void initState() {
     super.initState();
     _selectedConfig = widget.service?.defaultHouseConfig;
+    if (widget.isSubscription) _loadSubscriptionDetails();
+  }
+
+  Future<void> _loadSubscriptionDetails() async {
+    try {
+      final details =
+          await locator<PagesApiService>().getSubscriptionDetails();
+      if (!mounted || details == null) return;
+      setState(() => _subscriptionDetails = details);
+    } catch (_) {
+      // Built-in fallback content keeps the page usable.
+    }
+  }
+
+  /// Backend details when the admin filled them; otherwise the built-in
+  /// keyword-based content. Filled fields override the fallback per-field.
+  ServiceDetailContent _resolveDetails(
+      String localeCode, String? backendDesc) {
+    final fallback =
+        _getDetailsForService(widget.serviceName, backendDesc);
+    final details = widget.service?.details ??
+        widget.category?.details ??
+        _subscriptionDetails;
+    if (details == null || !details.hasContent) return fallback;
+
+    final objective = details.objectiveFor(localeCode);
+    final includes = details.includesFor(localeCode);
+    final duration = details.durationTextFor(localeCode);
+    final additional = details.additionalFor(localeCode);
+    return ServiceDetailContent(
+      objective: objective.isNotEmpty ? objective : fallback.objective,
+      includes: includes.isNotEmpty ? includes : fallback.includes,
+      duration: duration.isNotEmpty ? duration : fallback.duration,
+      additional: additional.isNotEmpty ? additional : fallback.additional,
+    );
   }
 
   static ServiceDetailContent _getDetailsForService(String name, String? backendDesc) {
@@ -218,7 +259,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     final localeCode = Localizations.localeOf(context).languageCode;
     final backendDesc = widget.service?.descriptionFor(localeCode) ??
         widget.category?.descriptionFor(localeCode);
-    final details = _getDetailsForService(widget.serviceName, backendDesc);
+    final details = _resolveDetails(localeCode, backendDesc);
     final houseConfigs = widget.service?.houseConfigs ?? const <AppHouseConfig>[];
     final hasHouseConfigs = houseConfigs.isNotEmpty;
 
