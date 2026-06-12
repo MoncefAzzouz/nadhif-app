@@ -4,6 +4,10 @@ import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 
 const router = Router();
 
+function isPublicSlideImage(imageUrl: string) {
+  return imageUrl.trim() !== '' && !imageUrl.startsWith('data:image');
+}
+
 function requireAdmin(req: AuthenticatedRequest, res: Response, next: any) {
   if (req.user?.role !== 'ADMIN') {
     res.status(403).json({ error: 'Admin access required' });
@@ -19,7 +23,8 @@ router.get('/', async (req: Request, res: Response) => {
       where: { isActive: true },
       orderBy: { order: 'asc' },
     });
-    res.json(slides);
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    res.json(slides.filter((slide) => isPublicSlideImage(slide.imageUrl)));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -44,6 +49,10 @@ router.post('/', authenticateToken as any, requireAdmin as any, async (req: Auth
     res.status(400).json({ error: 'imageUrl is required' });
     return;
   }
+  if (!isPublicSlideImage(imageUrl)) {
+    res.status(400).json({ error: 'Please upload an image file instead of base64 data.' });
+    return;
+  }
   try {
     const slide = await prisma.slide.create({
       data: {
@@ -66,6 +75,10 @@ router.post('/', authenticateToken as any, requireAdmin as any, async (req: Auth
 router.put('/:id', authenticateToken as any, requireAdmin as any, async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
   const { title, description, imageUrl, actionRoute, order, isActive } = req.body;
+  if (imageUrl !== undefined && !isPublicSlideImage(imageUrl)) {
+    res.status(400).json({ error: 'Please upload an image file instead of base64 data.' });
+    return;
+  }
   try {
     const slide = await prisma.slide.update({
       where: { id },

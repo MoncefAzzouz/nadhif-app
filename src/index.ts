@@ -12,6 +12,7 @@ import notificationsRoutes from './routes/notifications';
 import subscriptionsRoutes from './routes/subscriptions';
 import promosRoutes from './routes/promos';
 import slidesRoutes from './routes/slides';
+import homeRoutes from './routes/home';
 import uploadRoutes, { UPLOADS_DIR } from './routes/upload';
 
 import prisma from './lib/prisma';
@@ -55,6 +56,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/promos', promosRoutes);
 app.use('/api/slides', slidesRoutes);
+app.use('/api/home', homeRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // Uploaded images (referenced by Service/Category/Slide/Order records).

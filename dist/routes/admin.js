@@ -45,11 +45,112 @@ router.get('/users', async (req, res) => {
 router.delete('/users/:id', async (req, res) => {
     const id = req.params.id;
     try {
-        await prisma_1.default.user.delete({ where: { id } });
+        await prisma_1.default.$transaction([
+            prisma_1.default.deviceToken.deleteMany({ where: { userId: id } }),
+            prisma_1.default.order.deleteMany({ where: { userId: id } }),
+            prisma_1.default.subscriptionSession.deleteMany({ where: { subscription: { userId: id } } }),
+            prisma_1.default.subscriptionPayment.deleteMany({ where: { subscription: { userId: id } } }),
+            prisma_1.default.subscription.deleteMany({ where: { userId: id } }),
+            prisma_1.default.user.delete({ where: { id } }),
+        ]);
         res.json({ success: true });
     }
     catch (err) {
         console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// POST /api/admin/users (Create User)
+router.post('/users', async (req, res) => {
+    const { email, phone, fullName, role, password } = req.body;
+    if (!email || !phone || !fullName || !role || !password) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+    }
+    try {
+        const existing = await prisma_1.default.user.findFirst({
+            where: { OR: [{ email }, { phone }] }
+        });
+        if (existing) {
+            res.status(409).json({ error: 'User with this email or phone already exists' });
+            return;
+        }
+        const bcrypt = require('bcryptjs');
+        const passwordHash = await bcrypt.hash(password, 10);
+        const user = await prisma_1.default.user.create({
+            data: {
+                email,
+                phone,
+                fullName,
+                role,
+                passwordHash
+            },
+            select: {
+                id: true,
+                email: true,
+                phone: true,
+                fullName: true,
+                role: true,
+                createdAt: true
+            }
+        });
+        res.status(201).json(user);
+    }
+    catch (err) {
+        console.error('Create user failed:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// PUT /api/admin/users/:id (Edit User)
+router.put('/users/:id', async (req, res) => {
+    const id = req.params.id;
+    const { email, phone, fullName, role, password } = req.body;
+    try {
+        const user = await prisma_1.default.user.findUnique({ where: { id } });
+        if (!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+        if (email && email !== user.email) {
+            const emailExists = await prisma_1.default.user.findUnique({ where: { email } });
+            if (emailExists) {
+                res.status(409).json({ error: 'Email already in use' });
+                return;
+            }
+        }
+        if (phone && phone !== user.phone) {
+            const phoneExists = await prisma_1.default.user.findUnique({ where: { phone } });
+            if (phoneExists) {
+                res.status(409).json({ error: 'Phone already in use' });
+                return;
+            }
+        }
+        const data = {
+            email,
+            phone,
+            fullName,
+            role
+        };
+        if (password) {
+            const bcrypt = require('bcryptjs');
+            data.passwordHash = await bcrypt.hash(password, 10);
+        }
+        const updatedUser = await prisma_1.default.user.update({
+            where: { id },
+            data,
+            select: {
+                id: true,
+                email: true,
+                phone: true,
+                fullName: true,
+                role: true,
+                createdAt: true
+            }
+        });
+        res.json(updatedUser);
+    }
+    catch (err) {
+        console.error('Update user failed:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -200,7 +301,7 @@ router.delete('/promos/:id', async (req, res) => {
 // ─── SERVICES (Admin CRUD) ────────────────────────────────────────────────────
 // POST /api/admin/services
 router.post('/services', async (req, res) => {
-    const { name, description, picture, extraWorkerPrice, durationHours, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, houseConfigs, } = req.body;
+    const { name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture, extraWorkerPrice, rapidExtraWorkerPrice, durationHours, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, houseConfigs, details, } = req.body;
     if (!name || !description) {
         res.status(400).json({ error: 'name and description are required' });
         return;
@@ -209,9 +310,15 @@ router.post('/services', async (req, res) => {
         const service = await prisma_1.default.service.create({
             data: {
                 name,
+                nameAr: nameAr || '',
+                nameFr: nameFr || '',
                 description,
+                descriptionAr: descriptionAr || '',
+                descriptionFr: descriptionFr || '',
                 picture: picture || '',
+                details: details !== undefined ? details : undefined,
                 extraWorkerPrice: parseFloat(extraWorkerPrice ?? 0),
+                rapidExtraWorkerPrice: parseFloat(rapidExtraWorkerPrice ?? 0),
                 durationHours: parseInt(durationHours ?? 4),
                 materialPrice: parseFloat(materialPrice ?? 0),
                 materialsMandatory: materialsMandatory ?? false,
@@ -223,8 +330,11 @@ router.post('/services', async (req, res) => {
                     ? {
                         create: houseConfigs.map((hc) => ({
                             type: hc.type,
+                            typeAr: hc.typeAr || '',
+                            typeFr: hc.typeFr || '',
                             workers: parseInt(hc.workers),
                             basePrice: parseFloat(hc.basePrice),
+                            rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
                             durationHours: parseInt(hc.durationHours ?? 3),
                         })),
                     }
@@ -242,15 +352,21 @@ router.post('/services', async (req, res) => {
 // PUT /api/admin/services/:id
 router.put('/services/:id', async (req, res) => {
     const id = req.params.id;
-    const { name, description, picture, extraWorkerPrice, durationHours, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, houseConfigs, } = req.body;
+    const { name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture, extraWorkerPrice, rapidExtraWorkerPrice, durationHours, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, houseConfigs, details, } = req.body;
     try {
         const service = await prisma_1.default.service.update({
             where: { id },
             data: {
                 name,
+                nameAr: nameAr !== undefined ? nameAr : undefined,
+                nameFr: nameFr !== undefined ? nameFr : undefined,
                 description,
+                descriptionAr: descriptionAr !== undefined ? descriptionAr : undefined,
+                descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
                 picture,
+                details: details !== undefined ? details : undefined,
                 extraWorkerPrice: extraWorkerPrice != null ? parseFloat(extraWorkerPrice) : undefined,
+                rapidExtraWorkerPrice: rapidExtraWorkerPrice != null ? parseFloat(rapidExtraWorkerPrice) : undefined,
                 durationHours: durationHours != null ? parseInt(durationHours) : undefined,
                 materialPrice: materialPrice != null ? parseFloat(materialPrice) : undefined,
                 materialsMandatory,
@@ -276,8 +392,11 @@ router.put('/services/:id', async (req, res) => {
                         where: { id: hc.id },
                         data: {
                             type: hc.type,
+                            typeAr: hc.typeAr !== undefined ? hc.typeAr : undefined,
+                            typeFr: hc.typeFr !== undefined ? hc.typeFr : undefined,
                             workers: parseInt(hc.workers),
                             basePrice: parseFloat(hc.basePrice),
+                            rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
                             durationHours: parseInt(hc.durationHours ?? 3),
                         }
                     });
@@ -287,8 +406,11 @@ router.put('/services/:id', async (req, res) => {
                         data: {
                             serviceId: id,
                             type: hc.type,
+                            typeAr: hc.typeAr || '',
+                            typeFr: hc.typeFr || '',
                             workers: parseInt(hc.workers),
                             basePrice: parseFloat(hc.basePrice),
+                            rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
                             durationHours: parseInt(hc.durationHours ?? 3),
                         }
                     });
@@ -320,7 +442,7 @@ router.delete('/services/:id', async (req, res) => {
 });
 // POST /api/admin/orders (Manual Order Creation)
 router.post('/orders', async (req, res) => {
-    const { fullName, phone, address, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, scheduledDate, extraWorkers, useMaterials, productOrigin, promoCode } = req.body;
+    const { fullName, phone, address, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, scheduledDate, extraWorkers, useMaterials, productOrigin, promoCode, sizeM2, clientNote, housePictures, isRapid } = req.body;
     if (!phone || !address || (!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate) {
         res.status(400).json({ error: 'Missing required fields' });
         return;
@@ -365,8 +487,9 @@ router.post('/orders', async (req, res) => {
                 return;
             }
             // 3. Pricing Calculation
-            basePrice = houseConfig.basePrice;
-            extraWorkersPrice = workersCount * service.extraWorkerPrice;
+            basePrice = (isRapid === true || isRapid === 'true') ? houseConfig.rapidBasePrice : houseConfig.basePrice;
+            const extraPriceUnit = (isRapid === true || isRapid === 'true') ? (service.rapidExtraWorkerPrice ?? 0) : service.extraWorkerPrice;
+            extraWorkersPrice = workersCount * extraPriceUnit;
             materialsFlag = useMaterials === true || service.materialsMandatory;
             materialsPrice = materialsFlag ? service.materialPrice : 0;
             if (origin === 'LOCAL')
@@ -391,7 +514,7 @@ router.post('/orders', async (req, res) => {
                 return;
             }
             // 3. Pricing Calculation
-            basePrice = categoryService.basePrice;
+            basePrice = (isRapid === true || isRapid === 'true') ? categoryService.rapidBasePrice : categoryService.basePrice;
             materialsFlag = useMaterials === true || category.materialsMandatory;
             materialsPrice = materialsFlag ? category.materialPrice : 0;
             if (origin === 'LOCAL')
@@ -437,10 +560,14 @@ router.post('/orders', async (req, res) => {
                 extraWorkers: workersCount,
                 useMaterials: materialsFlag,
                 productOrigin: origin,
-                latitude: latitude || 0,
-                longitude: longitude || 0,
+                isRapid: isRapid === true || isRapid === 'true',
+                latitude: latitude ? parseFloat(latitude.toString()) : null,
+                longitude: longitude ? parseFloat(longitude.toString()) : null,
                 address,
-                promoId: finalPromoId
+                promoId: finalPromoId || null,
+                sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null,
+                clientNote: clientNote || null,
+                housePictures: Array.isArray(housePictures) ? housePictures : []
             },
             include: {
                 user: { select: { id: true, fullName: true, phone: true } },
@@ -448,7 +575,8 @@ router.post('/orders', async (req, res) => {
                 houseConfig: true,
                 category: { select: { id: true, name: true, picture: true } },
                 categoryService: true,
-                cleaner: true
+                cleaner: true,
+                promo: true
             }
         });
         res.status(201).json(order);
@@ -475,7 +603,7 @@ router.get('/categories', async (req, res) => {
 });
 // POST /api/admin/categories
 router.post('/categories', async (req, res) => {
-    const { name, description, picture, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, categoryServices, } = req.body;
+    const { name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, categoryServices, details, } = req.body;
     if (!name || !description) {
         res.status(400).json({ error: 'name and description are required' });
         return;
@@ -484,8 +612,13 @@ router.post('/categories', async (req, res) => {
         const category = await prisma_1.default.category.create({
             data: {
                 name,
+                nameAr: nameAr || '',
+                nameFr: nameFr || '',
                 description,
+                descriptionAr: descriptionAr || '',
+                descriptionFr: descriptionFr || '',
                 picture: picture || '',
+                details: details !== undefined ? details : undefined,
                 materialPrice: parseFloat(materialPrice ?? 0),
                 materialsMandatory: materialsMandatory ?? false,
                 localProductPrice: parseFloat(localProductPrice ?? 0),
@@ -496,8 +629,11 @@ router.post('/categories', async (req, res) => {
                     ? {
                         create: categoryServices.map((cs) => ({
                             name: cs.name,
+                            nameAr: cs.nameAr || '',
+                            nameFr: cs.nameFr || '',
                             workers: parseInt(cs.workers),
                             basePrice: parseFloat(cs.basePrice),
+                            rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
                             durationHours: parseInt(cs.durationHours ?? 3),
                         })),
                     }
@@ -515,7 +651,7 @@ router.post('/categories', async (req, res) => {
 // PUT /api/admin/categories/:id
 router.put('/categories/:id', async (req, res) => {
     const id = req.params.id;
-    const { name, description, picture, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, categoryServices, } = req.body;
+    const { name, nameAr, nameFr, description, descriptionAr, descriptionFr, picture, materialPrice, materialsMandatory, localProductPrice, importedProductPrice, productsMandatory, isActive, categoryServices, details, } = req.body;
     try {
         // Delete existing sub-services then recreate
         await prisma_1.default.categoryService.deleteMany({ where: { categoryId: id } });
@@ -523,8 +659,13 @@ router.put('/categories/:id', async (req, res) => {
             where: { id },
             data: {
                 name,
+                nameAr: nameAr !== undefined ? nameAr : undefined,
+                nameFr: nameFr !== undefined ? nameFr : undefined,
                 description,
+                descriptionAr: descriptionAr !== undefined ? descriptionAr : undefined,
+                descriptionFr: descriptionFr !== undefined ? descriptionFr : undefined,
                 picture: picture || '',
+                details: details !== undefined ? details : undefined,
                 materialPrice: parseFloat(materialPrice ?? 0),
                 materialsMandatory: materialsMandatory ?? false,
                 localProductPrice: parseFloat(localProductPrice ?? 0),
@@ -535,8 +676,11 @@ router.put('/categories/:id', async (req, res) => {
                     ? {
                         create: categoryServices.map((cs) => ({
                             name: cs.name,
+                            nameAr: cs.nameAr || '',
+                            nameFr: cs.nameFr || '',
                             workers: parseInt(cs.workers),
                             basePrice: parseFloat(cs.basePrice),
+                            rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
                             durationHours: parseInt(cs.durationHours ?? 3),
                         })),
                     }
@@ -667,6 +811,22 @@ router.post('/pages/about', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+// POST /api/admin/pages/subscription-details
+router.post('/pages/subscription-details', async (req, res) => {
+    const detailsData = req.body;
+    try {
+        const setting = await prisma_1.default.appSetting.upsert({
+            where: { key: 'subscription_details' },
+            update: { value: JSON.stringify(detailsData) },
+            create: { key: 'subscription_details', value: JSON.stringify(detailsData) }
+        });
+        res.json(JSON.parse(setting.value));
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 // GET /api/admin/locked-days
 router.get('/locked-days', async (req, res) => {
     try {
@@ -699,4 +859,102 @@ router.post('/locked-days', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+// GET /api/admin/skills
+router.get('/skills', async (req, res) => {
+    try {
+        const skills = await prisma_1.default.skill.findMany({
+            include: { services: true, categories: true, subscriptionServiceTiers: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(skills);
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// POST /api/admin/skills
+router.post('/skills', async (req, res) => {
+    const { name, nameAr, nameFr, description, color, serviceIds, categoryIds, serviceTierIds } = req.body;
+    if (!name) {
+        res.status(400).json({ error: 'Skill name is required' });
+        return;
+    }
+    try {
+        const skill = await prisma_1.default.skill.create({
+            data: {
+                name,
+                nameAr: nameAr || '',
+                nameFr: nameFr || '',
+                description: description || '',
+                color: color || 'slate',
+                services: serviceIds && serviceIds.length > 0 ? {
+                    connect: serviceIds.map((id) => ({ id }))
+                } : undefined,
+                categories: categoryIds && categoryIds.length > 0 ? {
+                    connect: categoryIds.map((id) => ({ id }))
+                } : undefined,
+                subscriptionServiceTiers: serviceTierIds && serviceTierIds.length > 0 ? {
+                    connect: serviceTierIds.map((id) => ({ id }))
+                } : undefined
+            },
+            include: { services: true, categories: true, subscriptionServiceTiers: true }
+        });
+        res.status(201).json(skill);
+    }
+    catch (err) {
+        console.error(err);
+        if (err.code === 'P2002') {
+            res.status(400).json({ error: 'A skill with this name already exists' });
+        }
+        else {
+            res.status(500).json({ error: 'Server error' });
+        }
+    }
+});
+// PUT /api/admin/skills/:id
+router.put('/skills/:id', async (req, res) => {
+    const id = req.params.id;
+    const { name, nameAr, nameFr, description, color, serviceIds, categoryIds, serviceTierIds } = req.body;
+    try {
+        const skill = await prisma_1.default.skill.update({
+            where: { id },
+            data: {
+                name,
+                nameAr: nameAr !== undefined ? nameAr : undefined,
+                nameFr: nameFr !== undefined ? nameFr : undefined,
+                description: description !== undefined ? description : undefined,
+                color: color !== undefined ? color : undefined,
+                services: serviceIds !== undefined ? {
+                    set: (serviceIds || []).map((id) => ({ id }))
+                } : undefined,
+                categories: categoryIds !== undefined ? {
+                    set: (categoryIds || []).map((id) => ({ id }))
+                } : undefined,
+                subscriptionServiceTiers: serviceTierIds !== undefined ? {
+                    set: (serviceTierIds || []).map((id) => ({ id }))
+                } : undefined
+            },
+            include: { services: true, categories: true, subscriptionServiceTiers: true }
+        });
+        res.json(skill);
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// DELETE /api/admin/skills/:id
+router.delete('/skills/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        await prisma_1.default.skill.delete({ where: { id } });
+        res.json({ success: true });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 exports.default = router;
+// Trigger reload for Prisma client regeneration updates.

@@ -7,7 +7,27 @@ const express_1 = require("express");
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const auth_1 = require("../middlewares/auth");
 const client_1 = require("@prisma/client");
+const firebaseAdmin_1 = require("../lib/firebaseAdmin");
 const router = (0, express_1.Router)();
+// Human-friendly status text used in push notification bodies.
+const STATUS_LABELS = {
+    PENDING: 'pending',
+    CALLED_NOT_PAID: 'awaiting payment',
+    CONFIRMED: 'confirmed',
+    IN_PROGRESS: 'in progress',
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled',
+};
+// Notify the order's customer that its status changed. Fire-and-forget so it
+// never blocks or fails the admin request.
+function notifyOrderStatus(userId, orderId, status) {
+    const label = STATUS_LABELS[status] ?? status.toLowerCase();
+    void (0, firebaseAdmin_1.sendPushToUser)(userId, {
+        title: 'Order update',
+        body: `Your order is now ${label}.`,
+        data: { type: 'order_status', orderId, status },
+    });
+}
 // Create new order
 router.post('/', auth_1.authenticateToken, async (req, res) => {
     const userId = req.user?.userId;
@@ -15,7 +35,7 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
         res.status(401).json({ error: 'User unauthorized' });
         return;
     }
-    const { serviceId, houseConfigId, categoryId, categoryServiceId, promoCode, extraWorkers, useMaterials, productOrigin, scheduledDate, address, latitude, longitude } = req.body;
+    const { serviceId, houseConfigId, categoryId, categoryServiceId, promoCode, extraWorkers, useMaterials, productOrigin, scheduledDate, address, latitude, longitude, sizeM2, clientNote, housePictures, isRapid } = req.body;
     if ((!serviceId && !categoryId) || (!houseConfigId && !categoryServiceId) || !scheduledDate || !address) {
         res.status(400).json({ error: 'Missing required fields' });
         return;
@@ -45,8 +65,9 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
                 return;
             }
             // 2. Compute dynamic base price
-            basePrice = houseConfig.basePrice;
-            extraWorkersPrice = workersCount * service.extraWorkerPrice;
+            basePrice = (isRapid === true || isRapid === 'true') ? houseConfig.rapidBasePrice : houseConfig.basePrice;
+            const extraPriceUnit = (isRapid === true || isRapid === 'true') ? (service.rapidExtraWorkerPrice ?? 0) : service.extraWorkerPrice;
+            extraWorkersPrice = workersCount * extraPriceUnit;
             materialsFlag = useMaterials === true || service.materialsMandatory;
             materialsPrice = materialsFlag ? service.materialPrice : 0;
             if (service.productsMandatory && origin === client_1.ProductOrigin.NONE) {
@@ -77,7 +98,7 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
                 return;
             }
             // 2. Compute category base price
-            basePrice = categoryService.basePrice;
+            basePrice = (isRapid === true || isRapid === 'true') ? categoryService.rapidBasePrice : categoryService.basePrice;
             materialsFlag = useMaterials === true || category.materialsMandatory;
             materialsPrice = materialsFlag ? category.materialPrice : 0;
             if (category.productsMandatory && origin === client_1.ProductOrigin.NONE) {
@@ -136,9 +157,13 @@ router.post('/', auth_1.authenticateToken, async (req, res) => {
                 totalPrice: calculatedTotal,
                 scheduledDate: new Date(scheduledDate),
                 address,
+                isRapid: isRapid === true || isRapid === 'true',
                 latitude: latitude ? parseFloat(latitude.toString()) : null,
                 longitude: longitude ? parseFloat(longitude.toString()) : null,
-                status: client_1.OrderStatus.PENDING
+                status: client_1.OrderStatus.PENDING,
+                sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null,
+                clientNote: clientNote || null,
+                housePictures: Array.isArray(housePictures) ? housePictures : []
             },
             include: {
                 service: true,
@@ -257,11 +282,18 @@ router.patch('/:id/status', auth_1.authenticateToken, async (req, res) => {
         const newStatus = status;
         if (role === 'ADMIN') {
             // Admin has full control
+            const dataToUpdate = { status: newStatus };
+            if (newStatus === client_1.OrderStatus.PENDING || newStatus === client_1.OrderStatus.CALLED_NOT_PAID) {
+                dataToUpdate.cleanerId = null;
+            }
             const updated = await prisma_1.default.order.update({
                 where: { id },
-                data: { status: newStatus },
+                data: dataToUpdate,
                 include: { service: true, houseConfig: true, category: true, categoryService: true }
             });
+            if (order.status !== newStatus) {
+                notifyOrderStatus(order.userId, id, newStatus);
+            }
             res.json(updated);
             return;
         }
@@ -274,8 +306,8 @@ router.patch('/:id/status', auth_1.authenticateToken, async (req, res) => {
                 res.status(400).json({ error: 'Customers can only cancel orders' });
                 return;
             }
-            if (order.status !== client_1.OrderStatus.PENDING) {
-                res.status(400).json({ error: 'Orders can only be cancelled while pending' });
+            if (order.status !== client_1.OrderStatus.PENDING && order.status !== client_1.OrderStatus.CALLED_NOT_PAID) {
+                res.status(400).json({ error: 'Orders can only be cancelled while pending or called but unpaid' });
                 return;
             }
             const updated = await prisma_1.default.order.update({
@@ -301,7 +333,7 @@ router.put('/:id', auth_1.authenticateToken, async (req, res) => {
         res.status(403).json({ error: 'Forbidden' });
         return;
     }
-    const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId } = req.body;
+    const { address, scheduledDate, cleanerId, extraWorkers, useMaterials, productOrigin, totalPrice, status, latitude, longitude, serviceId, houseConfigId, categoryId, categoryServiceId, sizeM2, clientNote, housePictures, isRapid } = req.body;
     try {
         const order = await prisma_1.default.order.findUnique({ where: { id } });
         if (!order) {
@@ -324,8 +356,11 @@ router.put('/:id', auth_1.authenticateToken, async (req, res) => {
             where: { id },
             data: {
                 ...(address !== undefined && { address }),
+                ...(isRapid !== undefined && { isRapid: isRapid === true || isRapid === 'true' }),
                 ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
-                ...(cleanerId !== undefined && { cleanerId }),
+                cleanerId: (status === 'PENDING' || status === 'CALLED_NOT_PAID')
+                    ? null
+                    : (cleanerId !== undefined ? cleanerId : undefined),
                 ...(extraWorkers !== undefined && { extraWorkers }),
                 ...(useMaterials !== undefined && { useMaterials }),
                 ...(productOrigin !== undefined && { productOrigin }),
@@ -337,6 +372,9 @@ router.put('/:id', auth_1.authenticateToken, async (req, res) => {
                 ...(categoryServiceId !== undefined && { categoryServiceId }),
                 ...(latitude !== undefined && { latitude: latitude ? parseFloat(latitude.toString()) : null }),
                 ...(longitude !== undefined && { longitude: longitude ? parseFloat(longitude.toString()) : null }),
+                ...(sizeM2 !== undefined && { sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null }),
+                ...(clientNote !== undefined && { clientNote: clientNote || null }),
+                ...(housePictures !== undefined && { housePictures: Array.isArray(housePictures) ? housePictures : [] }),
             },
             include: {
                 user: { select: { id: true, email: true, fullName: true, phone: true } },
@@ -348,6 +386,9 @@ router.put('/:id', auth_1.authenticateToken, async (req, res) => {
                 promo: true
             }
         });
+        if (status !== undefined && status !== order.status) {
+            notifyOrderStatus(order.userId, id, status);
+        }
         res.json(updated);
     }
     catch (err) {

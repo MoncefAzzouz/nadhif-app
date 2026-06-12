@@ -152,4 +152,64 @@ router.get('/me', auth_1.authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+// Update own profile (mobile client)
+router.put('/me', auth_1.authenticateToken, async (req, res) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        res.status(401).json({ error: 'User unauthorized' });
+        return;
+    }
+    const { fullName, email, phone } = req.body;
+    if (fullName !== undefined && !fullName.trim()) {
+        res.status(400).json({ error: 'Full name cannot be empty' });
+        return;
+    }
+    try {
+        const user = await prisma_1.default.user.update({
+            where: { id: userId },
+            data: {
+                ...(fullName !== undefined && { fullName: fullName.trim() }),
+                ...(email !== undefined && email.trim() && { email: email.trim() }),
+                ...(phone !== undefined && phone.trim() && { phone: phone.trim() }),
+            },
+        });
+        res.json(serializeUser(user));
+    }
+    catch (err) {
+        if (err?.code === 'P2002') {
+            res.status(409).json({ error: 'Email or phone already in use by another account' });
+            return;
+        }
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+// Delete self account (mobile client)
+router.delete('/delete-account', auth_1.authenticateToken, async (req, res) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        res.status(401).json({ error: 'User unauthorized' });
+        return;
+    }
+    try {
+        const user = await prisma_1.default.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+        await prisma_1.default.$transaction([
+            prisma_1.default.deviceToken.deleteMany({ where: { userId } }),
+            prisma_1.default.order.deleteMany({ where: { userId } }),
+            prisma_1.default.subscriptionSession.deleteMany({ where: { subscription: { userId } } }),
+            prisma_1.default.subscriptionPayment.deleteMany({ where: { subscription: { userId } } }),
+            prisma_1.default.subscription.deleteMany({ where: { userId } }),
+            prisma_1.default.user.delete({ where: { id: userId } }),
+        ]);
+        res.json({ success: true, message: 'Account deleted successfully' });
+    }
+    catch (err) {
+        console.error('Account self-deletion failed:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 exports.default = router;
