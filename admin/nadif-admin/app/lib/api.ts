@@ -102,6 +102,14 @@ export interface ApiHouseConfig {
   durationHours: number;
 }
 
+// Mobile details page content for a service/category (EN + AR/FR).
+export interface ServiceDetails {
+  objective?: string; objectiveAr?: string; objectiveFr?: string;
+  includes?: string[]; includesAr?: string[]; includesFr?: string[];
+  durationText?: string; durationTextAr?: string; durationTextFr?: string;
+  additional?: string; additionalAr?: string; additionalFr?: string;
+}
+
 export interface ApiService {
   id: string;
   name: string;
@@ -121,6 +129,7 @@ export interface ApiService {
   productsMandatory: boolean;
   isActive: boolean;
   createdAt: string;
+  details?: ServiceDetails | null;
   houseConfigs: ApiHouseConfig[];
 }
 
@@ -310,6 +319,7 @@ export interface ApiCategory {
   productsMandatory: boolean;
   isActive: boolean;
   createdAt: string;
+  details?: ServiceDetails | null;
   categoryServices: ApiCategoryService[];
 }
 
@@ -381,6 +391,14 @@ export const pagesApi = {
     get: () => apiFetch<ApiAboutUs | null>('/api/pages/about', {}, false),
     update: (data: ApiAboutUs) =>
       apiFetch<ApiAboutUs>('/api/admin/pages/about', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+  subscriptionDetails: {
+    get: () => apiFetch<ServiceDetails | null>('/api/pages/subscription-details', {}, false),
+    update: (data: ServiceDetails) =>
+      apiFetch<ServiceDetails>('/api/admin/pages/subscription-details', {
         method: 'POST',
         body: JSON.stringify(data),
       }),

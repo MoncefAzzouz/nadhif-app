@@ -27,7 +27,7 @@ import {
   Lock,
   Layers
 } from 'lucide-react';
-import { servicesApi, uploadImage, imgUrl, type ApiService as Service, type ApiHouseConfig as HouseConfig } from '../../lib/api';
+import { servicesApi, uploadImage, imgUrl, type ApiService as Service, type ApiHouseConfig as HouseConfig, type ServiceDetails } from '../../lib/api';
 
 // Local mock removed in favor of API
 
@@ -50,6 +50,30 @@ export default function ServicesPage() {
   const [description, setDescription] = useState('');
   const [descriptionFr, setDescriptionFr] = useState('');
   const [descriptionAr, setDescriptionAr] = useState('');
+
+  // Mobile details page content (objective/includes/duration/additional, EN+FR+AR)
+  const emptyDetailsForm = {
+    objective: '', objectiveFr: '', objectiveAr: '',
+    includes: '', includesFr: '', includesAr: '',
+    durationText: '', durationTextFr: '', durationTextAr: '',
+    additional: '', additionalFr: '', additionalAr: '',
+  };
+  const [detailsForm, setDetailsForm] = useState({ ...emptyDetailsForm });
+  const detailsFromApi = (d?: ServiceDetails | null) => ({
+    objective: d?.objective || '', objectiveFr: d?.objectiveFr || '', objectiveAr: d?.objectiveAr || '',
+    includes: (d?.includes || []).join('\n'), includesFr: (d?.includesFr || []).join('\n'), includesAr: (d?.includesAr || []).join('\n'),
+    durationText: d?.durationText || '', durationTextFr: d?.durationTextFr || '', durationTextAr: d?.durationTextAr || '',
+    additional: d?.additional || '', additionalFr: d?.additionalFr || '', additionalAr: d?.additionalAr || '',
+  });
+  const splitLines = (s: string) => s.split('\n').map(l => l.trim()).filter(Boolean);
+  const detailsToApi = (): ServiceDetails => ({
+    objective: detailsForm.objective.trim(), objectiveFr: detailsForm.objectiveFr.trim(), objectiveAr: detailsForm.objectiveAr.trim(),
+    includes: splitLines(detailsForm.includes), includesFr: splitLines(detailsForm.includesFr), includesAr: splitLines(detailsForm.includesAr),
+    durationText: detailsForm.durationText.trim(), durationTextFr: detailsForm.durationTextFr.trim(), durationTextAr: detailsForm.durationTextAr.trim(),
+    additional: detailsForm.additional.trim(), additionalFr: detailsForm.additionalFr.trim(), additionalAr: detailsForm.additionalAr.trim(),
+  });
+  const setDetail = (key: keyof typeof emptyDetailsForm, val: string) =>
+    setDetailsForm(prev => ({ ...prev, [key]: val }));
   const [formLangTab, setFormLangTab] = useState<'en' | 'fr' | 'ar'>('en');
   const [pictureBase64, setPictureBase64] = useState('');
   const [extraWorkerPrice, setExtraWorkerPrice] = useState<number>(0);
@@ -145,6 +169,7 @@ export default function ServicesPage() {
     setDescription('');
     setDescriptionFr('');
     setDescriptionAr('');
+    setDetailsForm({ ...emptyDetailsForm });
     setFormLangTab('en');
     setPictureBase64('');
     setExtraWorkerPrice(1000);
@@ -185,6 +210,7 @@ export default function ServicesPage() {
     setDescription(service.description);
     setDescriptionFr(service.descriptionFr || '');
     setDescriptionAr(service.descriptionAr || '');
+    setDetailsForm(detailsFromApi(service.details));
     setFormLangTab('en');
     setPictureBase64(service.picture);
     setExtraWorkerPrice(service.extraWorkerPrice);
@@ -367,6 +393,7 @@ export default function ServicesPage() {
           localProductPrice,
           importedProductPrice,
           productsMandatory,
+          details: detailsToApi(),
           isActive 
         };
         const updated = await servicesApi.update(editingService.id, payload);
@@ -390,6 +417,7 @@ export default function ServicesPage() {
           localProductPrice,
           importedProductPrice,
           productsMandatory,
+          details: detailsToApi(),
           isActive
         };
         const created = await servicesApi.create(payload);
@@ -1401,6 +1429,49 @@ export default function ServicesPage() {
                       </div>
                     </>
                   )}
+
+                  {/* Mobile Details Page Content */}
+                  <div className="space-y-4 border border-slate-200 rounded-2xl p-5 bg-slate-50/40">
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">
+                      📱 Mobile Details Page (shown on the app's service page)
+                    </p>
+                    {([
+                      { label: 'Objective', en: 'objective', fr: 'objectiveFr', ar: 'objectiveAr', rows: 2, hint: 'Goal of the service...' },
+                      { label: 'Service Includes (one per line)', en: 'includes', fr: 'includesFr', ar: 'includesAr', rows: 4, hint: 'Deep cleaning of floors\nKitchen cleaning...' },
+                      { label: 'Duration Text', en: 'durationText', fr: 'durationTextFr', ar: 'durationTextAr', rows: 1, hint: 'e.g. 7 hours' },
+                      { label: 'Additional Info', en: 'additional', fr: 'additionalFr', ar: 'additionalAr', rows: 2, hint: 'Extra notes shown at the bottom...' },
+                    ] as const).map(group => (
+                      <div key={group.en} className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 pl-2">
+                          {group.label}
+                        </label>
+                        <textarea
+                          rows={group.rows}
+                          placeholder={group.hint}
+                          value={detailsForm[group.en]}
+                          onChange={(e) => setDetail(group.en, e.target.value)}
+                          className="w-full px-5 py-3 bg-white rounded-2xl border border-slate-200 focus:border-primary/30 outline-none font-semibold text-slate-800 text-sm placeholder-slate-300 transition-all resize-none"
+                        />
+                        <div className="grid grid-cols-2 gap-3">
+                          <textarea
+                            rows={group.rows}
+                            placeholder="Français (optionnel)"
+                            value={detailsForm[group.fr]}
+                            onChange={(e) => setDetail(group.fr, e.target.value)}
+                            className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-200 focus:border-primary/30 outline-none font-semibold text-slate-700 text-xs placeholder-slate-300 transition-all resize-none"
+                          />
+                          <textarea
+                            rows={group.rows}
+                            dir="rtl"
+                            placeholder="العربية (اختياري)"
+                            value={detailsForm[group.ar]}
+                            onChange={(e) => setDetail(group.ar, e.target.value)}
+                            className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-200 focus:border-primary/30 outline-none font-semibold text-slate-700 text-xs placeholder-slate-300 transition-all resize-none text-right"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
                   {/* Pricing and Details Grid */}
                   <div className="grid grid-cols-3 gap-4">

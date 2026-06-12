@@ -20,9 +20,10 @@ import {
   CheckCircle,
   Eye,
   FileText,
-  MessageSquare
+  MessageSquare,
+  Layers
 } from 'lucide-react';
-import { pagesApi, type ApiFaq as FAQItem, type ApiAboutUs as AboutUsData } from '../../lib/api';
+import { pagesApi, type ApiFaq as FAQItem, type ApiAboutUs as AboutUsData , type ServiceDetails } from '../../lib/api';
 
 // Initial Seeds
 const DEFAULT_FAQS: Omit<FAQItem, 'id' | 'createdAt'>[] = [
@@ -72,10 +73,18 @@ const DEFAULT_ABOUT: AboutUsData = {
 };
 
 export default function PagesManager() {
-  const [activeTab, setActiveTab] = useState<'help' | 'privacy' | 'about'>('help');
+  const [activeTab, setActiveTab] = useState<'help' | 'privacy' | 'about' | 'subscription'>('help');
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [privacyPolicy, setPrivacyPolicy] = useState('');
   const [aboutData, setAboutData] = useState<AboutUsData | null>(null);
+  // Subscription Pack mobile-details content (shown on the app's subscription page)
+  const emptySubDetails: ServiceDetails = {
+    objective: '', objectiveFr: '', objectiveAr: '',
+    includes: [], includesFr: [], includesAr: [],
+    durationText: '', durationTextFr: '', durationTextAr: '',
+    additional: '', additionalFr: '', additionalAr: '',
+  };
+  const [subDetails, setSubDetails] = useState<ServiceDetails>(emptySubDetails);
   const [isLoaded, setIsLoaded] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -125,6 +134,10 @@ export default function PagesManager() {
           about = await pagesApi.about.update(DEFAULT_ABOUT);
         }
         setAboutData(about);
+
+        // Fetch Subscription Pack details (may be empty until first save)
+        const sub = await pagesApi.subscriptionDetails.get();
+        if (sub) setSubDetails({ ...emptySubDetails, ...sub });
 
       } catch (err) {
         console.error('Failed to load page configurations from backend: ', err);
@@ -211,6 +224,18 @@ export default function PagesManager() {
     }
   };
 
+  // Save Subscription Pack details
+  const handleSaveSubscription = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const updated = await pagesApi.subscriptionDetails.update(subDetails);
+      setSubDetails({ ...emptySubDetails, ...updated });
+      triggerToast("📦 Subscription Pack details updated!");
+    } catch (err: any) {
+      alert('Failed to save Subscription details: ' + (err.message || err));
+    }
+  };
+
   const triggerToast = (msg: string) => {
     setSuccessToast(msg);
     setTimeout(() => setSuccessToast(null), 3000);
@@ -252,7 +277,8 @@ export default function PagesManager() {
         {[
           { id: 'help', label: "Centre d'aide", icon: HelpCircle },
           { id: 'privacy', label: "Confidentialité", icon: ShieldAlert },
-          { id: 'about', label: "À propos de Nadhif", icon: Info }
+          { id: 'about', label: "À propos de Nadhif", icon: Info },
+          { id: 'subscription', label: "Pack Abonnement", icon: Layers }
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -601,6 +627,72 @@ export default function PagesManager() {
                     >
                       <Save size={14} />
                       Update Profile Parameters
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+
+              {activeTab === 'subscription' && (
+                <motion.div
+                  key="subscription"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-xl shadow-slate-100/50"
+                >
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-1">Subscription Pack — Mobile Details</h3>
+                  <p className="text-[10px] font-bold text-slate-400 mb-6">Content shown on the app's subscription description page (Objective, Includes, Duration, Additional).</p>
+                  <form onSubmit={handleSaveSubscription} className="space-y-5">
+                    {([
+                      { label: 'Objective', en: 'objective', fr: 'objectiveFr', ar: 'objectiveAr', rows: 2, list: false },
+                      { label: 'Includes (one per line)', en: 'includes', fr: 'includesFr', ar: 'includesAr', rows: 4, list: true },
+                      { label: 'Duration Text', en: 'durationText', fr: 'durationTextFr', ar: 'durationTextAr', rows: 1, list: false },
+                      { label: 'Additional Info', en: 'additional', fr: 'additionalFr', ar: 'additionalAr', rows: 2, list: false },
+                    ] as const).map(group => {
+                      const read = (k: keyof ServiceDetails) => {
+                        const v = subDetails[k];
+                        return Array.isArray(v) ? v.join('\n') : (v || '');
+                      };
+                      const write = (k: keyof ServiceDetails, val: string) =>
+                        setSubDetails(prev => ({
+                          ...prev,
+                          [k]: group.list ? val.split('\n') : val,
+                        }));
+                      return (
+                        <div key={group.en} className="space-y-2">
+                          <label className="block text-[9px] font-black uppercase text-slate-400">{group.label}</label>
+                          <textarea
+                            rows={group.rows}
+                            value={read(group.en)}
+                            onChange={(e) => write(group.en, e.target.value)}
+                            className="w-full px-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl text-xs font-bold text-slate-800 focus:bg-white focus:border-primary/20 outline-none transition-all resize-none"
+                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <textarea
+                              rows={group.rows}
+                              placeholder="Français (optionnel)"
+                              value={read(group.fr)}
+                              onChange={(e) => write(group.fr, e.target.value)}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-transparent rounded-xl text-[11px] font-bold text-slate-700 focus:bg-white focus:border-primary/20 outline-none transition-all resize-none"
+                            />
+                            <textarea
+                              rows={group.rows}
+                              dir="rtl"
+                              placeholder="العربية (اختياري)"
+                              value={read(group.ar)}
+                              onChange={(e) => write(group.ar, e.target.value)}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-transparent rounded-xl text-[11px] font-bold text-slate-700 focus:bg-white focus:border-primary/20 outline-none transition-all resize-none text-right"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="submit"
+                      className="w-full py-4.5 bg-primary text-white rounded-2xl font-black uppercase tracking-wider text-[10px] shadow-lg shadow-primary/20 hover:scale-101 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Save size={14} />
+                      Save Subscription Details
                     </button>
                   </form>
                 </motion.div>
