@@ -162,6 +162,45 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Resp
   }
 });
 
+// Update own profile (mobile client)
+router.put('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({ error: 'User unauthorized' });
+    return;
+  }
+
+  const { fullName, email, phone } = req.body as {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+  };
+
+  if (fullName !== undefined && !fullName.trim()) {
+    res.status(400).json({ error: 'Full name cannot be empty' });
+    return;
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(fullName !== undefined && { fullName: fullName.trim() }),
+        ...(email !== undefined && email.trim() && { email: email.trim() }),
+        ...(phone !== undefined && phone.trim() && { phone: phone.trim() }),
+      },
+    });
+    res.json(serializeUser(user));
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      res.status(409).json({ error: 'Email or phone already in use by another account' });
+      return;
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete self account (mobile client)
 router.delete('/delete-account', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
