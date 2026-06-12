@@ -432,11 +432,7 @@ class _HomePageState extends State<HomePage>
           bgColor: ColorApp.tintMint,
           imageUrl: 'assets/images/pack.png',
           isNew: true,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const SubscriptionsPage()),
-          ),
+          onTap: _openSubscriptionFlow,
         ),
         _RecommendedCardData(
           title: l10n.acServices,
@@ -446,6 +442,22 @@ class _HomePageState extends State<HomePage>
           imageUrl: MediaRes.acRepairIcon,
         ),
       ];
+
+  /// Subscription card flow: description page -> property selection ->
+  /// subscription booking (Booking Details style).
+  void _openSubscriptionFlow() {
+    final l10n = AppLocalizations.of(context)!;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiceDetailsPage(
+          serviceName: l10n.subscriptionPack,
+          serviceImage: 'assets/images/pack.png',
+          isSubscription: true,
+        ),
+      ),
+    );
+  }
 
   void _openServiceDetails(AppService service, String localeCode) {
     Navigator.push(
@@ -503,10 +515,7 @@ class _HomePageState extends State<HomePage>
       bgColor: nextTint(),
       imageUrl: 'assets/images/pack.png',
       isNew: true,
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const SubscriptionsPage()),
-      ),
+      onTap: _openSubscriptionFlow,
     ));
 
     return cards;

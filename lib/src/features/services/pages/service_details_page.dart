@@ -30,6 +30,10 @@ class ServiceDetailsPage extends StatefulWidget {
   final IconData? serviceIcon;
   final bool fromRecommendation;
 
+  /// Subscription flow: Continue goes to property selection and then the
+  /// subscription booking page.
+  final bool isSubscription;
+
   const ServiceDetailsPage({
     super.key,
     required this.serviceName,
@@ -38,6 +42,7 @@ class ServiceDetailsPage extends StatefulWidget {
     this.serviceImage,
     this.serviceIcon,
     this.fromRecommendation = false,
+    this.isSubscription = false,
   });
 
   @override
@@ -446,7 +451,19 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                   top: false,
                   child: GestureDetector(
                     onTap: () {
-                      if (widget.fromRecommendation) {
+                      if (widget.isSubscription) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PropertySelectionPage(
+                              serviceName: widget.serviceName,
+                              serviceImage: widget.serviceImage,
+                              serviceIcon: widget.serviceIcon,
+                              isSubscription: true,
+                            ),
+                          ),
+                        );
+                      } else if (widget.fromRecommendation) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(

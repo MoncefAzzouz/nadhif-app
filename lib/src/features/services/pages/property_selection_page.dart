@@ -1,6 +1,7 @@
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
+import 'package:cleanapp/src/features/subscriptions/pages/subscription_booking_page.dart';
 import 'package:flutter/material.dart';
 
 class PropertyItem {
@@ -17,6 +18,10 @@ class PropertySelectionPage extends StatefulWidget {
   final String? serviceImage;
   final IconData? serviceIcon;
 
+  /// When true, "Next" continues into the subscription booking flow instead
+  /// of the one-time service booking.
+  final bool isSubscription;
+
   const PropertySelectionPage({
     super.key,
     required this.serviceName,
@@ -24,6 +29,7 @@ class PropertySelectionPage extends StatefulWidget {
     this.category,
     this.serviceImage,
     this.serviceIcon,
+    this.isSubscription = false,
   });
 
   @override
@@ -222,14 +228,21 @@ class _PropertySelectionPageState extends State<PropertySelectionPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ServiceBookingPage(
-                                  serviceName: widget.serviceName,
-                                  service: widget.service,
-                                  category: widget.category,
-                                  serviceImage: widget.serviceImage,
-                                  serviceIcon: widget.serviceIcon,
-                                  selectedPropertyType: _selectedProperty,
-                                ),
+                                builder: (context) => widget.isSubscription
+                                    ? SubscriptionBookingPage(
+                                        serviceName: widget.serviceName,
+                                        propertyTypeName: _selectedProperty,
+                                        serviceImage: widget.serviceImage,
+                                      )
+                                    : ServiceBookingPage(
+                                        serviceName: widget.serviceName,
+                                        service: widget.service,
+                                        category: widget.category,
+                                        serviceImage: widget.serviceImage,
+                                        serviceIcon: widget.serviceIcon,
+                                        selectedPropertyType:
+                                            _selectedProperty,
+                                      ),
                               ),
                             );
                           },
