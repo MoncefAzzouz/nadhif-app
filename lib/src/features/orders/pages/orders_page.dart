@@ -90,11 +90,57 @@ class _OrdersPageState extends State<OrdersPage> {
 
   bool _isFinished(String? status) => status == 'COMPLETED' || status == 'CANCELLED';
 
+  Future<void> _cancelOrder(ActiveOrder order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Cancel this order?',
+            style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Text('${order.title} will be cancelled. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep order'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Cancel order',
+                style: TextStyle(
+                    color: Color(0xFFDC2626), fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await locator<OrdersApiService>().cancelOrder(order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Order cancelled'),
+          backgroundColor: ColorApp.primary,
+        ),
+      );
+      _loadOrders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    }
+  }
+
   ActiveOrder _toActiveOrder(Map<String, dynamic> order) {
     final service = order['service'] as Map<String, dynamic>?;
     final category = order['category'] as Map<String, dynamic>?;
     final status = order['status'] as String? ?? 'PENDING';
     return ActiveOrder(
+      id: order['id'] as String? ?? '',
       title: (service?['name'] ?? category?['name'] ?? 'Cleaning Service') as String,
       subtitle: DateFormat('MMM d, h:mm a').format(DateTime.parse(order['scheduledDate'] as String).toLocal()),
       status: status.replaceAll('_', ' '),
@@ -308,7 +354,10 @@ class _OrdersPageState extends State<OrdersPage> {
           itemBuilder: (context, index) => Padding(
             padding: EdgeInsets.only(
                 bottom: index == _activeOrders.length - 1 ? 0 : 20),
-            child: _ActiveOrderCard(order: _activeOrders[index]),
+            child: _ActiveOrderCard(
+              order: _activeOrders[index],
+              onCancel: _cancelOrder,
+            ),
           ),
         );
       case OrderFilter.scheduled:
@@ -355,7 +404,8 @@ class _OrderThumb extends StatelessWidget {
 
 class _ActiveOrderCard extends StatelessWidget {
   final ActiveOrder order;
-  const _ActiveOrderCard({required this.order});
+  final void Function(ActiveOrder)? onCancel;
+  const _ActiveOrderCard({required this.order, this.onCancel});
 
   @override
   Widget build(BuildContext context) {
@@ -425,12 +475,38 @@ class _ActiveOrderCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     color: ColorApp.textBlack),
               ),
-              Text(
-                '${(order.progress * 100).toInt()}%',
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: ColorApp.primary),
+              Row(
+                children: [
+                  if (order.canCancel && onCancel != null) ...[
+                    GestureDetector(
+                      onTap: () => onCancel!(order),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Text(
+                    '${(order.progress * 100).toInt()}%',
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: ColorApp.primary),
+                  ),
+                ],
               ),
             ],
           ),

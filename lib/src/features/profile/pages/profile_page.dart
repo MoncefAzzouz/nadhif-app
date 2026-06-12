@@ -5,6 +5,7 @@ import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
 import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
+import 'package:cleanapp/src/features/pages/pages_screens.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/personal_info_page.dart';
 import 'package:flutter/material.dart';
@@ -228,9 +229,35 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 10),
 
               _buildSectionTitle(context, l10n.support),
-              _buildMenuItem(context, Icons.help_outline_rounded, l10n.helpCenter),
-              _buildMenuItem(context, Icons.privacy_tip_outlined, l10n.privacyPolicy),
-              _buildMenuItem(context, Icons.info_outline_rounded, l10n.aboutNadhif),
+              _buildMenuItem(
+                context,
+                Icons.help_outline_rounded,
+                l10n.helpCenter,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const HelpCenterPage()),
+                ),
+              ),
+              _buildMenuItem(
+                context,
+                Icons.privacy_tip_outlined,
+                l10n.privacyPolicy,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const PrivacyPolicyPage()),
+                ),
+              ),
+              _buildMenuItem(
+                context,
+                Icons.info_outline_rounded,
+                l10n.aboutNadhif,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AboutPage()),
+                ),
+              ),
 
               const SizedBox(height: 10),
 

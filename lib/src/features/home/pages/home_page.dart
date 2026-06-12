@@ -98,6 +98,51 @@ class _HomePageState extends State<HomePage>
     }
   }
 
+  /// Opens the service/category named by the slide's actionRoute, if any.
+  Future<void> _openSlide(AppSlide slide) async {
+    final route = slide.actionRoute.trim().toLowerCase();
+    if (route.isEmpty) return;
+    final localeCode = Localizations.localeOf(context).languageCode;
+
+    for (final category in _backendCategories) {
+      if (category.name.toLowerCase() == route) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServiceDetailsPage(
+              serviceName: category.nameFor(localeCode),
+              category: category,
+              serviceImage: category.picture,
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    try {
+      final services = await locator<ServicesApiService>().getServices();
+      if (!mounted) return;
+      for (final service in services) {
+        if (service.name.toLowerCase() == route) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ServiceDetailsPage(
+                serviceName: service.nameFor(localeCode),
+                service: service,
+                serviceImage: service.picture,
+              ),
+            ),
+          );
+          return;
+        }
+      }
+    } catch (_) {
+      // No matching target: the slide stays a plain banner.
+    }
+  }
+
   Future<void> _loadProfile() async {
     try {
       final profile = await widget.profileRepository.getCurrentUser();
@@ -341,8 +386,11 @@ class _HomePageState extends State<HomePage>
         controller: _heroPageController,
         onPageChanged: (index) => _currentHeroIndex = index,
         itemCount: _heroSources.length,
-        itemBuilder: (context, index) =>
-            _BannerOnlyCard(imagePath: _heroSources[index]),
+        itemBuilder: (context, index) => GestureDetector(
+          // Backend slides can deep-link to a service via actionRoute.
+          onTap: _slides.isNotEmpty ? () => _openSlide(_slides[index]) : null,
+          child: _BannerOnlyCard(imagePath: _heroSources[index]),
+        ),
       ),
     );
   }
@@ -392,10 +440,11 @@ class _HomePageState extends State<HomePage>
     // "Our services" on the home page shows only what the admin adds at
     // /admin/categories (backend categories). Items from /admin/services are
     // intentionally excluded here.
+    final localeCode = Localizations.localeOf(context).languageCode;
     final tiles = _backendCategories
         .map(
           (category) => _ServiceTile(
-            name: category.name,
+            name: category.nameFor(localeCode),
             image: category.picture,
             icon: Icons.category_rounded,
             category: category,

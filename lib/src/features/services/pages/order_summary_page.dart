@@ -60,10 +60,13 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   bool _isBookingConfigExpanded = false;
   final List<String> _selectedPhotos = [];
   final TextEditingController _notesController = TextEditingController();
+  late final TextEditingController _addressController =
+      TextEditingController(text: widget.address);
 
   @override
   void dispose() {
     _notesController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -360,6 +363,17 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       return;
     }
 
+    final address = _addressController.text.trim();
+    if (address.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your service address'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
       final clientNote = _notesController.text.trim();
@@ -373,7 +387,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           useMaterials: widget.needMaterials,
           materialType: widget.materialType,
           scheduledDate: widget.scheduledDate,
-          address: widget.address,
+          address: address,
           promoCode: _appliedPromo,
           clientNote: clientNote,
           housePictures: housePictures,
@@ -385,7 +399,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           useMaterials: widget.needMaterials,
           materialType: widget.materialType,
           scheduledDate: widget.scheduledDate,
-          address: widget.address,
+          address: address,
           promoCode: _appliedPromo,
           clientNote: clientNote,
           housePictures: housePictures,
@@ -490,13 +504,26 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                                   style: TextStyle(fontSize: 12, color: ColorApp.textGrey, fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  widget.address,
+                                TextField(
+                                  controller: _addressController,
+                                  minLines: 1,
+                                  maxLines: 3,
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: ColorApp.textBlack,
                                     height: 1.4,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: "Enter your full address...",
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    border: InputBorder.none,
                                   ),
                                 ),
                               ],

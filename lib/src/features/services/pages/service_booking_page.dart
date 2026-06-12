@@ -144,10 +144,12 @@ class _ServiceBookingView extends StatelessWidget {
                         ],
                         BlocBuilder<BookingCubit, BookingState>(
                           buildWhen: (a, b) =>
-                              a.selectedDate != b.selectedDate,
+                              a.selectedDate != b.selectedDate ||
+                              a.lockedDays != b.lockedDays,
                           builder: (context, state) => _DateSection(
                             selectedDate: state.selectedDate,
                             weekDays: _weekDays,
+                            isLocked: state.isDateLocked,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -349,7 +351,12 @@ class _SectionHeader extends StatelessWidget {
 class _DateSection extends StatelessWidget {
   final DateTime selectedDate;
   final List<String> weekDays;
-  const _DateSection({required this.selectedDate, required this.weekDays});
+  final bool Function(DateTime) isLocked;
+  const _DateSection({
+    required this.selectedDate,
+    required this.weekDays,
+    required this.isLocked,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -369,22 +376,29 @@ class _DateSection extends StatelessWidget {
               final date = now.add(Duration(days: index + 1));
               final isSelected = selectedDate.day == date.day &&
                   selectedDate.month == date.month;
+              final locked = isLocked(date);
               return GestureDetector(
-                onTap: () =>
-                    context.read<BookingCubit>().selectDate(date),
+                onTap: locked
+                    ? null // admin-locked day: not selectable
+                    : () => context.read<BookingCubit>().selectDate(date),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   width: 62,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
-                    color: isSelected ? ColorApp.primary : Colors.white,
+                    color: locked
+                        ? ColorApp.softGrey
+                        : isSelected
+                            ? ColorApp.primary
+                            : Colors.white,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                        color: isSelected
+                        color: isSelected && !locked
                             ? Colors.transparent
                             : ColorApp.greyBorder,
                         width: 1.5),
-                    boxShadow: isSelected ? AppShadows.primaryGlow() : null,
+                    boxShadow:
+                        isSelected && !locked ? AppShadows.primaryGlow() : null,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -394,21 +408,28 @@ class _DateSection extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          color: isSelected
-                              ? Colors.white.withValues(alpha: 0.78)
-                              : ColorApp.textGrey,
+                          color: locked
+                              ? ColorApp.textGrey.withValues(alpha: 0.4)
+                              : isSelected
+                                  ? Colors.white.withValues(alpha: 0.78)
+                                  : ColorApp.textGrey,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        date.day.toString().padLeft(2, '0'),
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color:
-                              isSelected ? Colors.white : ColorApp.textBlack,
-                        ),
-                      ),
+                      locked
+                          ? Icon(Icons.lock_rounded,
+                              size: 16,
+                              color: ColorApp.textGrey.withValues(alpha: 0.4))
+                          : Text(
+                              date.day.toString().padLeft(2, '0'),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: isSelected
+                                    ? Colors.white
+                                    : ColorApp.textBlack,
+                              ),
+                            ),
                     ],
                   ),
                 ),
@@ -466,7 +487,8 @@ class _HouseTypeSection extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      _label(config.type),
+                      _label(config.typeFor(
+                          Localizations.localeOf(context).languageCode)),
                       style: TextStyle(
                         color: isSelected ? Colors.white : ColorApp.textBlack,
                         fontSize: 15,
@@ -1142,11 +1164,12 @@ class _BottomAction extends StatelessWidget {
           houseConfigId: state.selectedHouseConfigId,
           categoryId: category?.id,
           categoryServiceId: category?.defaultCategoryService?.id,
-          scheduledDate: state.selectedDate,
+          // Date with the selected slot's time merged in (not midnight).
+          scheduledDate: state.scheduledDateTime,
           date: '${state.selectedDate.day}/${state.selectedDate.month}/${state.selectedDate.year}',
           time: state.selectedTimeSlot,
-          address:
-              'Hsh jshs, jzjx, x d, Jasim Bin Mohammed Street, 774905514',
+          // Entered/confirmed by the user on the summary page.
+          address: '',
           frequency: 'One time schedule',
           duration: state.selectedHours,
           cleaners: state.selectedCleaners,

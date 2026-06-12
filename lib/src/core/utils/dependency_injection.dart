@@ -5,6 +5,7 @@ import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
 import 'package:cleanapp/src/features/notifications/data/notifications_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
+import 'package:cleanapp/src/features/pages/data/pages_api_service.dart';
 import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
 import 'package:dio/dio.dart';
@@ -59,6 +60,7 @@ void setupLocator() {
   locator.registerLazySingleton<ServicesApiService>(() => ServicesApiService());
   locator.registerLazySingleton<OrdersApiService>(() => OrdersApiService());
   locator.registerLazySingleton<SlidesApiService>(() => SlidesApiService());
+  locator.registerLazySingleton<PagesApiService>(() => PagesApiService());
   locator.registerLazySingleton<NotificationsApiService>(
     () => NotificationsApiService(),
   );

@@ -84,14 +84,15 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
         },
       ];
 
-  List<Map<String, dynamic>> _mapBackendServices(AppLocalizations l10n) {
+  List<Map<String, dynamic>> _mapBackendServices(
+      AppLocalizations l10n, String localeCode) {
     final serviceItems = _backendServices.map((service) {
       final config = service.defaultHouseConfig;
       return {
-        "name": service.name,
+        "name": service.nameFor(localeCode),
         "icon": Icons.cleaning_services_rounded,
         "image": service.picture,
-        "desc": service.description,
+        "desc": service.descriptionFor(localeCode),
         "category": l10n.cleaning,
         "price": l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
         "backendService": service,
@@ -101,10 +102,10 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
     final categoryItems = _backendCategories.map((category) {
       final config = category.defaultCategoryService;
       return {
-        "name": category.name,
+        "name": category.nameFor(localeCode),
         "icon": Icons.category_rounded,
         "image": category.picture,
-        "desc": category.description,
+        "desc": category.descriptionFor(localeCode),
         "category": "Categories",
         "price":
             l10n.fromPrice("DA ${(config?.basePrice ?? 0).toStringAsFixed(0)}"),
@@ -164,9 +165,12 @@ class _ServicesPageState extends State<ServicesPage> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final localeCode = Localizations.localeOf(context).languageCode;
     final hasBackendData =
         _backendServices.isNotEmpty || _backendCategories.isNotEmpty;
-    final services = hasBackendData ? _mapBackendServices(l10n) : _getServices(l10n);
+    final services = hasBackendData
+        ? _mapBackendServices(l10n, localeCode)
+        : _getServices(l10n);
     final categories = hasBackendData
         ? [
             l10n.all,

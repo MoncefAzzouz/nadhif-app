@@ -210,7 +210,9 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final backendDesc = widget.service?.description ?? widget.category?.description;
+    final localeCode = Localizations.localeOf(context).languageCode;
+    final backendDesc = widget.service?.descriptionFor(localeCode) ??
+        widget.category?.descriptionFor(localeCode);
     final details = _getDetailsForService(widget.serviceName, backendDesc);
     final houseConfigs = widget.service?.houseConfigs ?? const <AppHouseConfig>[];
     final hasHouseConfigs = houseConfigs.isNotEmpty;
@@ -586,7 +588,10 @@ class _HouseLayoutSectionState extends State<_HouseLayoutSection> {
                   ),
                   child: Center(
                     child: Text(
-                      config.type.toUpperCase(),
+                      config
+                          .typeFor(
+                              Localizations.localeOf(context).languageCode)
+                          .toUpperCase(),
                       style: TextStyle(
                         color: isSelected ? Colors.white : ColorApp.textBlack,
                         fontSize: 15,

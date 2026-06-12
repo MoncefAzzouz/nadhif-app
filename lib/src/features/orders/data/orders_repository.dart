@@ -1,4 +1,5 @@
 class ActiveOrder {
+  final String id;
   final String title;
   final String subtitle;
   final String status;
@@ -7,6 +8,7 @@ class ActiveOrder {
   final double price;
 
   const ActiveOrder({
+    this.id = '',
     required this.title,
     required this.subtitle,
     required this.status,
@@ -14,6 +16,10 @@ class ActiveOrder {
     required this.imageUrl,
     required this.price,
   });
+
+  /// Customers may only cancel before the order is confirmed (backend rule).
+  bool get canCancel =>
+      id.isNotEmpty && (status == 'PENDING' || status == 'CALLED NOT PAID');
 }
 
 class ScheduledOrder {

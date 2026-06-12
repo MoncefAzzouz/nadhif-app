@@ -90,6 +90,19 @@ class OrdersApiService extends BaseApiService {
     }
   }
 
+  /// Cancels the customer's own order (allowed while PENDING/CALLED_NOT_PAID).
+  Future<void> cancelOrder(String orderId) async {
+    try {
+      await dio.patch(
+        '/api/orders/$orderId/status',
+        data: {'status': 'CANCELLED'},
+      );
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to cancel order');
+    }
+  }
+
   /// Uploads one image file (multipart) and returns its server path
   /// (e.g. /uploads/<name>.jpg) for use in housePictures.
   Future<String> uploadImage(String filePath) async {
