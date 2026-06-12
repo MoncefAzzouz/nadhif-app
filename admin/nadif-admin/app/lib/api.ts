@@ -448,6 +448,7 @@ export interface ApiSubscriptionPropertyType {
   name: string;
   nameAr: string;
   nameFr: string;
+  picture?: string;
   isActive: boolean;
   createdAt: string;
 }
