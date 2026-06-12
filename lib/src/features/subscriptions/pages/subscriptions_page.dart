@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/subscriptions/data/subscriptions_api_service.dart';
+import 'package:cleanapp/src/features/subscriptions/pages/subscription_detail_page.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// Subscription packs: shows the customer's existing subscriptions and a
 /// request form (property type, tier, size, rooms, days/week, address).
@@ -27,6 +32,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
   final _surfaceController = TextEditingController();
   final _roomsController = TextEditingController();
   final _addressController = TextEditingController();
+  final List<String> _photos = [];
 
   static const Map<String, Color> _statusColors = {
     'PENDING': Color(0xFFF59E0B),
@@ -82,6 +88,46 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
     }
   }
 
+  Future<void> _pickPhoto() async {
+    if (_photos.length >= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Maximum of 3 photos allowed'),
+        backgroundColor: ColorApp.primary,
+      ));
+      return;
+    }
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 1280,
+      );
+      if (image != null && mounted) {
+        setState(() => _photos.add(image.path));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to pick image: $e'),
+        backgroundColor: Colors.red,
+      ));
+    }
+  }
+
+  /// Uploads picked photos and returns their server paths for `pictures`.
+  Future<List<String>> _uploadPhotos() async {
+    final api = locator<OrdersApiService>();
+    final urls = <String>[];
+    for (final path in _photos) {
+      try {
+        urls.add(await api.uploadImage(path));
+      } catch (_) {
+        // Skip failed uploads rather than failing the whole request.
+      }
+    }
+    return urls;
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     final surface = double.tryParse(_surfaceController.text.trim());
@@ -108,6 +154,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
 
     setState(() => _isSubmitting = true);
     try {
+      final pictures = await _uploadPhotos();
       await locator<SubscriptionsApiService>().createSubscription(
         propertyTypeId: _propertyTypeId!,
         surfaceM2: surface!,
@@ -115,6 +162,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
         serviceTierId: _tierId!,
         daysPerWeek: _daysPerWeek,
         address: address,
+        pictures: pictures,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -125,6 +173,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
       _surfaceController.clear();
       _roomsController.clear();
       _addressController.clear();
+      _photos.clear();
       _load();
     } catch (e) {
       if (!mounted) return;
@@ -265,6 +314,10 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 14),
                           ),
+                          const SizedBox(height: 16),
+                          _fieldLabel('Photos of your home (optional)'),
+                          const SizedBox(height: 8),
+                          _photoRow(),
                           const SizedBox(height: 24),
                           SizedBox(
                             width: double.infinity,
@@ -303,7 +356,17 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
 
   Widget _subscriptionCard(AppSubscription sub) {
     final color = _statusColors[sub.status] ?? ColorApp.textGrey;
-    return Container(
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubscriptionDetailPage(subscriptionId: sub.id),
+          ),
+        );
+        if (mounted) _load();
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -350,6 +413,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -429,6 +493,64 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
             color: selected ? Colors.white : ColorApp.textBlack,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _photoRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ..._photos.asMap().entries.map((entry) => Stack(
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      image: DecorationImage(
+                        image: FileImage(File(entry.value)),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 14,
+                    child: GestureDetector(
+                      onTap: () =>
+                          setState(() => _photos.removeAt(entry.key)),
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              )),
+          if (_photos.length < 3)
+            GestureDetector(
+              onTap: _pickPhoto,
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: ColorApp.softGrey,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: ColorApp.greyBorder),
+                ),
+                child: const Icon(Icons.add_a_photo_rounded,
+                    color: ColorApp.textGrey, size: 24),
+              ),
+            ),
+        ],
       ),
     );
   }

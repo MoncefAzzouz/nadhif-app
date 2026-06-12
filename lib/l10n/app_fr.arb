@@ -114,5 +114,9 @@
   "tapYourCodeHere": "Tapez votre code ici",
   "apply": "Appliquer",
   "cleaningEquipment": "Équipement de Nettoyage",
-  "bringEquipment": "Apporter aspirateur, serpillère et seau"
+  "bringEquipment": "Apporter aspirateur, serpillère et seau",
+  "cancel": "Annuler",
+  "delete": "Supprimer",
+  "deleteAccount": "Supprimer le compte",
+  "deleteAccountWarning": "Cela supprimera définitivement votre compte et toutes vos données. Cette action est irréversible."
 }

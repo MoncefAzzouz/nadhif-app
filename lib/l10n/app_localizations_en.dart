@@ -358,4 +358,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bringEquipment => 'Bring vacuum, mop, and bucket';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get deleteAccount => 'Delete Account';
+
+  @override
+  String get deleteAccountWarning =>
+      'This will permanently delete your account and all your data. This action cannot be undone.';
 }

@@ -363,4 +363,17 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get bringEquipment => 'Apporter aspirateur, serpillère et seau';
+
+  @override
+  String get cancel => 'Annuler';
+
+  @override
+  String get delete => 'Supprimer';
+
+  @override
+  String get deleteAccount => 'Supprimer le compte';
+
+  @override
+  String get deleteAccountWarning =>
+      'Cela supprimera définitivement votre compte et toutes vos données. Cette action est irréversible.';
 }

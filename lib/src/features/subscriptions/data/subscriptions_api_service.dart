@@ -47,6 +47,17 @@ class AppServiceTier {
       );
 }
 
+class AppSubscriptionSession {
+  const AppSubscriptionSession({required this.raw});
+
+  final Map<String, dynamic> raw;
+
+  DateTime? get scheduledDate =>
+      DateTime.tryParse(raw['scheduledDate'] as String? ?? '')?.toLocal();
+  String get status => raw['status'] as String? ?? 'SCHEDULED';
+  int get durationHours => raw['durationHours'] as int? ?? 3;
+}
+
 class AppSubscription {
   const AppSubscription({required this.raw});
 
@@ -55,15 +66,93 @@ class AppSubscription {
   String get id => raw['id'] as String? ?? '';
   String get status => raw['status'] as String? ?? 'PENDING';
   double get monthlyPrice => ((raw['monthlyPrice'] as num?) ?? 0).toDouble();
+  double get amountPaid => ((raw['amountPaid'] as num?) ?? 0).toDouble();
   int get daysPerWeek => raw['daysPerWeek'] as int? ?? 0;
+  double get surfaceM2 => ((raw['surfaceM2'] as num?) ?? 0).toDouble();
+  int get roomsToClean => raw['roomsToClean'] as int? ?? 0;
   String get tierName =>
       (raw['serviceTier'] as Map<String, dynamic>?)?['name'] as String? ?? '';
+  String tierNameFor(String locale) {
+    final tier = raw['serviceTier'] as Map<String, dynamic>?;
+    return tier == null ? '' : _pickLocalized(tier, 'name', locale);
+  }
+
+  int get tierDurationHours =>
+      (raw['serviceTier'] as Map<String, dynamic>?)?['durationHours'] as int? ?? 3;
   String get propertyTypeName =>
       (raw['propertyType'] as Map<String, dynamic>?)?['name'] as String? ?? '';
+  String propertyTypeNameFor(String locale) {
+    final prop = raw['propertyType'] as Map<String, dynamic>?;
+    return prop == null ? '' : _pickLocalized(prop, 'name', locale);
+  }
+
+  List<AppSubscriptionSession> get sessions =>
+      ((raw['sessions'] as List<dynamic>?) ?? [])
+          .map((s) => AppSubscriptionSession(raw: s as Map<String, dynamic>))
+          .toList();
   int get sessionsCount => ((raw['sessions'] as List<dynamic>?) ?? []).length;
 
   factory AppSubscription.fromJson(Map<String, dynamic> json) =>
       AppSubscription(raw: json);
+}
+
+class AvailableDay {
+  const AvailableDay({
+    required this.date,
+    required this.dayName,
+    required this.availableCleanerCount,
+    required this.isAvailable,
+    required this.isLocked,
+  });
+
+  final String date; // yyyy-MM-dd
+  final String dayName;
+  final int availableCleanerCount;
+  final bool isAvailable;
+  final bool isLocked;
+
+  factory AvailableDay.fromJson(Map<String, dynamic> json) => AvailableDay(
+        date: json['date'] as String? ?? '',
+        dayName: json['dayName'] as String? ?? '',
+        availableCleanerCount: json['availableCleanerCount'] as int? ?? 0,
+        isAvailable: json['isAvailable'] as bool? ?? false,
+        isLocked: json['isLocked'] as bool? ?? false,
+      );
+}
+
+class AvailableWeek {
+  const AvailableWeek({required this.week, required this.days});
+
+  final int week;
+  final List<AvailableDay> days;
+
+  factory AvailableWeek.fromJson(Map<String, dynamic> json) => AvailableWeek(
+        week: json['week'] as int? ?? 0,
+        days: ((json['days'] as List<dynamic>?) ?? [])
+            .map((d) => AvailableDay.fromJson(d as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class AvailableDaysResult {
+  const AvailableDaysResult({
+    required this.daysPerWeek,
+    required this.durationHours,
+    required this.weeks,
+  });
+
+  final int daysPerWeek;
+  final int durationHours;
+  final List<AvailableWeek> weeks;
+
+  factory AvailableDaysResult.fromJson(Map<String, dynamic> json) =>
+      AvailableDaysResult(
+        daysPerWeek: json['daysPerWeek'] as int? ?? 0,
+        durationHours: json['durationHours'] as int? ?? 3,
+        weeks: ((json['weeks'] as List<dynamic>?) ?? [])
+            .map((w) => AvailableWeek.fromJson(w as Map<String, dynamic>))
+            .toList(),
+      );
 }
 
 class SubscriptionsApiService extends BaseApiService {
@@ -100,6 +189,51 @@ class SubscriptionsApiService extends BaseApiService {
     } on DioException catch (e) {
       final error = handleError(e);
       throw Exception(error['message'] ?? 'Failed to load subscriptions');
+    }
+  }
+
+  Future<AppSubscription> getSubscription(String id) async {
+    try {
+      final response = await dio.get('/api/subscriptions/$id');
+      return AppSubscription.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to load subscription');
+    }
+  }
+
+  Future<AvailableDaysResult> getAvailableDays(String id) async {
+    try {
+      final response = await dio.get('/api/subscriptions/$id/available-days');
+      return AvailableDaysResult.fromJson(
+          response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to load available days');
+    }
+  }
+
+  /// Submits the customer's chosen session dates (DAYS_PROPOSED → CONFIRMED).
+  Future<void> submitSessions(
+    String id,
+    List<DateTime> dates,
+    int durationHours,
+  ) async {
+    try {
+      await dio.post(
+        '/api/subscriptions/$id/sessions',
+        data: {
+          'sessions': dates
+              .map((d) => {
+                    'scheduledDate': d.toUtc().toIso8601String(),
+                    'durationHours': durationHours,
+                  })
+              .toList(),
+        },
+      );
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to submit selected days');
     }
   }
 

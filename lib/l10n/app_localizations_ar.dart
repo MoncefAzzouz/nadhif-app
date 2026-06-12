@@ -358,4 +358,17 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bringEquipment => 'إحضار المكنسة الكهربائية والممسحة والدلو';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get delete => 'حذف';
+
+  @override
+  String get deleteAccount => 'حذف الحساب';
+
+  @override
+  String get deleteAccountWarning =>
+      'سيؤدي هذا إلى حذف حسابك وجميع بياناتك نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
 }

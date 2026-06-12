@@ -125,6 +125,16 @@ class AuthApiService extends BaseApiService {
   }
 
 
+  /// Permanently deletes the logged-in user's account.
+  Future<void> deleteAccount() async {
+    try {
+      await dio.delete('/api/auth/delete-account');
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to delete account');
+    }
+  }
+
   Future<void> _saveAuth(Map<String, dynamic> data) async {
     final user = AuthUser.fromJson(data['user'] as Map<String, dynamic>);
     await locator<AuthTokenStore>().saveAuth(

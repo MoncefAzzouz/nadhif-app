@@ -2,8 +2,10 @@ import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/common/cubit/locale_cubit.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/services/auth_token_store.dart';
+import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
 import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
 import 'package:cleanapp/src/features/pages/pages_screens.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
@@ -292,6 +294,32 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
               
+              // Delete Account (store-policy requirement)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: GestureDetector(
+                  onTap: () => _confirmDeleteAccount(context),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete_outline_rounded,
+                          color: Colors.red.withValues(alpha: 0.7), size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        l10n.deleteAccount,
+                        style: TextStyle(
+                          color: Colors.red.withValues(alpha: 0.7),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.red.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 120),
               ],
             ),
@@ -303,6 +331,64 @@ class ProfilePage extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
+    // Deregister the push token while the JWT is still valid.
+    await locator<NotificationService>().clearToken();
+    await locator<AuthTokenStore>().clear();
+    if (!context.mounted) return;
+    context.read<AuthCubit>().clearError();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PhoneNumberPage()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(
+          l10n.deleteAccount,
+          style: const TextStyle(fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+        ),
+        content: Text(
+          l10n.deleteAccountWarning,
+          style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w500, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              l10n.cancel,
+              style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w700),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              l10n.delete,
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await locator<NotificationService>().clearToken();
+      await locator<AuthApiService>().deleteAccount();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     await locator<AuthTokenStore>().clear();
     if (!context.mounted) return;
     context.read<AuthCubit>().clearError();

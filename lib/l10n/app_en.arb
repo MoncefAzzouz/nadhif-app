@@ -113,5 +113,9 @@
   "tapYourCodeHere": "Tap your code here",
   "apply": "Apply",
   "cleaningEquipment": "Cleaning Equipment",
-  "bringEquipment": "Bring vacuum, mop, and bucket"
+  "bringEquipment": "Bring vacuum, mop, and bucket",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "deleteAccount": "Delete Account",
+  "deleteAccountWarning": "This will permanently delete your account and all your data. This action cannot be undone."
 }
