@@ -8,6 +8,7 @@ import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_repository.dart';
+import 'package:cleanapp/src/features/orders/pages/order_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -354,9 +355,20 @@ class _OrdersPageState extends State<OrdersPage> {
           itemBuilder: (context, index) => Padding(
             padding: EdgeInsets.only(
                 bottom: index == _activeOrders.length - 1 ? 0 : 20),
-            child: _ActiveOrderCard(
-              order: _activeOrders[index],
-              onCancel: _cancelOrder,
+            child: GestureDetector(
+              onTap: _activeOrders[index].id.isEmpty
+                  ? null
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => OrderDetailPage(
+                              orderId: _activeOrders[index].id),
+                        ),
+                      ),
+              child: _ActiveOrderCard(
+                order: _activeOrders[index],
+                onCancel: _cancelOrder,
+              ),
             ),
           ),
         );

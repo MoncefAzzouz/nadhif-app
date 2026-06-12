@@ -48,6 +48,8 @@ class ServiceBookingPage extends StatelessWidget {
             category?.materialsMandatory == true ||
             category?.productsMandatory == true,
         initialHouseType: selectedPropertyType,
+        service: service,
+        category: category,
       ),
       child: _ServiceBookingView(
         serviceName: serviceName,
@@ -186,6 +188,8 @@ class _ServiceBookingView extends StatelessWidget {
                             needMaterials: state.needMaterials,
                             materialType: state.materialType,
                             isMandatory: materialsRequired,
+                            localPrice: state.localProductPrice,
+                            importedPrice: state.importedProductPrice,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -195,6 +199,21 @@ class _ServiceBookingView extends StatelessWidget {
                           builder: (context, state) => _EquipmentCard(
                             needEquipment: state.needEquipment,
                           ),
+                        ),
+                        BlocBuilder<BookingCubit, BookingState>(
+                          buildWhen: (a, b) =>
+                              a.isRapid != b.isRapid ||
+                              a.selectedRapidBasePrice !=
+                                  b.selectedRapidBasePrice,
+                          builder: (context, state) => state.supportsRapid
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: _RapidCard(
+                                    isRapid: state.isRapid,
+                                    rapidPrice: state.selectedRapidBasePrice,
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                         const SizedBox(height: 120),
                       ],
@@ -822,11 +841,15 @@ class _MaterialsCard extends StatelessWidget {
   final bool needMaterials;
   final BookingMaterial materialType;
   final bool isMandatory;
+  final double localPrice;
+  final double importedPrice;
 
   const _MaterialsCard({
     required this.needMaterials,
     required this.materialType,
     required this.isMandatory,
+    this.localPrice = 0,
+    this.importedPrice = 0,
   });
 
   @override
@@ -893,16 +916,18 @@ class _MaterialsCard extends StatelessWidget {
               Expanded(
                   child: _BookingMaterialOption(
                       type: BookingMaterial.algerian,
-                      price:
-                          'DA ${BookingPricing.materialPriceAlgerian.toInt()}/hr',
+                      price: localPrice > 0
+                          ? 'DA ${localPrice.toStringAsFixed(0)}'
+                          : 'DA ${BookingPricing.materialPriceAlgerian.toInt()}/hr',
                       isSelected:
                           materialType == BookingMaterial.algerian)),
               const SizedBox(width: 12),
               Expanded(
                   child: _BookingMaterialOption(
                       type: BookingMaterial.imported,
-                      price:
-                          'DA ${BookingPricing.materialPriceImported.toInt()}/hr',
+                      price: importedPrice > 0
+                          ? 'DA ${importedPrice.toStringAsFixed(0)}'
+                          : 'DA ${BookingPricing.materialPriceImported.toInt()}/hr',
                       isSelected:
                           materialType == BookingMaterial.imported)),
             ],
@@ -969,6 +994,66 @@ class _EquipmentCard extends StatelessWidget {
                 context.read<BookingCubit>().toggleEquipment(val),
             activeTrackColor:
                 ColorApp.primary.withValues(alpha: 0.39),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RapidCard extends StatelessWidget {
+  final bool isRapid;
+  final double rapidPrice;
+
+  const _RapidCard({required this.isRapid, required this.rapidPrice});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: ColorApp.softGrey,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.bolt_rounded,
+                color: Color(0xFFF59E0B), size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Rapid service',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: ColorApp.textBlack),
+                ),
+                Text(
+                  'Priority scheduling — DA ${rapidPrice.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: ColorApp.textGrey,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: isRapid,
+            onChanged: (val) =>
+                context.read<BookingCubit>().toggleRapid(val),
+            activeTrackColor: ColorApp.primary.withValues(alpha: 0.39),
           ),
         ],
       ),
@@ -1178,6 +1263,7 @@ class _BottomAction extends StatelessWidget {
           needEquipment: state.needEquipment,
           materialType: state.materialType,
           subtotal: state.totalPrice,
+          isRapid: state.isRapid,
         ),
       ),
     );
@@ -1192,31 +1278,49 @@ class _PriceBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final productPrice = state.materialType == BookingMaterial.imported
+        ? state.importedProductPrice
+        : state.localProductPrice;
     return Container(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         children: [
           _BreakdownRow(
-              label: l10n.basePrice,
+              label: state.isRapid ? '${l10n.basePrice} ⚡' : l10n.basePrice,
               value: state.selectedBasePrice > 0
-                  ? 'DA ${state.selectedBasePrice.toStringAsFixed(0)}'
+                  ? 'DA ${state.effectiveBasePrice.toStringAsFixed(0)}'
                   : 'DA ${BookingPricing.basePricePerHour}/hr'),
           const SizedBox(height: 8),
           _BreakdownRow(
               label: l10n.professionals,
               value: 'x ${state.selectedCleaners}'),
+          if (state.extraWorkers > 0 &&
+              state.effectiveExtraWorkerPrice > 0) ...[
+            const SizedBox(height: 8),
+            _BreakdownRow(
+                label: 'Extra workers',
+                value:
+                    '${state.extraWorkers} x DA ${state.effectiveExtraWorkerPrice.toStringAsFixed(0)}'),
+          ],
           const SizedBox(height: 8),
           _BreakdownRow(
               label: l10n.duration,
               value: '${state.selectedHours} ${l10n.hours}'),
           if (state.needMaterials) ...[
+            if (state.materialPrice > 0) ...[
+              const SizedBox(height: 8),
+              _BreakdownRow(
+                  label: l10n.cleaningMaterials,
+                  value: 'DA ${state.materialPrice.toStringAsFixed(0)}'),
+            ],
             const SizedBox(height: 8),
             _BreakdownRow(
                 label: state.materialType == BookingMaterial.algerian
                     ? l10n.algerianProducts
                     : l10n.importedFrance,
-                value:
-                    'DA ${(BookingPricing.materialRate(state.materialType) * state.selectedHours).toStringAsFixed(0)}'),
+                value: state.selectedBasePrice > 0
+                    ? 'DA ${productPrice.toStringAsFixed(0)}'
+                    : 'DA ${(BookingPricing.materialRate(state.materialType) * state.selectedHours).toStringAsFixed(0)}'),
           ],
           const Divider(height: 32),
         ],

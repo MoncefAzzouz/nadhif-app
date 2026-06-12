@@ -17,6 +17,7 @@ class AppService {
     required this.descriptionFr,
     required this.picture,
     required this.extraWorkerPrice,
+    this.rapidExtraWorkerPrice = 0,
     required this.materialPrice,
     required this.materialsMandatory,
     required this.localProductPrice,
@@ -34,6 +35,7 @@ class AppService {
   final String descriptionFr;
   final String picture;
   final double extraWorkerPrice;
+  final double rapidExtraWorkerPrice;
   final double materialPrice;
   final bool materialsMandatory;
   final double localProductPrice;
@@ -59,6 +61,7 @@ class AppService {
       descriptionFr: json['descriptionFr'] as String? ?? '',
       picture: json['picture'] as String? ?? '',
       extraWorkerPrice: _toDouble(json['extraWorkerPrice']),
+      rapidExtraWorkerPrice: _toDouble(json['rapidExtraWorkerPrice']),
       materialPrice: _toDouble(json['materialPrice']),
       materialsMandatory: json['materialsMandatory'] as bool? ?? false,
       localProductPrice: _toDouble(json['localProductPrice']),
@@ -79,6 +82,7 @@ class AppHouseConfig {
     required this.typeFr,
     required this.workers,
     required this.basePrice,
+    this.rapidBasePrice = 0,
     required this.durationHours,
   });
 
@@ -88,6 +92,7 @@ class AppHouseConfig {
   final String typeFr;
   final int workers;
   final double basePrice;
+  final double rapidBasePrice;
   final int durationHours;
 
   String typeFor(String locale) => _localized(locale, type, typeAr, typeFr);
@@ -100,6 +105,7 @@ class AppHouseConfig {
       typeFr: json['typeFr'] as String? ?? '',
       workers: json['workers'] as int? ?? 1,
       basePrice: _toDouble(json['basePrice']),
+      rapidBasePrice: _toDouble(json['rapidBasePrice']),
       durationHours: json['durationHours'] as int? ?? 1,
     );
   }
@@ -176,6 +182,7 @@ class AppCategoryService {
     required this.nameFr,
     required this.workers,
     required this.basePrice,
+    this.rapidBasePrice = 0,
     required this.durationHours,
   });
 
@@ -185,6 +192,7 @@ class AppCategoryService {
   final String nameFr;
   final int workers;
   final double basePrice;
+  final double rapidBasePrice;
   final int durationHours;
 
   String nameFor(String locale) => _localized(locale, name, nameAr, nameFr);
@@ -197,6 +205,7 @@ class AppCategoryService {
       nameFr: json['nameFr'] as String? ?? '',
       workers: json['workers'] as int? ?? 1,
       basePrice: _toDouble(json['basePrice']),
+      rapidBasePrice: _toDouble(json['rapidBasePrice']),
       durationHours: json['durationHours'] as int? ?? 1,
     );
   }

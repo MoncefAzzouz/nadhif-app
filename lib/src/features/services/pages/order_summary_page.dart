@@ -27,6 +27,7 @@ class OrderSummaryPage extends StatefulWidget {
   final bool needEquipment;
   final BookingMaterial materialType;
   final double subtotal;
+  final bool isRapid;
 
   const OrderSummaryPage({
     super.key,
@@ -47,6 +48,7 @@ class OrderSummaryPage extends StatefulWidget {
     required this.needEquipment,
     required this.materialType,
     required this.subtotal,
+    this.isRapid = false,
   });
 
   @override
@@ -391,6 +393,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           promoCode: _appliedPromo,
           clientNote: clientNote,
           housePictures: housePictures,
+          isRapid: widget.isRapid,
         );
       } else {
         await locator<OrdersApiService>().createCategoryOrder(
@@ -403,6 +406,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           promoCode: _appliedPromo,
           clientNote: clientNote,
           housePictures: housePictures,
+          isRapid: widget.isRapid,
         );
       }
       if (!mounted) return;

@@ -18,6 +18,7 @@ import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
+import 'package:cleanapp/src/features/subscriptions/pages/subscriptions_page.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:flutter/material.dart';
@@ -289,6 +290,8 @@ class _HomePageState extends State<HomePage>
           _SectionHeader(title: l10n.ourServices),
           _buildServiceGrid(context),
           const SizedBox(height: 10),
+          _buildSubscriptionBanner(context),
+          const SizedBox(height: 10),
           _buildBrandsSection(context),
           const SizedBox(height: 10),
           _buildCustomizeSection(context),
@@ -432,6 +435,72 @@ class _HomePageState extends State<HomePage>
         itemCount: cards.length,
         itemBuilder: (context, index) =>
             _HorizontalServiceCard(data: cards[index]),
+      ),
+    );
+  }
+
+  /// Entry point to the subscription packs (recurring cleaning) flow.
+  Widget _buildSubscriptionBanner(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SubscriptionsPage()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                ColorApp.primary,
+                ColorApp.primary.withValues(alpha: 0.75),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: AppShadows.primaryGlow(),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(Icons.autorenew_rounded,
+                    color: Colors.white, size: 26),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Subscription Packs',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Recurring cleaning at a monthly price',
+                      style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded,
+                  color: Colors.white, size: 18),
+            ],
+          ),
+        ),
       ),
     );
   }

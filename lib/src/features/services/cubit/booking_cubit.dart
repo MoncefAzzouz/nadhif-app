@@ -23,6 +23,18 @@ class BookingState extends Equatable {
   /// (from GET /api/pages/locked-days).
   final List<String> lockedDays;
 
+  // Rapid (priority) service: uses the rapid price columns when enabled.
+  final bool isRapid;
+  final double selectedRapidBasePrice;
+
+  // Real pricing fields from the backend service/category (so the displayed
+  // total matches what the server will store on the order).
+  final double extraWorkerPrice;
+  final double rapidExtraWorkerPrice;
+  final double materialPrice;
+  final double localProductPrice;
+  final double importedProductPrice;
+
   const BookingState({
     required this.selectedDate,
     required this.selectedHouseConfigId,
@@ -37,12 +49,21 @@ class BookingState extends Equatable {
     required this.needEquipment,
     required this.showBreakdown,
     this.lockedDays = const [],
+    this.isRapid = false,
+    this.selectedRapidBasePrice = 0,
+    this.extraWorkerPrice = 0,
+    this.rapidExtraWorkerPrice = 0,
+    this.materialPrice = 0,
+    this.localProductPrice = 0,
+    this.importedProductPrice = 0,
   });
 
   factory BookingState.initial({
     AppHouseConfig? houseConfig,
     AppCategoryService? categoryService,
     bool needMaterials = false,
+    AppService? service,
+    AppCategory? category,
   }) =>
       BookingState(
         selectedDate: DateTime.now().add(const Duration(days: 1)),
@@ -59,15 +80,54 @@ class BookingState extends Equatable {
         materialType: BookingMaterial.algerian,
         needEquipment: false,
         showBreakdown: false,
+        selectedRapidBasePrice:
+            houseConfig?.rapidBasePrice ?? categoryService?.rapidBasePrice ?? 0,
+        extraWorkerPrice: service?.extraWorkerPrice ?? 0,
+        rapidExtraWorkerPrice: service?.rapidExtraWorkerPrice ?? 0,
+        materialPrice: service?.materialPrice ?? category?.materialPrice ?? 0,
+        localProductPrice:
+            service?.localProductPrice ?? category?.localProductPrice ?? 0,
+        importedProductPrice: service?.importedProductPrice ??
+            category?.importedProductPrice ??
+            0,
       );
 
-  double get totalPrice => BookingPricing.total(
+  /// Rapid pricing is only offered when the backend configured a rapid rate.
+  bool get supportsRapid => selectedRapidBasePrice > 0;
+
+  double get effectiveBasePrice =>
+      isRapid && selectedRapidBasePrice > 0
+          ? selectedRapidBasePrice
+          : selectedBasePrice;
+
+  double get effectiveExtraWorkerPrice =>
+      isRapid && rapidExtraWorkerPrice > 0
+          ? rapidExtraWorkerPrice
+          : extraWorkerPrice;
+
+  /// Mirrors the backend's order-total computation so the displayed price
+  /// matches what gets stored: base + extra workers + materials + products.
+  double get totalPrice {
+    if (selectedBasePrice <= 0) {
+      // Demo/no-backend fallback keeps the legacy hourly estimate.
+      return BookingPricing.total(
         basePrice: selectedBasePrice,
         hours: selectedHours,
         cleaners: selectedCleaners,
         needMaterials: needMaterials,
         materialType: materialType,
       );
+    }
+    double price =
+        effectiveBasePrice + extraWorkers * effectiveExtraWorkerPrice;
+    if (needMaterials) {
+      price += materialPrice;
+      price += materialType == BookingMaterial.imported
+          ? importedProductPrice
+          : localProductPrice;
+    }
+    return price;
+  }
 
   /// The selected date with the selected time slot's start time merged in,
   /// so the backend receives the real appointment time (not midnight).
@@ -111,6 +171,8 @@ class BookingState extends Equatable {
     bool? needEquipment,
     bool? showBreakdown,
     List<String>? lockedDays,
+    bool? isRapid,
+    double? selectedRapidBasePrice,
   }) {
     return BookingState(
       selectedDate: selectedDate ?? this.selectedDate,
@@ -127,6 +189,14 @@ class BookingState extends Equatable {
       needEquipment: needEquipment ?? this.needEquipment,
       showBreakdown: showBreakdown ?? this.showBreakdown,
       lockedDays: lockedDays ?? this.lockedDays,
+      isRapid: isRapid ?? this.isRapid,
+      selectedRapidBasePrice:
+          selectedRapidBasePrice ?? this.selectedRapidBasePrice,
+      extraWorkerPrice: extraWorkerPrice,
+      rapidExtraWorkerPrice: rapidExtraWorkerPrice,
+      materialPrice: materialPrice,
+      localProductPrice: localProductPrice,
+      importedProductPrice: importedProductPrice,
     );
   }
 
@@ -145,6 +215,13 @@ class BookingState extends Equatable {
         needEquipment,
         showBreakdown,
         lockedDays,
+        isRapid,
+        selectedRapidBasePrice,
+        extraWorkerPrice,
+        rapidExtraWorkerPrice,
+        materialPrice,
+        localProductPrice,
+        importedProductPrice,
       ];
 }
 
@@ -154,12 +231,16 @@ class BookingCubit extends Cubit<BookingState> {
     AppCategoryService? categoryService,
     bool needMaterials = false,
     String? initialHouseType,
+    AppService? service,
+    AppCategory? category,
   })
       : super(
           BookingState.initial(
             houseConfig: houseConfig,
             categoryService: categoryService,
             needMaterials: needMaterials,
+            service: service,
+            category: category,
           ).copyWith(
             selectedHouseType: initialHouseType ?? houseConfig?.type,
           ),
@@ -188,9 +269,11 @@ class BookingCubit extends Cubit<BookingState> {
           selectedHours: config.durationHours,
           selectedCleaners: config.workers,
           selectedBasePrice: config.basePrice,
+          selectedRapidBasePrice: config.rapidBasePrice,
           defaultCleaners: config.workers,
         ),
       );
+  void toggleRapid(bool value) => emit(state.copyWith(isRapid: value));
   void selectHours(int hours) => emit(state.copyWith(selectedHours: hours));
   void selectExtraWorkers(int count) =>
       emit(state.copyWith(selectedCleaners: state.defaultCleaners + count));

@@ -58,6 +58,31 @@ class AuthApiService extends BaseApiService {
       throw Exception(error['message'] ?? 'Failed to load profile');
     }
   }
+
+  /// Updates the logged-in user's profile and refreshes the cached user.
+  Future<AuthUser> updateMe({
+    String? fullName,
+    String? email,
+    String? phone,
+  }) async {
+    try {
+      final response = await dio.put(
+        '/api/auth/me',
+        data: {
+          if (fullName != null) 'fullName': fullName,
+          if (email != null) 'email': email,
+          if (phone != null) 'phone': phone,
+        },
+      );
+      final user = AuthUser.fromJson(response.data as Map<String, dynamic>);
+      await locator<AuthTokenStore>().saveUser(user);
+      return user;
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to update profile');
+    }
+  }
+
   Future<bool> sendVerificationCode(String phone, String prefix) async {
     try {
       await dio.post('/api/auth/send-otp', data: {'phone': phone, 'prefix': prefix});

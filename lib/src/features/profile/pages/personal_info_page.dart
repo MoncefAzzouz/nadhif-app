@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 
 class PersonalInfoPage extends StatefulWidget {
@@ -18,6 +20,50 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
   final _passwordController = TextEditingController(text: "********");
+  bool _isSaving = false;
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+    final fullName =
+        '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
+            .trim();
+    if (fullName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your name'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      await locator<AuthApiService>().updateMe(
+        fullName: fullName,
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated'),
+          backgroundColor: ColorApp.primary,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
 
   @override
   void initState() {
@@ -150,10 +196,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
               width: double.infinity,
               height: 60,
               child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement save logic
-                  Navigator.pop(context);
-                },
+                onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorApp.primary,
                   foregroundColor: Colors.white,
@@ -162,13 +205,20 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  "Save Changes",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5),
+                      )
+                    : const Text(
+                        "Save Changes",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
               ),
             ),
           ],

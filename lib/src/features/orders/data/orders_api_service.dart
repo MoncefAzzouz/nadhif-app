@@ -26,6 +26,7 @@ class OrdersApiService extends BaseApiService {
     String? promoCode,
     String? clientNote,
     List<String>? housePictures,
+    bool isRapid = false,
   }) async {
     try {
       await dio.post(
@@ -44,6 +45,7 @@ class OrdersApiService extends BaseApiService {
           if (clientNote != null && clientNote.isNotEmpty) 'clientNote': clientNote,
           if (housePictures != null && housePictures.isNotEmpty)
             'housePictures': housePictures,
+          if (isRapid) 'isRapid': true,
         },
       );
     } on DioException catch (e) {
@@ -62,6 +64,7 @@ class OrdersApiService extends BaseApiService {
     String? promoCode,
     String? clientNote,
     List<String>? housePictures,
+    bool isRapid = false,
   }) async {
     try {
       await dio.post(
@@ -82,11 +85,23 @@ class OrdersApiService extends BaseApiService {
           if (clientNote != null && clientNote.isNotEmpty) 'clientNote': clientNote,
           if (housePictures != null && housePictures.isNotEmpty)
             'housePictures': housePictures,
+          if (isRapid) 'isRapid': true,
         },
       );
     } on DioException catch (e) {
       final error = handleError(e);
       throw Exception(error['message'] ?? 'Failed to create order');
+    }
+  }
+
+  /// Full order with relations (service/category/promo) for the detail view.
+  Future<Map<String, dynamic>> getOrder(String orderId) async {
+    try {
+      final response = await dio.get('/api/orders/$orderId');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to load order');
     }
   }
 

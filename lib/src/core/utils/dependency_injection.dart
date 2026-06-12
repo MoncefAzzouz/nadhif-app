@@ -8,6 +8,7 @@ import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/pages/data/pages_api_service.dart';
 import 'package:cleanapp/src/features/services/data/services_api_service.dart';
 import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
+import 'package:cleanapp/src/features/subscriptions/data/subscriptions_api_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
@@ -61,6 +62,9 @@ void setupLocator() {
   locator.registerLazySingleton<OrdersApiService>(() => OrdersApiService());
   locator.registerLazySingleton<SlidesApiService>(() => SlidesApiService());
   locator.registerLazySingleton<PagesApiService>(() => PagesApiService());
+  locator.registerLazySingleton<SubscriptionsApiService>(
+    () => SubscriptionsApiService(),
+  );
   locator.registerLazySingleton<NotificationsApiService>(
     () => NotificationsApiService(),
   );
