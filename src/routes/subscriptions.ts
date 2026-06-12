@@ -39,7 +39,7 @@ router.post('/property-types', authenticateToken, async (req: AuthenticatedReque
     res.status(403).json({ error: 'Admin access required' });
     return;
   }
-  const { name, nameAr, nameFr, isActive } = req.body;
+  const { name, nameAr, nameFr, picture, isActive } = req.body;
   if (!name) {
     res.status(400).json({ error: 'Name is required' });
     return;
@@ -50,6 +50,7 @@ router.post('/property-types', authenticateToken, async (req: AuthenticatedReque
         name,
         nameAr: nameAr || '',
         nameFr: nameFr || '',
+        picture: picture || '',
         isActive: isActive !== undefined ? !!isActive : true,
       },
     });
@@ -67,7 +68,7 @@ router.put('/property-types/:id', authenticateToken, async (req: AuthenticatedRe
     return;
   }
   const id = req.params.id as string;
-  const { name, nameAr, nameFr, isActive } = req.body;
+  const { name, nameAr, nameFr, picture, isActive } = req.body;
   try {
     const updated = await prisma.subscriptionPropertyType.update({
       where: { id },
@@ -75,6 +76,7 @@ router.put('/property-types/:id', authenticateToken, async (req: AuthenticatedRe
         ...(name !== undefined && { name }),
         ...(nameAr !== undefined && { nameAr }),
         ...(nameFr !== undefined && { nameFr }),
+        ...(picture !== undefined && { picture }),
         ...(isActive !== undefined && { isActive: !!isActive }),
       },
     });
