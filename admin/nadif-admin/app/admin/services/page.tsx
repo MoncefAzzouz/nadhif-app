@@ -248,10 +248,10 @@ export default function ServicesPage() {
     setIsFormModalOpen(true);
   };
 
-  // File Upload Handlers (PNG strict checking)
+  // File Upload Handlers (PNG/JPEG/WebP — same formats the backend accepts)
   const processFile = (file: File) => {
-    if (file.type !== 'image/png') {
-      setFormError('Only PNG files are allowed. Please upload a valid PNG format.');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setFormError('Only PNG, JPG or WebP images are allowed.');
       return;
     }
     uploadImage(file)
@@ -365,7 +365,7 @@ export default function ServicesPage() {
       return;
     }
     if (!pictureBase64) {
-      setFormError('Please upload a PNG service image.');
+      setFormError('Please upload a service image.');
       return;
     }
     if (houseConfigs.length === 0) {
@@ -1625,10 +1625,10 @@ export default function ServicesPage() {
                     </div>
                   </div>
 
-                  {/* Icon File Upload (PNG Only) */}
+                  {/* Icon File Upload */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
-                      Service Image Asset (PNG format)
+                      Service Image Asset
                     </label>
 
                     {pictureBase64 ? (
@@ -1638,7 +1638,7 @@ export default function ServicesPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 uppercase truncate">
-                            Uploaded PNG Image
+                            Uploaded Image
                           </p>
                           <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1 mt-0.5">
                             <Check size={10} strokeWidth={3} /> Ready to Save
@@ -1672,15 +1672,15 @@ export default function ServicesPage() {
                           type="file"
                           ref={fileInputRef}
                           onChange={handleFileChange}
-                          accept="image/png"
-                          className="hidden" 
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
                         />
                         <UploadCloud size={28} className="mb-2 text-slate-300" />
                         <p className="text-xs font-bold text-slate-700">
-                          Drag & drop PNG image here, or <span className="text-primary hover:underline">browse</span>
+                          Drag & drop an image here, or <span className="text-primary hover:underline">browse</span>
                         </p>
                         <p className="text-[8px] font-black uppercase text-slate-400 tracking-wider mt-1 bg-slate-100 px-2 py-0.5 rounded">
-                          PNG Only
+                          PNG, JPG or WebP
                         </p>
                       </div>
                     )}

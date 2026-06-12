@@ -231,10 +231,10 @@ export default function CategoriesPage() {
     setIsFormModalOpen(true);
   };
 
-  // Handle PNG icon selection
+  // Handle icon selection (PNG/JPEG/WebP — same formats the backend accepts)
   const processFile = (file: File) => {
-    if (file.type !== 'image/png') {
-      setFormError('Only PNG files are allowed. Please upload a valid PNG format.');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setFormError('Only PNG, JPG or WebP images are allowed.');
       return;
     }
 
@@ -352,7 +352,7 @@ export default function CategoriesPage() {
       return;
     }
     if (!pictureBase64) {
-      setFormError('Please upload a PNG category image.');
+      setFormError('Please upload a category image.');
       return;
     }
     if (categoryServices.length === 0) {
@@ -1219,10 +1219,10 @@ export default function CategoriesPage() {
                     </>
                   )}
 
-                  {/* Icon File Upload (PNG Only) */}
+                  {/* Icon File Upload */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 pl-2">
-                      PNG Icon / Image Asset
+                      Icon / Image Asset
                     </label>
 
                     {pictureBase64 ? (
@@ -1233,7 +1233,7 @@ export default function CategoriesPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-slate-800 uppercase truncate">
-                            Selected PNG Icon
+                            Selected Icon
                           </p>
                           <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-1 mt-0.5">
                             <Check size={10} strokeWidth={3} /> Ready to Save
@@ -1268,15 +1268,15 @@ export default function CategoriesPage() {
                           type="file"
                           ref={fileInputRef}
                           onChange={handleFileChange}
-                          accept="image/png"
+                          accept="image/png,image/jpeg,image/webp"
                           className="hidden"
                         />
                         <UploadCloud size={32} className={`mb-3 ${dragActive ? 'text-primary animate-bounce' : 'text-slate-300'}`} />
                         <p className="text-xs font-bold text-slate-700">
-                          Drag & drop PNG image here, or <span className="text-primary hover:underline">browse</span>
+                          Drag & drop an image here, or <span className="text-primary hover:underline">browse</span>
                         </p>
                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider mt-2.5 bg-slate-100 px-3 py-1 rounded-md">
-                          PNG Format Only
+                          PNG, JPG or WebP
                         </p>
                       </div>
                     )}

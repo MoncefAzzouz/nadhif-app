@@ -541,8 +541,8 @@ export default function SubscriptionsPage() {
   };
 
   const handleImageFile = (file: File) => {
-    if (file.type !== 'image/png') {
-      alert('Only PNG files are allowed.');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      alert('Only PNG, JPG or WebP images are allowed.');
       return;
     }
     const reader = new FileReader();
@@ -1887,10 +1887,10 @@ export default function SubscriptionsPage() {
                     />
                   </div>
 
-                  {/* PNG Icon / Image Asset Upload */}
+                  {/* Icon / Image Asset Upload */}
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                      Icône / Image PNG (Optionnel)
+                      Icône / Image (Optionnel)
                     </label>
 
                     {propTypeForm.picture ? (
@@ -1936,15 +1936,15 @@ export default function SubscriptionsPage() {
                           type="file"
                           ref={fileInputRef}
                           onChange={handleFileChange}
-                          accept="image/png"
+                          accept="image/png,image/jpeg,image/webp"
                           className="hidden"
                         />
                         <UploadCloud size={24} className={`mb-2 ${dragActive ? 'text-primary animate-bounce' : 'text-slate-300'}`} />
                         <p className="text-xs font-bold text-slate-700">
-                          Glissez & déposez une image PNG ici, ou <span className="text-primary hover:underline">parcourir</span>
+                          Glissez & déposez une image ici, ou <span className="text-primary hover:underline">parcourir</span>
                         </p>
                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider mt-1.5 bg-slate-100 px-2 py-0.5 rounded">
-                          Format PNG Uniquement
+                          PNG, JPG ou WebP
                         </p>
                       </div>
                     )}
