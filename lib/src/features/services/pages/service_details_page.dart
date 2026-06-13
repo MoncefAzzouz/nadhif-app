@@ -506,20 +506,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                             ),
                           ),
                         );
-                      } else if (widget.fromRecommendation || widget.isRapid) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PropertySelectionPage(
-                              serviceName: widget.serviceName,
-                              service: widget.service,
-                              category: widget.category,
-                              serviceImage: widget.serviceImage,
-                              serviceIcon: widget.serviceIcon,
-                              isRapid: widget.isRapid,
-                            ),
-                          ),
-                        );
                       } else {
                         Navigator.push(
                           context,

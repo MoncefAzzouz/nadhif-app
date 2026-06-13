@@ -6,6 +6,7 @@ class ActiveOrder {
   final double progress;
   final String imageUrl;
   final double price;
+  final bool isSubscription;
 
   const ActiveOrder({
     this.id = '',
@@ -15,6 +16,7 @@ class ActiveOrder {
     required this.progress,
     required this.imageUrl,
     required this.price,
+    this.isSubscription = false,
   });
 
   /// Customers may only cancel before the order is confirmed (backend rule).

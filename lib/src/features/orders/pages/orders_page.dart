@@ -9,6 +9,8 @@ import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_repository.dart';
 import 'package:cleanapp/src/features/orders/pages/order_detail_page.dart';
+import 'package:cleanapp/src/features/subscriptions/data/subscriptions_api_service.dart';
+import 'package:cleanapp/src/features/subscriptions/pages/subscription_detail_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -37,6 +39,7 @@ class OrdersPage extends StatefulWidget {
 class _OrdersPageState extends State<OrdersPage> {
   List<ActiveOrder> _activeOrders = const [];
   List<ScheduledOrder> _scheduledOrders = const [];
+  List<ActiveOrder> _historyOrders = const [];
   bool _isLoading = true;
   String? _error;
   OrderFilter _activeFilter = OrderFilter.active;
@@ -68,16 +71,68 @@ class _OrdersPageState extends State<OrdersPage> {
 
     try {
       final orders = await locator<OrdersApiService>().getOrders();
+      List<AppSubscription> subs = [];
+      try {
+        subs = await locator<SubscriptionsApiService>().getMySubscriptions();
+      } catch (_) {
+        // Allow the app to load regular orders even if subscription api fails
+      }
       if (!mounted) return;
+
+      final localeCode = Localizations.localeOf(context).languageCode;
+
+      // 1. Process regular orders
+      final mappedOrders = orders.map((o) => _toActiveOrder(o)).toList();
+
+      // 2. Process subscription requests as display orders
+      final mappedSubs = subs.map((sub) {
+        final tierName = sub.tierNameFor(localeCode);
+        final propName = sub.propertyTypeNameFor(localeCode);
+        final status = sub.status;
+
+        return ActiveOrder(
+          id: sub.id,
+          title: tierName.isEmpty ? 'Subscription Pack' : tierName,
+          subtitle: propName.isEmpty ? 'Subscription' : propName,
+          status: status.replaceAll('_', ' '),
+          progress: _progressForStatus(status),
+          imageUrl: 'assets/images/pack.png',
+          price: sub.monthlyPrice,
+          isSubscription: true,
+        );
+      }).toList();
+
+      final allActive = <ActiveOrder>[];
+      final allHistory = <ActiveOrder>[];
+
+      // Distribute regular orders
+      for (final order in mappedOrders) {
+        if (_isFinished(order.status)) {
+          allHistory.add(order);
+        } else {
+          allActive.add(order);
+        }
+      }
+
+      // Distribute subscriptions
+      for (final sub in mappedSubs) {
+        if (_isFinished(sub.status)) {
+          allHistory.add(sub);
+        } else {
+          allActive.add(sub);
+        }
+      }
+
+      // Scheduled orders are pending/confirmed regular orders
+      final mappedScheduled = orders
+          .where((order) => order['status'] == 'PENDING' || order['status'] == 'CONFIRMED')
+          .map(_toScheduledOrder)
+          .toList();
+
       setState(() {
-        _activeOrders = orders
-            .where((order) => !_isFinished(order['status'] as String?))
-            .map(_toActiveOrder)
-            .toList();
-        _scheduledOrders = orders
-            .where((order) => order['status'] == 'PENDING' || order['status'] == 'CONFIRMED')
-            .map(_toScheduledOrder)
-            .toList();
+        _activeOrders = allActive;
+        _scheduledOrders = mappedScheduled;
+        _historyOrders = allHistory;
         _isLoading = false;
       });
     } catch (e) {
@@ -89,7 +144,11 @@ class _OrdersPageState extends State<OrdersPage> {
     }
   }
 
-  bool _isFinished(String? status) => status == 'COMPLETED' || status == 'CANCELLED';
+  bool _isFinished(String? status) {
+    if (status == null) return false;
+    final upper = status.trim().toUpperCase().replaceAll(' ', '_');
+    return upper == 'COMPLETED' || upper == 'CANCELLED';
+  }
 
   Future<void> _cancelOrder(ActiveOrder order) async {
     final confirmed = await showDialog<bool>(
@@ -346,8 +405,40 @@ class _OrdersPageState extends State<OrdersPage> {
   Widget _buildOrderList(BuildContext context) {
     switch (_activeFilter) {
       case OrderFilter.history:
-        return const _EmptyState();
+        if (_historyOrders.isEmpty) {
+          return const _EmptyState();
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(24),
+          physics: const BouncingScrollPhysics(),
+          itemCount: _historyOrders.length,
+          itemBuilder: (context, index) => Padding(
+            padding: EdgeInsets.only(
+                bottom: index == _historyOrders.length - 1 ? 0 : 20),
+            child: GestureDetector(
+              onTap: _historyOrders[index].id.isEmpty
+                  ? null
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => _historyOrders[index].isSubscription
+                              ? SubscriptionDetailPage(
+                                  subscriptionId: _historyOrders[index].id)
+                              : OrderDetailPage(
+                                  orderId: _historyOrders[index].id),
+                        ),
+                      ),
+              child: _ActiveOrderCard(
+                order: _historyOrders[index],
+                onCancel: null,
+              ),
+            ),
+          ),
+        );
       case OrderFilter.active:
+        if (_activeOrders.isEmpty) {
+          return const _EmptyState();
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(24),
           physics: const BouncingScrollPhysics(),
@@ -361,18 +452,24 @@ class _OrdersPageState extends State<OrdersPage> {
                   : () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => OrderDetailPage(
-                              orderId: _activeOrders[index].id),
+                          builder: (context) => _activeOrders[index].isSubscription
+                              ? SubscriptionDetailPage(
+                                  subscriptionId: _activeOrders[index].id)
+                              : OrderDetailPage(
+                                  orderId: _activeOrders[index].id),
                         ),
                       ),
               child: _ActiveOrderCard(
                 order: _activeOrders[index],
-                onCancel: _cancelOrder,
+                onCancel: _activeOrders[index].isSubscription ? null : _cancelOrder,
               ),
             ),
           ),
         );
       case OrderFilter.scheduled:
+        if (_scheduledOrders.isEmpty) {
+          return const _EmptyState();
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(24),
           physics: const BouncingScrollPhysics(),

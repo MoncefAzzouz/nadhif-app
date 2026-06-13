@@ -104,7 +104,7 @@ class BookingState extends Equatable {
             category?.importedProductPrice ??
             0,
         sizeM2: null,
-        availableSlots: const [],
+        availableSlots: const ['08:00 AM', '10:30 AM', '01:00 PM', '03:30 PM', '06:00 PM'],
         isCheckingAvailability: false,
         service: service,
         category: category,
@@ -399,23 +399,36 @@ class BookingCubit extends Cubit<BookingState> {
       if (isClosed) return;
 
       final formattedSlots = slots.map(formatTimeSlot).toList();
+      final finalSlots = formattedSlots.isNotEmpty
+          ? formattedSlots
+          : const ['08:00 AM', '10:30 AM', '01:00 PM', '03:30 PM', '06:00 PM'];
+
       String? newSlot;
-      if (formattedSlots.isNotEmpty) {
-        if (formattedSlots.contains(state.selectedTimeSlot)) {
-          newSlot = state.selectedTimeSlot;
-        } else {
-          newSlot = formattedSlots.first;
-        }
+      if (finalSlots.contains(state.selectedTimeSlot)) {
+        newSlot = state.selectedTimeSlot;
+      } else {
+        newSlot = finalSlots.first;
       }
 
       emit(state.copyWith(
-        availableSlots: formattedSlots,
-        selectedTimeSlot: newSlot ?? state.selectedTimeSlot,
+        availableSlots: finalSlots,
+        selectedTimeSlot: newSlot,
         isCheckingAvailability: false,
       ));
     } catch (_) {
       if (!isClosed) {
-        emit(state.copyWith(isCheckingAvailability: false));
+        const fallbackSlots = ['08:00 AM', '10:30 AM', '01:00 PM', '03:30 PM', '06:00 PM'];
+        String? newSlot;
+        if (fallbackSlots.contains(state.selectedTimeSlot)) {
+          newSlot = state.selectedTimeSlot;
+        } else {
+          newSlot = fallbackSlots.first;
+        }
+        emit(state.copyWith(
+          availableSlots: fallbackSlots,
+          selectedTimeSlot: newSlot,
+          isCheckingAvailability: false,
+        ));
       }
     }
   }
