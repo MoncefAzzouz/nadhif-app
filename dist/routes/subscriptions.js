@@ -367,11 +367,8 @@ router.delete('/:id', auth_1.authenticateToken, async (req, res) => {
 // Returns available days for the next 4 weeks, considering locked days and cleaner availability.
 router.get('/:id/available-days', auth_1.authenticateToken, async (req, res) => {
     const role = req.user?.role;
+    const userId = req.user?.userId;
     const id = req.params.id;
-    if (role !== 'ADMIN') {
-        res.status(403).json({ error: 'Admin access required' });
-        return;
-    }
     try {
         const subscription = await prisma_1.default.subscription.findUnique({
             where: { id },
@@ -379,6 +376,11 @@ router.get('/:id/available-days', auth_1.authenticateToken, async (req, res) => 
         });
         if (!subscription) {
             res.status(404).json({ error: 'Subscription not found' });
+            return;
+        }
+        // Admins and the subscription owner can view availability
+        if (role !== 'ADMIN' && subscription.userId !== userId) {
+            res.status(403).json({ error: 'Forbidden' });
             return;
         }
         // Get locked days
@@ -483,11 +485,9 @@ router.get('/:id/available-days', auth_1.authenticateToken, async (req, res) => 
 // Accepts an array of sessions: [{ scheduledDate, durationHours, cleanerId }]
 router.post('/:id/sessions', auth_1.authenticateToken, async (req, res) => {
     const role = req.user?.role;
+    const userId = req.user?.userId;
     const id = req.params.id;
-    if (role !== 'ADMIN') {
-        res.status(403).json({ error: 'Admin access required' });
-        return;
-    }
+    const isAdmin = role === 'ADMIN';
     const { sessions } = req.body;
     if (!Array.isArray(sessions) || sessions.length === 0) {
         res.status(400).json({ error: 'sessions array is required and must not be empty' });
@@ -499,6 +499,18 @@ router.post('/:id/sessions', auth_1.authenticateToken, async (req, res) => {
             res.status(404).json({ error: 'Subscription not found' });
             return;
         }
+        // The owner may pick their days, but only while days are proposed,
+        // and without assigning cleaners (that stays admin-only).
+        if (!isAdmin) {
+            if (subscription.userId !== userId) {
+                res.status(403).json({ error: 'Forbidden' });
+                return;
+            }
+            if (subscription.status !== 'DAYS_PROPOSED') {
+                res.status(400).json({ error: 'Days can only be selected while the subscription is in DAYS_PROPOSED status' });
+                return;
+            }
+        }
         // Delete existing sessions for this subscription
         await prisma_1.default.subscriptionSession.deleteMany({ where: { subscriptionId: id } });
         // Create new sessions
@@ -507,11 +519,18 @@ router.post('/:id/sessions', auth_1.authenticateToken, async (req, res) => {
                 subscriptionId: id,
                 scheduledDate: new Date(s.scheduledDate),
                 durationHours: parseInt(s.durationHours?.toString() ?? '3'),
-                cleanerId: s.cleanerId || null,
+                cleanerId: isAdmin ? (s.cleanerId || null) : null,
                 status: 'SCHEDULED',
             },
             include: { cleaner: true },
         })));
+        // Customer picked their days → move the subscription forward
+        if (!isAdmin) {
+            await prisma_1.default.subscription.update({
+                where: { id },
+                data: { status: 'CONFIRMED' },
+            });
+        }
         res.json(created);
     }
     catch (err) {

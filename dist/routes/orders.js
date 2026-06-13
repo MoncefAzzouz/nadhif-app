@@ -225,6 +225,134 @@ router.get('/', auth_1.authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+// Get cleaner availability for a given date
+router.get('/availability', auth_1.authenticateToken, async (req, res) => {
+    const { date, serviceId, houseConfigId, categoryId, categoryServiceId, extraWorkers, isRapid } = req.query;
+    if (!date) {
+        res.status(400).json({ error: 'Missing date parameter' });
+        return;
+    }
+    try {
+        const dateString = date;
+        const workersCount = extraWorkers ? parseInt(extraWorkers.toString(), 10) : 0;
+        const rapidFlag = isRapid === 'true';
+        let requiredWorkers = 1;
+        let durationHours = 3;
+        if (serviceId && houseConfigId) {
+            const houseConfig = await prisma_1.default.houseConfig.findUnique({
+                where: { id: houseConfigId }
+            });
+            if (houseConfig) {
+                requiredWorkers = houseConfig.workers + workersCount;
+                durationHours = houseConfig.durationHours;
+            }
+        }
+        else if (categoryId && categoryServiceId) {
+            const categoryService = await prisma_1.default.categoryService.findUnique({
+                where: { id: categoryServiceId }
+            });
+            if (categoryService) {
+                requiredWorkers = categoryService.workers; // fixed by admin
+                durationHours = categoryService.durationHours;
+            }
+        }
+        // List all active cleaners
+        const cleaners = await prisma_1.default.cleaner.findMany({
+            where: { isActive: true }
+        });
+        const totalActiveCleaners = cleaners.length;
+        // Fetch all active orders around this date (within a 2-day window to cover timezone / overlaps)
+        const startOfDay = new Date(`${dateString}T00:00:00.000Z`);
+        const endOfDay = new Date(`${dateString}T23:59:59.999Z`);
+        const minDate = new Date(startOfDay.getTime() - 24 * 60 * 60 * 1000);
+        const maxDate = new Date(endOfDay.getTime() + 24 * 60 * 60 * 1000);
+        const orders = await prisma_1.default.order.findMany({
+            where: {
+                status: { not: 'CANCELLED' },
+                scheduledDate: {
+                    gte: minDate,
+                    lte: maxDate
+                },
+                cleanerId: { not: null }
+            },
+            include: {
+                houseConfig: true,
+                categoryService: true,
+                service: true
+            }
+        });
+        // Fetch all active subscription sessions around this date
+        const sessions = await prisma_1.default.subscriptionSession.findMany({
+            where: {
+                status: { not: 'CANCELLED' },
+                scheduledDate: {
+                    gte: minDate,
+                    lte: maxDate
+                },
+                cleanerId: { not: null }
+            }
+        });
+        // Helper to get local time representation on Node.js
+        const getLocalTimeMs = (d) => {
+            const offset = d.getTimezoneOffset();
+            return d.getTime() - offset * 60 * 1000;
+        };
+        // We check availability for these standard slots
+        const timeSlots = [
+            "08:00", "09:00", "10:00", "11:00", "12:00",
+            "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"
+        ];
+        const availableSlots = [];
+        timeSlots.forEach(timeStr => {
+            const slotStart = new Date(`${dateString}T${timeStr}:00.000Z`).getTime();
+            const slotEnd = slotStart + durationHours * 60 * 60 * 1000;
+            const busyCleanerIds = new Set();
+            // Check order overlaps
+            orders.forEach(other => {
+                if (!other.cleanerId)
+                    return;
+                const otherStart = getLocalTimeMs(other.scheduledDate);
+                const otherDuration = other.houseConfig?.durationHours ?? other.categoryService?.durationHours ?? other.service?.durationHours ?? 3;
+                const otherEnd = otherStart + otherDuration * 60 * 60 * 1000;
+                if (slotStart < otherEnd && otherStart < slotEnd) {
+                    other.cleanerId.split(',').forEach(cid => {
+                        const trimmed = cid.trim();
+                        if (trimmed)
+                            busyCleanerIds.add(trimmed);
+                    });
+                }
+            });
+            // Check session overlaps
+            sessions.forEach(session => {
+                if (!session.cleanerId)
+                    return;
+                const sessionStart = getLocalTimeMs(session.scheduledDate);
+                const sessionEnd = sessionStart + session.durationHours * 60 * 60 * 1000;
+                if (slotStart < sessionEnd && sessionStart < slotEnd) {
+                    session.cleanerId.split(',').forEach(cid => {
+                        const trimmed = cid.trim();
+                        if (trimmed)
+                            busyCleanerIds.add(trimmed);
+                    });
+                }
+            });
+            const availableCount = totalActiveCleaners - busyCleanerIds.size;
+            if (availableCount >= requiredWorkers) {
+                availableSlots.push(timeStr);
+            }
+        });
+        res.json({
+            date: dateString,
+            requiredWorkers,
+            durationHours,
+            availableSlots
+        });
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 // Get single order by ID
 router.get('/:id', auth_1.authenticateToken, async (req, res) => {
     const userId = req.user?.userId;
