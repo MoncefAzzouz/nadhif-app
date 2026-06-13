@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/notifications/data/notifications_api_service.dart';
@@ -23,7 +22,7 @@ class NotificationService {
   NotificationService(this._api);
 
   final NotificationsApiService _api;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -47,6 +46,7 @@ class NotificationService {
   /// local-notification channel, requests permission, and starts listening for
   /// foreground messages + token refreshes.
   Future<void> init() async {
+    if (kIsWeb) return;
     if (_initialized) return;
     _initialized = true;
 
@@ -88,6 +88,7 @@ class NotificationService {
   /// Associates the current device token with the logged-in user. Call after a
   /// successful login and on app start when a session already exists.
   Future<void> syncToken() async {
+    if (kIsWeb) return;
     try {
       final token = _cachedToken ?? await _messaging.getToken();
       if (token == null || token.isEmpty) return;
@@ -102,6 +103,7 @@ class NotificationService {
 
   /// Removes the current device token from the backend (e.g. on logout).
   Future<void> clearToken() async {
+    if (kIsWeb) return;
     final token = _cachedToken;
     if (token == null || token.isEmpty) return;
     try {
@@ -119,7 +121,9 @@ class NotificationService {
     }
   }
 
-  String get _platform => Platform.isIOS ? 'ios' : 'android';
+  String get _platform => kIsWeb
+      ? 'web'
+      : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android');
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;

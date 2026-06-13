@@ -10,6 +10,7 @@ import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
 import 'package:cleanapp/src/features/splash/pages/splash_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,12 +18,16 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  if (!kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
   setupLocator();
-  await locator<NotificationService>().init();
+  if (!kIsWeb) {
+    await locator<NotificationService>().init();
+  }
   // Load the last cached home content so the home screen renders real data
   // on its first frame instead of the static placeholders.
   await locator<HomeContentRepository>().hydrate();
