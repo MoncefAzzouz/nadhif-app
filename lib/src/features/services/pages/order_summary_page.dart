@@ -380,9 +380,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
     final address = _addressController.text.trim();
     if (address.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your service address'),
-          backgroundColor: Color(0xFFDC2626),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.enterServiceAddress),
+          backgroundColor: const Color(0xFFDC2626),
         ),
       );
       return;

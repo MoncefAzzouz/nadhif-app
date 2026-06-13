@@ -106,16 +106,17 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
     final rooms = int.tryParse(_roomsController.text.trim());
     final address = _addressController.text.trim();
 
+    final l10n = AppLocalizations.of(context)!;
     String? problem;
-    if (_tier == null) problem = 'Please choose a pack';
-    if (_propertyType == null) problem ??= 'Property type unavailable';
+    if (_tier == null) problem = l10n.chooseServiceTier;
+    if (_propertyType == null) problem ??= l10n.choosePropertyType;
     if (surface == null || surface <= 0) {
-      problem ??= 'Please enter your surface (m²)';
+      problem ??= l10n.enterSurface;
     }
     if (rooms == null || rooms <= 0) {
-      problem ??= 'Please enter the number of rooms';
+      problem ??= l10n.enterRooms;
     }
-    if (address.isEmpty) problem ??= 'Please enter your address';
+    if (address.isEmpty) problem ??= l10n.enterAddress;
     if (problem != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(problem),
@@ -137,9 +138,8 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
         longitude: _longitude,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Subscription requested! Our team will contact you with the monthly price.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(l10n.requestSent),
         backgroundColor: ColorApp.primary,
       ));
       Navigator.popUntil(context, (route) => route.isFirst);
@@ -184,7 +184,7 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
                                   _buildHeaderInfo(l10n),
                                   const SizedBox(height: 16),
                                   _SectionHeader(
-                                    title: 'Pack',
+                                    title: l10n.pack,
                                     trailing: _tier
                                             ?.nameFor(localeCode)
                                             .toUpperCase() ??
@@ -198,7 +198,7 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
                                   ],
                                   const SizedBox(height: 16),
                                   _SectionHeader(
-                                      title: 'Days per week',
+                                      title: l10n.daysPerWeek,
                                       trailing: '$_daysPerWeek'),
                                   _buildDaysRow(),
                                   const SizedBox(height: 16),
@@ -206,22 +206,22 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
                                     children: [
                                       Expanded(
                                         child: _buildField(
-                                            'Surface (m²)',
+                                            l10n.surfaceM2,
                                             _surfaceController,
                                             isNumber: true),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: _buildField(
-                                            'Rooms', _roomsController,
+                                            l10n.rooms, _roomsController,
                                             isNumber: true),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
                                   _buildField(
-                                      'Address', _addressController,
-                                      hint: 'Enter your full address...',
+                                      l10n.address, _addressController,
+                                      hint: l10n.enterFullAddress,
                                       suffixIcon: GestureDetector(
                                         onTap: () async {
                                           final result = await Navigator.push(
@@ -276,7 +276,9 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
                 style: const TextStyle(
                     color: ColorApp.textGrey, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            TextButton(onPressed: _load, child: const Text('Retry')),
+            TextButton(
+                onPressed: _load,
+                child: Text(AppLocalizations.of(context)!.retry)),
           ],
         ),
       );
@@ -412,8 +414,8 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
           ),
           Expanded(
             child: _ConfigMetric(
-              label: 'Per week',
-              value: '$_daysPerWeek days',
+              label: l10n.perWeek,
+              value: '$_daysPerWeek',
             ),
           ),
         ],
@@ -507,6 +509,7 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
   }
 
   Widget _buildBottomAction() {
+    final l10n = AppLocalizations.of(context)!;
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
@@ -519,20 +522,20 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
         ),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Monthly price',
-                      style: TextStyle(
+                  Text(l10n.monthlyPrice,
+                      style: const TextStyle(
                           color: ColorApp.textGrey,
                           fontWeight: FontWeight.w700,
                           fontSize: 11)),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
-                    'On confirmation',
-                    style: TextStyle(
+                    l10n.onConfirmation,
+                    style: const TextStyle(
                         color: ColorApp.textBlack,
                         fontSize: 16,
                         fontWeight: FontWeight.w900),
@@ -564,9 +567,9 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2.5),
                           )
-                        : const Text(
-                            'Request Subscription',
-                            style: TextStyle(
+                        : Text(
+                            l10n.requestSubscriptionButton,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 14),

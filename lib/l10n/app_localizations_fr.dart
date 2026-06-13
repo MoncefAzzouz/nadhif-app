@@ -376,4 +376,210 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get deleteAccountWarning =>
       'Cela supprimera définitivement votre compte et toutes vos données. Cette action est irréversible.';
+
+  @override
+  String get retry => 'Réessayer';
+
+  @override
+  String get address => 'Adresse';
+
+  @override
+  String get subscription => 'Abonnement';
+
+  @override
+  String get subscriptionPacks => 'Packs d\'abonnement';
+
+  @override
+  String get subscriptionPacksSubtitle => 'Nettoyage récurrent à prix mensuel';
+
+  @override
+  String get mySubscriptions => 'Mes abonnements';
+
+  @override
+  String get requestSubscriptionTitle => 'Demander un abonnement';
+
+  @override
+  String get requestSubscriptionButton => 'Demander l\'abonnement';
+
+  @override
+  String get propertyType => 'Type de logement';
+
+  @override
+  String get serviceTier => 'Formule de service';
+
+  @override
+  String get daysPerWeek => 'Jours par semaine';
+
+  @override
+  String get surfaceM2 => 'Surface (m²)';
+
+  @override
+  String get rooms => 'Pièces';
+
+  @override
+  String get enterFullAddress => 'Entrez votre adresse complète...';
+
+  @override
+  String get homePhotosOptional => 'Photos de votre logement (optionnel)';
+
+  @override
+  String get maxThreePhotos => 'Maximum 3 photos autorisées';
+
+  @override
+  String get choosePropertyType => 'Veuillez choisir un type de logement';
+
+  @override
+  String get chooseServiceTier => 'Veuillez choisir une formule de service';
+
+  @override
+  String get enterSurface =>
+      'Veuillez saisir la surface de votre logement (m²)';
+
+  @override
+  String get enterRooms => 'Veuillez saisir le nombre de pièces';
+
+  @override
+  String get enterAddress => 'Veuillez saisir votre adresse';
+
+  @override
+  String get requestSent =>
+      'Demande envoyée ! Notre équipe vous contactera avec le prix et le planning.';
+
+  @override
+  String get sessions => 'Séances';
+
+  @override
+  String get chooseYourDays => 'Choisissez vos jours';
+
+  @override
+  String pickDaysHint(
+      Object days, Object required, Object selected, Object weeks) {
+    return 'Choisissez $days jour(s) par semaine pour les $weeks prochaines semaines ($selected/$required sélectionnés).';
+  }
+
+  @override
+  String get startTime => 'Heure de début';
+
+  @override
+  String get confirmDays => 'Confirmer les jours';
+
+  @override
+  String weekN(Object number) {
+    return 'Semaine $number';
+  }
+
+  @override
+  String get scheduleConfirmed =>
+      'Planning confirmé ! À bientôt pour vos séances de ménage.';
+
+  @override
+  String get reviewingRequest =>
+      'Notre équipe examine votre demande et vous proposera un prix.';
+
+  @override
+  String subSummary(Object days, Object hours) {
+    return '$days jours par semaine · ${hours}h par séance';
+  }
+
+  @override
+  String priceMonth(Object price) {
+    return 'DA $price / mois';
+  }
+
+  @override
+  String paidAmount(Object amount) {
+    return 'DA $amount payés';
+  }
+
+  @override
+  String sessionDuration(Object hours) {
+    return 'Séance de ${hours}h';
+  }
+
+  @override
+  String get priorityScheduling => 'Planification prioritaire';
+
+  @override
+  String get monthly => 'Mensuel';
+
+  @override
+  String get orderDetails => 'Détails de la commande';
+
+  @override
+  String get orderNotFound => 'Commande introuvable';
+
+  @override
+  String get cleaningService => 'Service de nettoyage';
+
+  @override
+  String get rapidService => 'Service rapide';
+
+  @override
+  String get extraWorkers => 'Employés supplémentaires';
+
+  @override
+  String get materials => 'Matériel';
+
+  @override
+  String get notNeeded => 'Non requis';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get yourNote => 'Votre note';
+
+  @override
+  String get cancelOrderQuestion => 'Annuler cette commande ?';
+
+  @override
+  String get keepOrder => 'Garder la commande';
+
+  @override
+  String get cancelOrder => 'Annuler la commande';
+
+  @override
+  String get orderCancelled => 'Commande annulée';
+
+  @override
+  String get ourVision => 'Notre vision';
+
+  @override
+  String get hotline => 'Assistance téléphonique';
+
+  @override
+  String get emailLabel => 'E-mail';
+
+  @override
+  String get website => 'Site web';
+
+  @override
+  String get noFaqsYet => 'Aucune FAQ pour le moment';
+
+  @override
+  String get noPrivacyYet => 'Aucune politique de confidentialité publiée.';
+
+  @override
+  String get noInfoYet => 'Aucune information publiée.';
+
+  @override
+  String get enterServiceAddress => 'Veuillez saisir l\'adresse du service';
+
+  @override
+  String get pack => 'Pack';
+
+  @override
+  String get perWeek => 'Par semaine';
+
+  @override
+  String get monthlyPrice => 'Prix mensuel';
+
+  @override
+  String get failedPickImage => 'Échec du chargement de l\'image';
+
+  @override
+  String get onConfirmation => 'À la confirmation';
+
+  @override
+  String get photos => 'Photos';
 }

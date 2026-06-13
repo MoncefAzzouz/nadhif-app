@@ -371,4 +371,210 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get deleteAccountWarning =>
       'This will permanently delete your account and all your data. This action cannot be undone.';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get address => 'Address';
+
+  @override
+  String get subscription => 'Subscription';
+
+  @override
+  String get subscriptionPacks => 'Subscription Packs';
+
+  @override
+  String get subscriptionPacksSubtitle =>
+      'Recurring cleaning at a monthly price';
+
+  @override
+  String get mySubscriptions => 'My Subscriptions';
+
+  @override
+  String get requestSubscriptionTitle => 'Request a Subscription';
+
+  @override
+  String get requestSubscriptionButton => 'Request Subscription';
+
+  @override
+  String get propertyType => 'Property type';
+
+  @override
+  String get serviceTier => 'Service tier';
+
+  @override
+  String get daysPerWeek => 'Days per week';
+
+  @override
+  String get surfaceM2 => 'Surface (m²)';
+
+  @override
+  String get rooms => 'Rooms';
+
+  @override
+  String get enterFullAddress => 'Enter your full address...';
+
+  @override
+  String get homePhotosOptional => 'Photos of your home (optional)';
+
+  @override
+  String get maxThreePhotos => 'Maximum of 3 photos allowed';
+
+  @override
+  String get choosePropertyType => 'Please choose a property type';
+
+  @override
+  String get chooseServiceTier => 'Please choose a service tier';
+
+  @override
+  String get enterSurface => 'Please enter your home surface (m²)';
+
+  @override
+  String get enterRooms => 'Please enter the number of rooms';
+
+  @override
+  String get enterAddress => 'Please enter your address';
+
+  @override
+  String get requestSent =>
+      'Request sent! Our team will contact you with the price and schedule.';
+
+  @override
+  String get sessions => 'Sessions';
+
+  @override
+  String get chooseYourDays => 'Choose Your Days';
+
+  @override
+  String pickDaysHint(
+      Object days, Object required, Object selected, Object weeks) {
+    return 'Pick $days day(s) per week for the next $weeks weeks ($selected/$required selected).';
+  }
+
+  @override
+  String get startTime => 'Start time';
+
+  @override
+  String get confirmDays => 'Confirm Days';
+
+  @override
+  String weekN(Object number) {
+    return 'Week $number';
+  }
+
+  @override
+  String get scheduleConfirmed =>
+      'Schedule confirmed! See you on your cleaning days.';
+
+  @override
+  String get reviewingRequest =>
+      'Our team is reviewing your request and will propose a price.';
+
+  @override
+  String subSummary(Object days, Object hours) {
+    return '$days days per week · ${hours}h per session';
+  }
+
+  @override
+  String priceMonth(Object price) {
+    return 'DA $price / month';
+  }
+
+  @override
+  String paidAmount(Object amount) {
+    return 'DA $amount paid';
+  }
+
+  @override
+  String sessionDuration(Object hours) {
+    return '${hours}h session';
+  }
+
+  @override
+  String get priorityScheduling => 'Priority scheduling';
+
+  @override
+  String get monthly => 'Monthly';
+
+  @override
+  String get orderDetails => 'Order Details';
+
+  @override
+  String get orderNotFound => 'Order not found';
+
+  @override
+  String get cleaningService => 'Cleaning Service';
+
+  @override
+  String get rapidService => 'Rapid service';
+
+  @override
+  String get extraWorkers => 'Extra workers';
+
+  @override
+  String get materials => 'Materials';
+
+  @override
+  String get notNeeded => 'Not needed';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get yourNote => 'Your note';
+
+  @override
+  String get cancelOrderQuestion => 'Cancel this order?';
+
+  @override
+  String get keepOrder => 'Keep order';
+
+  @override
+  String get cancelOrder => 'Cancel order';
+
+  @override
+  String get orderCancelled => 'Order cancelled';
+
+  @override
+  String get ourVision => 'Our Vision';
+
+  @override
+  String get hotline => 'Hotline';
+
+  @override
+  String get emailLabel => 'Email';
+
+  @override
+  String get website => 'Website';
+
+  @override
+  String get noFaqsYet => 'No FAQs yet';
+
+  @override
+  String get noPrivacyYet => 'No privacy policy published yet.';
+
+  @override
+  String get noInfoYet => 'No information published yet.';
+
+  @override
+  String get enterServiceAddress => 'Please enter your service address';
+
+  @override
+  String get pack => 'Pack';
+
+  @override
+  String get perWeek => 'Per week';
+
+  @override
+  String get monthlyPrice => 'Monthly price';
+
+  @override
+  String get failedPickImage => 'Failed to pick image';
+
+  @override
+  String get onConfirmation => 'On confirmation';
+
+  @override
+  String get photos => 'Photos';
 }

@@ -1,3 +1,4 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/subscriptions/data/subscriptions_api_service.dart';
@@ -98,8 +99,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
         availability.durationHours,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Schedule confirmed! See you on your cleaning days.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context)!.scheduleConfirmed),
         backgroundColor: ColorApp.primary,
       ));
       _load();
@@ -116,10 +117,11 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Subscription'),
+        title: Text(l10n.subscription),
         backgroundColor: ColorApp.primary,
       ),
       body: _isLoading
@@ -139,7 +141,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                                 fontWeight: FontWeight.w600)),
                       ),
                       const SizedBox(height: 12),
-                      TextButton(onPressed: _load, child: const Text('Retry')),
+                      TextButton(
+                          onPressed: _load, child: Text(l10n.retry)),
                     ],
                   ),
                 )
@@ -155,7 +158,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                           _availability != null)
                         _dayPicker(),
                       if (_subscription!.sessions.isNotEmpty) ...[
-                        _sectionTitle('Sessions'),
+                        _sectionTitle(l10n.sessions),
                         const SizedBox(height: 12),
                         ..._subscription!.sessions.map(_sessionTile),
                       ],
@@ -168,6 +171,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
 
   Widget _headerCard() {
     final sub = _subscription!;
+    final l10n = AppLocalizations.of(context)!;
     final localeCode = Localizations.localeOf(context).languageCode;
     final color = _statusColors[sub.status] ?? ColorApp.textGrey;
     final tierName = sub.tierNameFor(localeCode);
@@ -186,7 +190,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
             children: [
               Expanded(
                 child: Text(
-                  tierName.isEmpty ? 'Subscription' : tierName,
+                  tierName.isEmpty ? l10n.subscription : tierName,
                   style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
@@ -212,16 +216,18 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
           ),
           const SizedBox(height: 14),
           _infoRow(Icons.home_rounded,
-              '$propertyName · ${sub.surfaceM2.toStringAsFixed(0)} m² · ${sub.roomsToClean} rooms'),
+              '$propertyName · ${sub.surfaceM2.toStringAsFixed(0)} m² · ${sub.roomsToClean} ${l10n.rooms.toLowerCase()}'),
           _infoRow(Icons.calendar_month_rounded,
-              '${sub.daysPerWeek} days per week · ${sub.tierDurationHours}h per session'),
+              l10n.subSummary('${sub.daysPerWeek}', '${sub.tierDurationHours}')),
           if (sub.monthlyPrice > 0)
-            _infoRow(Icons.payments_rounded,
-                'DA ${sub.monthlyPrice.toStringAsFixed(0)} / month'
-                '${sub.amountPaid > 0 ? ' · DA ${sub.amountPaid.toStringAsFixed(0)} paid' : ''}'),
+            _infoRow(
+                Icons.payments_rounded,
+                l10n.priceMonth(sub.monthlyPrice.toStringAsFixed(0)) +
+                    (sub.amountPaid > 0
+                        ? ' · ${l10n.paidAmount(sub.amountPaid.toStringAsFixed(0))}'
+                        : '')),
           if (sub.status == 'PENDING')
-            _infoRow(Icons.hourglass_top_rounded,
-                'Our team is reviewing your request and will propose a price.'),
+            _infoRow(Icons.hourglass_top_rounded, l10n.reviewingRequest),
         ],
       ),
     );
@@ -252,15 +258,20 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
   Widget _dayPicker() {
     final availability = _availability!;
     final required = _requiredCount;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Choose Your Days'),
+        _sectionTitle(l10n.chooseYourDays),
         const SizedBox(height: 6),
         Text(
-          'Pick ${availability.daysPerWeek} day(s) per week for the next '
-          '${availability.weeks.length} weeks (${_selectedDates.length}/$required selected).',
+          l10n.pickDaysHint(
+            '${availability.daysPerWeek}',
+            '${availability.weeks.length}',
+            '${_selectedDates.length}',
+            '$required',
+          ),
           style: const TextStyle(
               fontSize: 12.5,
               color: ColorApp.textGrey,
@@ -278,9 +289,9 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
             children: [
               ...availability.weeks.map(_weekRow),
               const SizedBox(height: 8),
-              const Text(
-                'Start time',
-                style: TextStyle(
+              Text(
+                l10n.startTime,
+                style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: ColorApp.textGrey),
@@ -342,8 +353,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2.5),
                         )
-                      : const Text('Confirm Days',
-                          style: TextStyle(
+                      : Text(l10n.confirmDays,
+                          style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w900)),
                 ),
               ),
@@ -366,7 +377,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Week ${week.week}',
+            AppLocalizations.of(context)!.weekN('${week.week}'),
             style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
@@ -478,7 +489,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                       color: ColorApp.textBlack),
                 ),
                 Text(
-                  '${session.durationHours}h session',
+                  AppLocalizations.of(context)!
+                      .sessionDuration('${session.durationHours}'),
                   style: const TextStyle(
                       fontSize: 12,
                       color: ColorApp.textGrey,

@@ -813,6 +813,385 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This will permanently delete your account and all your data. This action cannot be undone.'**
   String get deleteAccountWarning;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @address.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get address;
+
+  /// No description provided for @subscription.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription'**
+  String get subscription;
+
+  /// No description provided for @subscriptionPacks.
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription Packs'**
+  String get subscriptionPacks;
+
+  /// No description provided for @subscriptionPacksSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring cleaning at a monthly price'**
+  String get subscriptionPacksSubtitle;
+
+  /// No description provided for @mySubscriptions.
+  ///
+  /// In en, this message translates to:
+  /// **'My Subscriptions'**
+  String get mySubscriptions;
+
+  /// No description provided for @requestSubscriptionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request a Subscription'**
+  String get requestSubscriptionTitle;
+
+  /// No description provided for @requestSubscriptionButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Subscription'**
+  String get requestSubscriptionButton;
+
+  /// No description provided for @propertyType.
+  ///
+  /// In en, this message translates to:
+  /// **'Property type'**
+  String get propertyType;
+
+  /// No description provided for @serviceTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Service tier'**
+  String get serviceTier;
+
+  /// No description provided for @daysPerWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Days per week'**
+  String get daysPerWeek;
+
+  /// No description provided for @surfaceM2.
+  ///
+  /// In en, this message translates to:
+  /// **'Surface (m²)'**
+  String get surfaceM2;
+
+  /// No description provided for @rooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Rooms'**
+  String get rooms;
+
+  /// No description provided for @enterFullAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your full address...'**
+  String get enterFullAddress;
+
+  /// No description provided for @homePhotosOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos of your home (optional)'**
+  String get homePhotosOptional;
+
+  /// No description provided for @maxThreePhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum of 3 photos allowed'**
+  String get maxThreePhotos;
+
+  /// No description provided for @choosePropertyType.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose a property type'**
+  String get choosePropertyType;
+
+  /// No description provided for @chooseServiceTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose a service tier'**
+  String get chooseServiceTier;
+
+  /// No description provided for @enterSurface.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your home surface (m²)'**
+  String get enterSurface;
+
+  /// No description provided for @enterRooms.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the number of rooms'**
+  String get enterRooms;
+
+  /// No description provided for @enterAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your address'**
+  String get enterAddress;
+
+  /// No description provided for @requestSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Request sent! Our team will contact you with the price and schedule.'**
+  String get requestSent;
+
+  /// No description provided for @sessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get sessions;
+
+  /// No description provided for @chooseYourDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Your Days'**
+  String get chooseYourDays;
+
+  /// No description provided for @pickDaysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick {days} day(s) per week for the next {weeks} weeks ({selected}/{required} selected).'**
+  String pickDaysHint(
+      Object days, Object required, Object selected, Object weeks);
+
+  /// No description provided for @startTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get startTime;
+
+  /// No description provided for @confirmDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Days'**
+  String get confirmDays;
+
+  /// No description provided for @weekN.
+  ///
+  /// In en, this message translates to:
+  /// **'Week {number}'**
+  String weekN(Object number);
+
+  /// No description provided for @scheduleConfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule confirmed! See you on your cleaning days.'**
+  String get scheduleConfirmed;
+
+  /// No description provided for @reviewingRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Our team is reviewing your request and will propose a price.'**
+  String get reviewingRequest;
+
+  /// No description provided for @subSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days per week · {hours}h per session'**
+  String subSummary(Object days, Object hours);
+
+  /// No description provided for @priceMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'DA {price} / month'**
+  String priceMonth(Object price);
+
+  /// No description provided for @paidAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'DA {amount} paid'**
+  String paidAmount(Object amount);
+
+  /// No description provided for @sessionDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h session'**
+  String sessionDuration(Object hours);
+
+  /// No description provided for @priorityScheduling.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority scheduling'**
+  String get priorityScheduling;
+
+  /// No description provided for @monthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get monthly;
+
+  /// No description provided for @orderDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Details'**
+  String get orderDetails;
+
+  /// No description provided for @orderNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Order not found'**
+  String get orderNotFound;
+
+  /// No description provided for @cleaningService.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning Service'**
+  String get cleaningService;
+
+  /// No description provided for @rapidService.
+  ///
+  /// In en, this message translates to:
+  /// **'Rapid service'**
+  String get rapidService;
+
+  /// No description provided for @extraWorkers.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra workers'**
+  String get extraWorkers;
+
+  /// No description provided for @materials.
+  ///
+  /// In en, this message translates to:
+  /// **'Materials'**
+  String get materials;
+
+  /// No description provided for @notNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not needed'**
+  String get notNeeded;
+
+  /// No description provided for @total.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// No description provided for @yourNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your note'**
+  String get yourNote;
+
+  /// No description provided for @cancelOrderQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this order?'**
+  String get cancelOrderQuestion;
+
+  /// No description provided for @keepOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep order'**
+  String get keepOrder;
+
+  /// No description provided for @cancelOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel order'**
+  String get cancelOrder;
+
+  /// No description provided for @orderCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Order cancelled'**
+  String get orderCancelled;
+
+  /// No description provided for @ourVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Our Vision'**
+  String get ourVision;
+
+  /// No description provided for @hotline.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotline'**
+  String get hotline;
+
+  /// No description provided for @emailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get emailLabel;
+
+  /// No description provided for @website.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get website;
+
+  /// No description provided for @noFaqsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No FAQs yet'**
+  String get noFaqsYet;
+
+  /// No description provided for @noPrivacyYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No privacy policy published yet.'**
+  String get noPrivacyYet;
+
+  /// No description provided for @noInfoYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No information published yet.'**
+  String get noInfoYet;
+
+  /// No description provided for @enterServiceAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter your service address'**
+  String get enterServiceAddress;
+
+  /// No description provided for @pack.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack'**
+  String get pack;
+
+  /// No description provided for @perWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Per week'**
+  String get perWeek;
+
+  /// No description provided for @monthlyPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly price'**
+  String get monthlyPrice;
+
+  /// No description provided for @failedPickImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pick image'**
+  String get failedPickImage;
+
+  /// No description provided for @onConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'On confirmation'**
+  String get onConfirmation;
+
+  /// No description provided for @photos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get photos;
 }
 
 class _AppLocalizationsDelegate

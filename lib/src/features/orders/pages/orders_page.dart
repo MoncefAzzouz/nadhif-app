@@ -92,22 +92,23 @@ class _OrdersPageState extends State<OrdersPage> {
   bool _isFinished(String? status) => status == 'COMPLETED' || status == 'CANCELLED';
 
   Future<void> _cancelOrder(ActiveOrder order) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Cancel this order?',
-            style: TextStyle(fontWeight: FontWeight.w900)),
-        content: Text('${order.title} will be cancelled. This cannot be undone.'),
+        title: Text(l10n.cancelOrderQuestion,
+            style: const TextStyle(fontWeight: FontWeight.w900)),
+        content: Text(order.title),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Keep order'),
+            child: Text(l10n.keepOrder),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Cancel order',
-                style: TextStyle(
+            child: Text(l10n.cancelOrder,
+                style: const TextStyle(
                     color: Color(0xFFDC2626), fontWeight: FontWeight.w800)),
           ),
         ],
@@ -119,8 +120,8 @@ class _OrdersPageState extends State<OrdersPage> {
       await locator<OrdersApiService>().cancelOrder(order.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order cancelled'),
+        SnackBar(
+          content: Text(l10n.orderCancelled),
           backgroundColor: ColorApp.primary,
         ),
       );
@@ -142,7 +143,7 @@ class _OrdersPageState extends State<OrdersPage> {
     final status = order['status'] as String? ?? 'PENDING';
     return ActiveOrder(
       id: order['id'] as String? ?? '',
-      title: (service?['name'] ?? category?['name'] ?? 'Cleaning Service') as String,
+      title: (service?['name'] ?? category?['name'] ?? AppLocalizations.of(context)!.cleaningService) as String,
       subtitle: DateFormat('MMM d, h:mm a').format(DateTime.parse(order['scheduledDate'] as String).toLocal()),
       status: status.replaceAll('_', ' '),
       progress: _progressForStatus(status),
@@ -156,7 +157,7 @@ class _OrdersPageState extends State<OrdersPage> {
     final category = order['category'] as Map<String, dynamic>?;
     final date = DateTime.parse(order['scheduledDate'] as String).toLocal();
     return ScheduledOrder(
-      title: (service?['name'] ?? category?['name'] ?? 'Cleaning Service') as String,
+      title: (service?['name'] ?? category?['name'] ?? AppLocalizations.of(context)!.cleaningService) as String,
       subtitle: (order['status'] as String? ?? 'PENDING').replaceAll('_', ' '),
       date: DateFormat('MMM d, yyyy').format(date),
       time: DateFormat('h:mm a').format(date),
@@ -225,7 +226,9 @@ class _OrdersPageState extends State<OrdersPage> {
                             ),
                           ),
                         ),
-                        TextButton(onPressed: _loadOrders, child: const Text('Retry')),
+                        TextButton(
+                            onPressed: _loadOrders,
+                            child: Text(AppLocalizations.of(context)!.retry)),
                       ],
                     ),
                   ),
@@ -499,9 +502,9 @@ class _ActiveOrderCard extends StatelessWidget {
                           color: const Color(0xFFDC2626).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)!.cancel,
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFFDC2626),

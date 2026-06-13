@@ -1,3 +1,4 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/pages/data/pages_api_service.dart';
@@ -64,14 +65,14 @@ class HelpCenterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _InfoScaffold(
-      title: 'Help Center',
+      title: AppLocalizations.of(context)!.helpCenter,
       body: _AsyncBody<List<AppFaq>>(
         future: locator<PagesApiService>().getFaqs(),
         builder: (context, faqs) {
           if (faqs.isEmpty) {
-            return const Center(
-              child: Text('No FAQs yet',
-                  style: TextStyle(
+            return Center(
+              child: Text(AppLocalizations.of(context)!.noFaqsYet,
+                  style: const TextStyle(
                       color: ColorApp.textGrey, fontWeight: FontWeight.w600)),
             );
           }
@@ -135,13 +136,15 @@ class PrivacyPolicyPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _InfoScaffold(
-      title: 'Privacy Policy',
+      title: AppLocalizations.of(context)!.privacyPolicy,
       body: _AsyncBody<String>(
         future: locator<PagesApiService>().getPrivacyPolicy(),
         builder: (context, text) => SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Text(
-            text.isEmpty ? 'No privacy policy published yet.' : text,
+            text.isEmpty
+                ? AppLocalizations.of(context)!.noPrivacyYet
+                : text,
             style: const TextStyle(
               fontSize: 14,
               height: 1.6,
@@ -161,15 +164,16 @@ class AboutPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return _InfoScaffold(
-      title: 'About Nadhif',
+      title: l10n.aboutNadhif,
       body: _AsyncBody<AppAboutUs?>(
         future: locator<PagesApiService>().getAbout(),
         builder: (context, about) {
           if (about == null) {
-            return const Center(
-              child: Text('No information published yet.',
-                  style: TextStyle(
+            return Center(
+              child: Text(l10n.noInfoYet,
+                  style: const TextStyle(
                       color: ColorApp.textGrey, fontWeight: FontWeight.w600)),
             );
           }
@@ -177,8 +181,8 @@ class AboutPage extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             children: [
               if (about.vision.isNotEmpty) ...[
-                const Text('Our Vision',
-                    style: TextStyle(
+                Text(l10n.ourVision,
+                    style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                         color: ColorApp.textBlack)),
@@ -191,14 +195,15 @@ class AboutPage extends StatelessWidget {
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 24),
               ],
-              _contactTile(Icons.phone_rounded, 'Hotline', about.hotline),
-              _contactTile(Icons.email_rounded, 'Email', about.email),
-              _contactTile(Icons.language_rounded, 'Website', about.website),
+              _contactTile(Icons.phone_rounded, l10n.hotline, about.hotline),
+              _contactTile(Icons.email_rounded, l10n.emailLabel, about.email),
+              _contactTile(
+                  Icons.language_rounded, l10n.website, about.website),
               _contactTile(Icons.facebook_rounded, 'Facebook', about.facebook),
               _contactTile(
                   Icons.camera_alt_rounded, 'Instagram', about.instagram),
               _contactTile(
-                  Icons.location_on_rounded, 'Address', about.wilayaCenter),
+                  Icons.location_on_rounded, l10n.address, about.wilayaCenter),
             ],
           );
         },

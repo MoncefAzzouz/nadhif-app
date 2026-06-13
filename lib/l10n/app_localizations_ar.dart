@@ -371,4 +371,207 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get deleteAccountWarning =>
       'سيؤدي هذا إلى حذف حسابك وجميع بياناتك نهائيًا. لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String get retry => 'إعادة المحاولة';
+
+  @override
+  String get address => 'العنوان';
+
+  @override
+  String get subscription => 'اشتراك';
+
+  @override
+  String get subscriptionPacks => 'باقات الاشتراك';
+
+  @override
+  String get subscriptionPacksSubtitle => 'تنظيف دوري بسعر شهري';
+
+  @override
+  String get mySubscriptions => 'اشتراكاتي';
+
+  @override
+  String get requestSubscriptionTitle => 'طلب اشتراك';
+
+  @override
+  String get requestSubscriptionButton => 'طلب الاشتراك';
+
+  @override
+  String get propertyType => 'نوع السكن';
+
+  @override
+  String get serviceTier => 'نوع الخدمة';
+
+  @override
+  String get daysPerWeek => 'أيام في الأسبوع';
+
+  @override
+  String get surfaceM2 => 'المساحة (م²)';
+
+  @override
+  String get rooms => 'الغرف';
+
+  @override
+  String get enterFullAddress => 'أدخل عنوانك الكامل...';
+
+  @override
+  String get homePhotosOptional => 'صور منزلك (اختياري)';
+
+  @override
+  String get maxThreePhotos => 'الحد الأقصى 3 صور';
+
+  @override
+  String get choosePropertyType => 'الرجاء اختيار نوع السكن';
+
+  @override
+  String get chooseServiceTier => 'الرجاء اختيار نوع الخدمة';
+
+  @override
+  String get enterSurface => 'الرجاء إدخال مساحة المنزل (م²)';
+
+  @override
+  String get enterRooms => 'الرجاء إدخال عدد الغرف';
+
+  @override
+  String get enterAddress => 'الرجاء إدخال عنوانك';
+
+  @override
+  String get requestSent =>
+      'تم إرسال الطلب! سيتواصل معك فريقنا بالسعر والجدول الزمني.';
+
+  @override
+  String get sessions => 'الجلسات';
+
+  @override
+  String get chooseYourDays => 'اختر أيامك';
+
+  @override
+  String pickDaysHint(
+      Object days, Object required, Object selected, Object weeks) {
+    return 'اختر $days يوم/أيام في الأسبوع للأسابيع $weeks القادمة ($selected/$required محدد).';
+  }
+
+  @override
+  String get startTime => 'وقت البدء';
+
+  @override
+  String get confirmDays => 'تأكيد الأيام';
+
+  @override
+  String weekN(Object number) {
+    return 'الأسبوع $number';
+  }
+
+  @override
+  String get scheduleConfirmed => 'تم تأكيد الجدول! نراك في أيام التنظيف.';
+
+  @override
+  String get reviewingRequest => 'فريقنا يراجع طلبك وسيقترح عليك سعرًا.';
+
+  @override
+  String subSummary(Object days, Object hours) {
+    return '$days أيام في الأسبوع · $hours ساعات لكل جلسة';
+  }
+
+  @override
+  String priceMonth(Object price) {
+    return 'دج $price / شهر';
+  }
+
+  @override
+  String paidAmount(Object amount) {
+    return 'دج $amount مدفوعة';
+  }
+
+  @override
+  String sessionDuration(Object hours) {
+    return 'جلسة $hours ساعات';
+  }
+
+  @override
+  String get priorityScheduling => 'جدولة ذات أولوية';
+
+  @override
+  String get monthly => 'شهري';
+
+  @override
+  String get orderDetails => 'تفاصيل الطلب';
+
+  @override
+  String get orderNotFound => 'الطلب غير موجود';
+
+  @override
+  String get cleaningService => 'خدمة تنظيف';
+
+  @override
+  String get rapidService => 'خدمة سريعة';
+
+  @override
+  String get extraWorkers => 'عمال إضافيون';
+
+  @override
+  String get materials => 'المعدات';
+
+  @override
+  String get notNeeded => 'غير مطلوب';
+
+  @override
+  String get total => 'المجموع';
+
+  @override
+  String get yourNote => 'ملاحظتك';
+
+  @override
+  String get cancelOrderQuestion => 'إلغاء هذا الطلب؟';
+
+  @override
+  String get keepOrder => 'الاحتفاظ بالطلب';
+
+  @override
+  String get cancelOrder => 'إلغاء الطلب';
+
+  @override
+  String get orderCancelled => 'تم إلغاء الطلب';
+
+  @override
+  String get ourVision => 'رؤيتنا';
+
+  @override
+  String get hotline => 'الخط الساخن';
+
+  @override
+  String get emailLabel => 'البريد الإلكتروني';
+
+  @override
+  String get website => 'الموقع الإلكتروني';
+
+  @override
+  String get noFaqsYet => 'لا توجد أسئلة شائعة بعد';
+
+  @override
+  String get noPrivacyYet => 'لم تُنشر سياسة الخصوصية بعد.';
+
+  @override
+  String get noInfoYet => 'لم تُنشر معلومات بعد.';
+
+  @override
+  String get enterServiceAddress => 'الرجاء إدخال عنوان الخدمة';
+
+  @override
+  String get pack => 'الباقة';
+
+  @override
+  String get perWeek => 'في الأسبوع';
+
+  @override
+  String get monthlyPrice => 'السعر الشهري';
+
+  @override
+  String get failedPickImage => 'فشل اختيار الصورة';
+
+  @override
+  String get onConfirmation => 'عند التأكيد';
+
+  @override
+  String get photos => 'الصور';
 }

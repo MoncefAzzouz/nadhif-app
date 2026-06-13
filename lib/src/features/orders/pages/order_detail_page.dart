@@ -1,3 +1,4 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
@@ -36,10 +37,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Order Details'),
+        title: Text(l10n.orderDetails),
         backgroundColor: ColorApp.primary,
       ),
       body: FutureBuilder<Map<String, dynamic>>(
@@ -55,7 +57,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 snapshot.error
                         ?.toString()
                         .replaceFirst('Exception: ', '') ??
-                    'Order not found',
+                    l10n.orderNotFound,
                 style: const TextStyle(
                     color: ColorApp.textGrey, fontWeight: FontWeight.w600),
               ),
@@ -67,7 +69,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           final category = order['category'] as Map<String, dynamic>?;
           final title = (service?['name'] ??
               category?['name'] ??
-              'Cleaning Service') as String;
+              l10n.cleaningService) as String;
           final status = order['status'] as String? ?? 'PENDING';
           final statusColor = _statusColors[status] ?? ColorApp.textGrey;
           final scheduled =
@@ -122,13 +124,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                     if (isRapid) ...[
                       const SizedBox(height: 8),
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.bolt_rounded,
+                          const Icon(Icons.bolt_rounded,
                               color: Color(0xFFF59E0B), size: 18),
-                          SizedBox(width: 4),
-                          Text('Rapid service',
-                              style: TextStyle(
+                          const SizedBox(width: 4),
+                          Text(l10n.rapidService,
+                              style: const TextStyle(
                                   color: Color(0xFFF59E0B),
                                   fontWeight: FontWeight.w800,
                                   fontSize: 13)),
@@ -152,22 +154,24 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     if (scheduled != null)
                       _infoRow(
                           Icons.calendar_today_rounded,
-                          'Scheduled',
+                          l10n.scheduled,
                           DateFormat('EEE, MMM d yyyy — h:mm a')
                               .format(scheduled)),
-                    _infoRow(Icons.location_on_rounded, 'Address',
+                    _infoRow(Icons.location_on_rounded, l10n.address,
                         order['address'] as String? ?? '-'),
-                    _infoRow(Icons.people_outline_rounded, 'Extra workers',
+                    _infoRow(Icons.people_outline_rounded, l10n.extraWorkers,
                         '${order['extraWorkers'] ?? 0}'),
                     _infoRow(
                         Icons.inventory_2_outlined,
-                        'Materials',
+                        l10n.materials,
                         order['useMaterials'] == true
-                            ? 'Provided (${(order['productOrigin'] as String? ?? 'NONE').toLowerCase()})'
-                            : 'Not needed'),
+                            ? (order['productOrigin'] == 'IMPORTED'
+                                ? l10n.importedMaterials
+                                : l10n.localMaterials)
+                            : l10n.notNeeded),
                     _infoRow(
                         Icons.account_balance_wallet_outlined,
-                        'Total',
+                        l10n.total,
                         'DA ${((order['totalPrice'] as num?) ?? 0).toStringAsFixed(2)}'),
                   ],
                 ),
@@ -184,8 +188,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Your note',
-                          style: TextStyle(
+                      Text(l10n.yourNote,
+                          style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
                               color: ColorApp.textBlack)),
@@ -212,8 +216,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Photos',
-                          style: TextStyle(
+                      Text(l10n.photos,
+                          style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w900,
                               color: ColorApp.textBlack)),

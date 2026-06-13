@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
@@ -89,9 +90,10 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
   }
 
   Future<void> _pickPhoto() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_photos.length >= 3) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Maximum of 3 photos allowed'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(l10n.maxThreePhotos),
         backgroundColor: ColorApp.primary,
       ));
       return;
@@ -108,7 +110,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to pick image: $e'),
+        content: Text('${l10n.failedPickImage}: $e'),
         backgroundColor: Colors.red,
       ));
     }
@@ -130,20 +132,21 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    final l10n = AppLocalizations.of(context)!;
     final surface = double.tryParse(_surfaceController.text.trim());
     final rooms = int.tryParse(_roomsController.text.trim());
     final address = _addressController.text.trim();
 
     String? problem;
-    if (_propertyTypeId == null) problem = 'Please choose a property type';
-    if (_tierId == null) problem ??= 'Please choose a service tier';
+    if (_propertyTypeId == null) problem = l10n.choosePropertyType;
+    if (_tierId == null) problem ??= l10n.chooseServiceTier;
     if (surface == null || surface <= 0) {
-      problem ??= 'Please enter your home surface (m²)';
+      problem ??= l10n.enterSurface;
     }
     if (rooms == null || rooms <= 0) {
-      problem ??= 'Please enter the number of rooms';
+      problem ??= l10n.enterRooms;
     }
-    if (address.isEmpty) problem ??= 'Please enter your address';
+    if (address.isEmpty) problem ??= l10n.enterAddress;
     if (problem != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(problem),
@@ -165,9 +168,8 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
         pictures: pictures,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Request sent! Our team will contact you with the price and schedule.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(l10n.requestSent),
         backgroundColor: ColorApp.primary,
       ));
       _surfaceController.clear();
@@ -188,11 +190,12 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final localeCode = Localizations.localeOf(context).languageCode;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Subscription Packs'),
+        title: Text(l10n.subscriptionPacks),
         backgroundColor: ColorApp.primary,
       ),
       body: _isLoading
@@ -209,7 +212,8 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                               color: ColorApp.textGrey,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
-                      TextButton(onPressed: _load, child: const Text('Retry')),
+                      TextButton(
+                          onPressed: _load, child: Text(l10n.retry)),
                     ],
                   ),
                 )
@@ -220,16 +224,16 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                     padding: const EdgeInsets.all(20),
                     children: [
                       if (_mine.isNotEmpty) ...[
-                        _sectionTitle('My Subscriptions'),
+                        _sectionTitle(l10n.mySubscriptions),
                         const SizedBox(height: 12),
                         ..._mine.map(_subscriptionCard),
                         const SizedBox(height: 24),
                       ],
-                      _sectionTitle('Request a Subscription'),
+                      _sectionTitle(l10n.requestSubscriptionTitle),
                       const SizedBox(height: 12),
                       _card(
                         children: [
-                          _fieldLabel('Property type'),
+                          _fieldLabel(l10n.propertyType),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
@@ -244,11 +248,11 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                                 .toList(),
                           ),
                           const SizedBox(height: 20),
-                          _fieldLabel('Service tier'),
+                          _fieldLabel(l10n.serviceTier),
                           const SizedBox(height: 8),
                           ..._tiers.map((t) => _tierCard(t, localeCode)),
                           const SizedBox(height: 20),
-                          _fieldLabel('Days per week'),
+                          _fieldLabel(l10n.daysPerWeek),
                           const SizedBox(height: 8),
                           Row(
                             children: List.generate(7, (i) {
@@ -293,29 +297,29 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                             children: [
                               Expanded(
                                 child: _numberField(
-                                    'Surface (m²)', _surfaceController),
+                                    l10n.surfaceM2, _surfaceController),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child:
-                                    _numberField('Rooms', _roomsController),
+                                    _numberField(l10n.rooms, _roomsController),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          _fieldLabel('Address'),
+                          _fieldLabel(l10n.address),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _addressController,
                             minLines: 1,
                             maxLines: 3,
-                            decoration: _inputDecoration(
-                                'Enter your full address...'),
+                            decoration:
+                                _inputDecoration(l10n.enterFullAddress),
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 14),
                           ),
                           const SizedBox(height: 16),
-                          _fieldLabel('Photos of your home (optional)'),
+                          _fieldLabel(l10n.homePhotosOptional),
                           const SizedBox(height: 8),
                           _photoRow(),
                           const SizedBox(height: 24),
@@ -339,8 +343,8 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                                           color: Colors.white,
                                           strokeWidth: 2.5),
                                     )
-                                  : const Text('Request Subscription',
-                                      style: TextStyle(
+                                  : Text(l10n.requestSubscriptionButton,
+                                      style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w900)),
                             ),
@@ -355,7 +359,11 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
   }
 
   Widget _subscriptionCard(AppSubscription sub) {
+    final l10n = AppLocalizations.of(context)!;
+    final localeCode = Localizations.localeOf(context).languageCode;
     final color = _statusColors[sub.status] ?? ColorApp.textGrey;
+    final tierName = sub.tierNameFor(localeCode);
+    final propertyName = sub.propertyTypeNameFor(localeCode);
     return GestureDetector(
       onTap: () async {
         await Navigator.push(
@@ -380,7 +388,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  sub.tierName.isEmpty ? 'Subscription' : sub.tierName,
+                  tierName.isEmpty ? l10n.subscription : tierName,
                   style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
@@ -388,9 +396,9 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${sub.propertyTypeName} · ${sub.daysPerWeek} days/week'
-                  '${sub.monthlyPrice > 0 ? ' · DA ${sub.monthlyPrice.toStringAsFixed(0)}/month' : ''}'
-                  '${sub.sessionsCount > 0 ? ' · ${sub.sessionsCount} sessions' : ''}',
+                  '$propertyName · ${sub.daysPerWeek} ${l10n.perWeek.toLowerCase()}'
+                  '${sub.monthlyPrice > 0 ? ' · ${l10n.priceMonth(sub.monthlyPrice.toStringAsFixed(0))}' : ''}'
+                  '${sub.sessionsCount > 0 ? ' · ${sub.sessionsCount} ${l10n.sessions.toLowerCase()}' : ''}',
                   style: const TextStyle(
                       fontSize: 12,
                       color: ColorApp.textGrey,
@@ -455,7 +463,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> {
                         color: ColorApp.textBlack),
                   ),
                   Text(
-                    '${tier.workers} workers · ${tier.durationHours}h/session'
+                    '${tier.workers} ${AppLocalizations.of(context)!.professionals.toLowerCase()} · ${tier.durationHours}h'
                     '${tier.description.isNotEmpty ? ' — ${tier.description}' : ''}',
                     style: const TextStyle(
                         fontSize: 12,

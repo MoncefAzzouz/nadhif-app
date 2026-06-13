@@ -483,7 +483,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (rapidPrice <= 0) continue;
       cards.add(_RecommendedCardData(
         title: '⚡ ${service.nameFor(localeCode)}',
-        subtitle: 'Priority scheduling',
+        subtitle: l10n.priorityScheduling,
         price: 'DA ${rapidPrice.toStringAsFixed(0)}',
         bgColor: nextTint(),
         imageUrl: service.picture,
@@ -495,7 +495,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     cards.add(_RecommendedCardData(
       title: l10n.subscriptionPack,
       subtitle: l10n.fullMaintenance,
-      price: 'Monthly',
+      price: l10n.monthly,
       bgColor: nextTint(),
       imageUrl: 'assets/images/pack.png',
       isNew: true,
@@ -530,6 +530,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   /// Entry point to the subscription packs (recurring cleaning) flow.
   Widget _buildSubscriptionBanner(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GestureDetector(
@@ -563,21 +564,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     color: Colors.white, size: 26),
               ),
               const SizedBox(width: 16),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Subscription Packs',
-                      style: TextStyle(
+                      l10n.subscriptionPacks,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w900),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Recurring cleaning at a monthly price',
-                      style: TextStyle(
+                      l10n.subscriptionPacksSubtitle,
+                      style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
                           fontWeight: FontWeight.w600),
