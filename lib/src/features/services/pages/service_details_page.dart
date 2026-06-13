@@ -35,6 +35,7 @@ class ServiceDetailsPage extends StatefulWidget {
   /// Subscription flow: Continue goes to property selection and then the
   /// subscription booking page.
   final bool isSubscription;
+  final bool isRapid;
 
   const ServiceDetailsPage({
     super.key,
@@ -45,6 +46,7 @@ class ServiceDetailsPage extends StatefulWidget {
     this.serviceIcon,
     this.fromRecommendation = false,
     this.isSubscription = false,
+    this.isRapid = false,
   });
 
   @override
@@ -504,19 +506,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                             ),
                           ),
                         );
-                      } else if (widget.fromRecommendation) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => PropertySelectionPage(
-                              serviceName: widget.serviceName,
-                              service: widget.service,
-                              category: widget.category,
-                              serviceImage: widget.serviceImage,
-                              serviceIcon: widget.serviceIcon,
-                            ),
-                          ),
-                        );
                       } else {
                         Navigator.push(
                           context,
@@ -528,6 +517,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                               serviceImage: widget.serviceImage,
                               serviceIcon: widget.serviceIcon,
                               selectedPropertyType: _selectedConfig?.type,
+                              isRapid: widget.isRapid,
                             ),
                           ),
                         );
