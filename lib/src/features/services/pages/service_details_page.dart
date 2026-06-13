@@ -410,6 +410,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                             const SizedBox(height: 12),
                             _HouseLayoutSection(
                               configs: houseConfigs,
+                              isRapid: widget.isRapid,
                               onChanged: (config) =>
                                   _selectedConfig = config,
                             ),
@@ -579,10 +580,12 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
 class _HouseLayoutSection extends StatefulWidget {
   final List<AppHouseConfig> configs;
   final ValueChanged<AppHouseConfig>? onChanged;
+  final bool isRapid;
 
   const _HouseLayoutSection({
     required this.configs,
     this.onChanged,
+    this.isRapid = false,
   });
 
   @override
@@ -676,8 +679,10 @@ class _HouseLayoutSectionState extends State<_HouseLayoutSection> {
               ),
               Expanded(
                 child: _ConfigMetric(
-                  label: l10n.basePrice,
-                  value: 'DA ${_selected.basePrice.toStringAsFixed(0)}',
+                  label: widget.isRapid ? '${l10n.basePrice} ⚡' : l10n.basePrice,
+                  value: widget.isRapid && _selected.rapidBasePrice > 0
+                      ? 'DA ${_selected.rapidBasePrice.toStringAsFixed(0)}'
+                      : 'DA ${_selected.basePrice.toStringAsFixed(0)}',
                 ),
               ),
             ],
