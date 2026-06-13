@@ -257,7 +257,17 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context, "Setif center ville"),
+                onPressed: () {
+                  final addr = _searchController.text.trim();
+                  Navigator.pop(
+                    context,
+                    SelectedLocation(
+                      address: addr.isNotEmpty ? addr : "Setif center ville",
+                      latitude: _currentCenter.latitude,
+                      longitude: _currentCenter.longitude,
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorApp.primary,
                   foregroundColor: Colors.white,
@@ -378,7 +388,17 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                         width: double.infinity,
                         height: 60,
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context, "Setif center ville"),
+                          onPressed: () {
+                            final addr = _searchController.text.trim();
+                            Navigator.pop(
+                              context,
+                              SelectedLocation(
+                                address: addr.isNotEmpty ? addr : "Setif center ville",
+                                latitude: _currentCenter.latitude,
+                                longitude: _currentCenter.longitude,
+                              ),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: ColorApp.primary,
                             foregroundColor: Colors.white,
@@ -406,4 +426,15 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
       ),
     );
   }
+}
+
+class SelectedLocation {
+  final String address;
+  final double latitude;
+  final double longitude;
+  const SelectedLocation({
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+  });
 }

@@ -2,11 +2,13 @@ import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
+import 'package:cleanapp/src/core/widgets/app_text_field.dart';
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
 import 'package:cleanapp/src/features/services/cubit/booking_cubit.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/pages/order_summary_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ServiceBookingPage extends StatelessWidget {
@@ -39,10 +41,20 @@ class ServiceBookingPage extends StatelessWidget {
       }
     }
 
+    AppCategoryService? initialCategoryService = category?.defaultCategoryService;
+    if (selectedPropertyType != null && category != null && category!.categoryServices.isNotEmpty) {
+      for (final config in category!.categoryServices) {
+        if (config.name.toLowerCase() == selectedPropertyType!.toLowerCase()) {
+          initialCategoryService = config;
+          break;
+        }
+      }
+    }
+
     return BlocProvider(
       create: (_) => BookingCubit(
         houseConfig: initialConfig,
-        categoryService: category?.defaultCategoryService,
+        categoryService: initialCategoryService,
         needMaterials: service?.materialsMandatory == true ||
             service?.productsMandatory == true ||
             category?.materialsMandatory == true ||
@@ -136,6 +148,13 @@ class _ServiceBookingView extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) => a.sizeM2 != b.sizeM2,
+                            builder: (context, state) => _SurfaceInputSection(
+                              initialValue: state.sizeM2,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          BlocBuilder<BookingCubit, BookingState>(
                             buildWhen: (a, b) =>
                                 a.selectedCleaners != b.selectedCleaners ||
                                 a.defaultCleaners != b.defaultCleaners,
@@ -144,18 +163,40 @@ class _ServiceBookingView extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                         ],
+                        if (!usesBackendHouseConfigs && category != null && category!.categoryServices.isNotEmpty) ...[
+                          BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) =>
+                                a.selectedCategoryServiceId !=
+                                    b.selectedCategoryServiceId ||
+                                a.selectedHours != b.selectedHours ||
+                                a.selectedCleaners != b.selectedCleaners ||
+                                a.selectedBasePrice != b.selectedBasePrice,
+                            builder: (context, state) => _CategoryServiceSection(
+                              configs: category!.categoryServices,
+                              state: state,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          BlocBuilder<BookingCubit, BookingState>(
+                            buildWhen: (a, b) => a.sizeM2 != b.sizeM2,
+                            builder: (context, state) => _SurfaceInputSection(
+                              initialValue: state.sizeM2,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         BlocBuilder<BookingCubit, BookingState>(
                           buildWhen: (a, b) =>
                               a.selectedDate != b.selectedDate ||
-                              a.lockedDays != b.lockedDays,
-                          builder: (context, state) => _DateSection(
-                            selectedDate: state.selectedDate,
-                            weekDays: _weekDays,
+                              a.lockedDays != b.lockedDays ||
+                              a.isRapid != b.isRapid,
+                          builder: (context, state) => _CalendarDateSection(
+                            state: state,
                             isLocked: state.isDateLocked,
                           ),
                         ),
                         const SizedBox(height: 16),
-                        if (!usesBackendHouseConfigs) ...[
+                        if (!usesBackendHouseConfigs && (category == null || category!.categoryServices.isEmpty)) ...[
                           BlocBuilder<BookingCubit, BookingState>(
                             buildWhen: (a, b) =>
                                 a.selectedHours != b.selectedHours,
@@ -173,11 +214,23 @@ class _ServiceBookingView extends StatelessWidget {
                         const SizedBox(height: 16),
                         BlocBuilder<BookingCubit, BookingState>(
                           buildWhen: (a, b) =>
-                              a.selectedTimeSlot != b.selectedTimeSlot,
-                          builder: (context, state) => _TimeSlotSection(
-                            selectedTimeSlot: state.selectedTimeSlot,
-                            slots: _timeSlots,
-                          ),
+                              a.selectedTimeSlot != b.selectedTimeSlot ||
+                              a.availableSlots != b.availableSlots ||
+                              a.isCheckingAvailability != b.isCheckingAvailability,
+                          builder: (context, state) {
+                            if (state.isCheckingAvailability) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: CircularProgressIndicator.adaptive(),
+                                ),
+                              );
+                            }
+                            return _TimeSlotSection(
+                              selectedTimeSlot: state.selectedTimeSlot,
+                              slots: state.availableSlots,
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         BlocBuilder<BookingCubit, BookingState>(
@@ -367,13 +420,11 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _DateSection extends StatelessWidget {
-  final DateTime selectedDate;
-  final List<String> weekDays;
+class _CalendarDateSection extends StatelessWidget {
+  final BookingState state;
   final bool Function(DateTime) isLocked;
-  const _DateSection({
-    required this.selectedDate,
-    required this.weekDays,
+  const _CalendarDateSection({
+    required this.state,
     required this.isLocked,
   });
 
@@ -381,78 +432,37 @@ class _DateSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
+    
+    final firstDate = state.isRapid
+        ? DateTime(now.year, now.month, now.day + 1)
+        : DateTime(now.year, now.month, now.day + 3);
+        
+    final lastDate = now.add(const Duration(days: 365));
+
+    final initialDate = state.selectedDate.isBefore(firstDate) ? firstDate : state.selectedDate;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: l10n.selectDate, trailing: 'May 2026'),
-        SizedBox(
-          height: 88,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: 14,
-            itemBuilder: (context, index) {
-              final date = now.add(Duration(days: index + 1));
-              final isSelected = selectedDate.day == date.day &&
-                  selectedDate.month == date.month;
-              final locked = isLocked(date);
-              return GestureDetector(
-                onTap: locked
-                    ? null // admin-locked day: not selectable
-                    : () => context.read<BookingCubit>().selectDate(date),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  width: 62,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: locked
-                        ? ColorApp.softGrey
-                        : isSelected
-                            ? ColorApp.primary
-                            : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                        color: isSelected && !locked
-                            ? Colors.transparent
-                            : ColorApp.greyBorder,
-                        width: 1.5),
-                    boxShadow:
-                        isSelected && !locked ? AppShadows.primaryGlow() : null,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        weekDays[date.weekday - 1],
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: locked
-                              ? ColorApp.textGrey.withValues(alpha: 0.4)
-                              : isSelected
-                                  ? Colors.white.withValues(alpha: 0.78)
-                                  : ColorApp.textGrey,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      locked
-                          ? Icon(Icons.lock_rounded,
-                              size: 16,
-                              color: ColorApp.textGrey.withValues(alpha: 0.4))
-                          : Text(
-                              date.day.toString().padLeft(2, '0'),
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                color: isSelected
-                                    ? Colors.white
-                                    : ColorApp.textBlack,
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-              );
+        _SectionHeader(
+          title: l10n.selectDate,
+          trailing: '${state.selectedDate.day}/${state.selectedDate.month}/${state.selectedDate.year}',
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: ColorApp.greyBorder, width: 1.5),
+          ),
+          child: CalendarDatePicker(
+            initialDate: initialDate,
+            firstDate: firstDate,
+            lastDate: lastDate,
+            onDateChanged: (DateTime date) {
+              context.read<BookingCubit>().selectDate(date);
+            },
+            selectableDayPredicate: (DateTime date) {
+              return !isLocked(date);
             },
           ),
         ),
@@ -460,6 +470,164 @@ class _DateSection extends StatelessWidget {
     );
   }
 }
+
+class _CategoryServiceSection extends StatelessWidget {
+  final List<AppCategoryService> configs;
+  final BookingState state;
+
+  const _CategoryServiceSection({
+    required this.configs,
+    required this.state,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(
+          title: 'Layout/Type',
+          trailing: '',
+        ),
+        Row(
+          children: configs.map((config) {
+            final isSelected = state.selectedCategoryServiceId == config.id;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () =>
+                    context.read<BookingCubit>().selectCategoryService(config),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  height: 50,
+                  margin: EdgeInsets.only(
+                    right: config == configs.last ? 0 : 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected ? ColorApp.primary : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected ? Colors.transparent : ColorApp.greyBorder,
+                      width: 1.5,
+                    ),
+                    boxShadow: isSelected ? AppShadows.primaryGlow() : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      config.nameFor(Localizations.localeOf(context).languageCode).toUpperCase(),
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : ColorApp.textBlack,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: ColorApp.softGrey,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.professionals,
+                  value: '${state.selectedCleaners}',
+                ),
+              ),
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.duration,
+                  value: '${state.selectedHours} ${l10n.hours}',
+                ),
+              ),
+              Expanded(
+                child: _ConfigMetric(
+                  label: l10n.basePrice,
+                  value: 'DA ${state.selectedBasePrice.toStringAsFixed(0)}',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SurfaceInputSection extends StatefulWidget {
+  final double? initialValue;
+  const _SurfaceInputSection({super.key, this.initialValue});
+
+  @override
+  State<_SurfaceInputSection> createState() => _SurfaceInputSectionState();
+}
+
+class _SurfaceInputSectionState extends State<_SurfaceInputSection> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialValue != null && widget.initialValue! > 0
+          ? widget.initialValue!.toStringAsFixed(0)
+          : '',
+    );
+    _controller.addListener(() {
+      final val = double.tryParse(_controller.text);
+      context.read<BookingCubit>().setSizeM2(val);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _SurfaceInputSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != oldWidget.initialValue) {
+      final text = widget.initialValue != null && widget.initialValue! > 0
+          ? widget.initialValue!.toStringAsFixed(0)
+          : '';
+      if (_controller.text != text) {
+        _controller.text = text;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionHeader(title: 'Surface (m²)', trailing: ''),
+        AppTextField(
+          controller: _controller,
+          label: 'Surface (m²)',
+          hint: 'e.g. 85',
+          icon: Icons.square_foot_rounded,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 
 class _HouseTypeSection extends StatelessWidget {
   final List<AppHouseConfig> configs;
@@ -1248,7 +1416,7 @@ class _BottomAction extends StatelessWidget {
           serviceId: service?.id,
           houseConfigId: state.selectedHouseConfigId,
           categoryId: category?.id,
-          categoryServiceId: category?.defaultCategoryService?.id,
+          categoryServiceId: state.selectedCategoryServiceId,
           // Date with the selected slot's time merged in (not midnight).
           scheduledDate: state.scheduledDateTime,
           date: '${state.selectedDate.day}/${state.selectedDate.month}/${state.selectedDate.year}',
@@ -1264,6 +1432,7 @@ class _BottomAction extends StatelessWidget {
           materialType: state.materialType,
           subtotal: state.totalPrice,
           isRapid: state.isRapid,
+          sizeM2: state.sizeM2,
         ),
       ),
     );

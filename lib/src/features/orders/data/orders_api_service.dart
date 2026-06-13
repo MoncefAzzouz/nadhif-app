@@ -27,6 +27,9 @@ class OrdersApiService extends BaseApiService {
     String? clientNote,
     List<String>? housePictures,
     bool isRapid = false,
+    double? sizeM2,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       await dio.post(
@@ -46,6 +49,9 @@ class OrdersApiService extends BaseApiService {
           if (housePictures != null && housePictures.isNotEmpty)
             'housePictures': housePictures,
           if (isRapid) 'isRapid': true,
+          if (sizeM2 != null) 'sizeM2': sizeM2,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
         },
       );
     } on DioException catch (e) {
@@ -65,6 +71,9 @@ class OrdersApiService extends BaseApiService {
     String? clientNote,
     List<String>? housePictures,
     bool isRapid = false,
+    double? sizeM2,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       await dio.post(
@@ -86,11 +95,44 @@ class OrdersApiService extends BaseApiService {
           if (housePictures != null && housePictures.isNotEmpty)
             'housePictures': housePictures,
           if (isRapid) 'isRapid': true,
+          if (sizeM2 != null) 'sizeM2': sizeM2,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
         },
       );
     } on DioException catch (e) {
       final error = handleError(e);
       throw Exception(error['message'] ?? 'Failed to create order');
+    }
+  }
+
+  Future<List<String>> getAvailableSlots({
+    required String date,
+    String? serviceId,
+    String? houseConfigId,
+    String? categoryId,
+    String? categoryServiceId,
+    required int extraWorkers,
+    required bool isRapid,
+  }) async {
+    try {
+      final response = await dio.get(
+        '/api/orders/availability',
+        queryParameters: {
+          'date': date,
+          if (serviceId != null) 'serviceId': serviceId,
+          if (houseConfigId != null) 'houseConfigId': houseConfigId,
+          if (categoryId != null) 'categoryId': categoryId,
+          if (categoryServiceId != null) 'categoryServiceId': categoryServiceId,
+          'extraWorkers': extraWorkers,
+          'isRapid': isRapid,
+        },
+      );
+      final list = (response.data['availableSlots'] as List<dynamic>?) ?? [];
+      return list.map((e) => e.toString()).toList();
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to check availability');
     }
   }
 

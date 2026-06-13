@@ -2,12 +2,14 @@ import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/data/services_api_service.dart';
+import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class BookingState extends Equatable {
   final DateTime selectedDate;
   final String? selectedHouseConfigId;
+  final String? selectedCategoryServiceId;
   final String? selectedHouseType;
   final int selectedHours;
   final int selectedCleaners;
@@ -18,26 +20,29 @@ class BookingState extends Equatable {
   final BookingMaterial materialType;
   final bool needEquipment;
   final bool showBreakdown;
-
-  /// Days the admin locked for booking, as 'YYYY-MM-DD' strings
-  /// (from GET /api/pages/locked-days).
   final List<String> lockedDays;
-
-  // Rapid (priority) service: uses the rapid price columns when enabled.
   final bool isRapid;
   final double selectedRapidBasePrice;
 
-  // Real pricing fields from the backend service/category (so the displayed
-  // total matches what the server will store on the order).
+  // Real pricing fields from the backend service/category
   final double extraWorkerPrice;
   final double rapidExtraWorkerPrice;
   final double materialPrice;
   final double localProductPrice;
   final double importedProductPrice;
 
+  // Dynamic slot availability & surface fields
+  final double? sizeM2;
+  final List<String> availableSlots;
+  final bool isCheckingAvailability;
+
+  final AppService? service;
+  final AppCategory? category;
+
   const BookingState({
     required this.selectedDate,
     required this.selectedHouseConfigId,
+    this.selectedCategoryServiceId,
     required this.selectedHouseType,
     required this.selectedHours,
     required this.selectedCleaners,
@@ -56,6 +61,11 @@ class BookingState extends Equatable {
     this.materialPrice = 0,
     this.localProductPrice = 0,
     this.importedProductPrice = 0,
+    this.sizeM2,
+    this.availableSlots = const [],
+    this.isCheckingAvailability = false,
+    this.service,
+    this.category,
   });
 
   factory BookingState.initial({
@@ -66,16 +76,17 @@ class BookingState extends Equatable {
     AppCategory? category,
   }) =>
       BookingState(
-        selectedDate: DateTime.now().add(const Duration(days: 1)),
+        selectedDate: DateTime.now().add(const Duration(days: 3)), // Default normal rule
         selectedHouseConfigId: houseConfig?.id,
-        selectedHouseType: houseConfig?.type,
+        selectedCategoryServiceId: categoryService?.id,
+        selectedHouseType: houseConfig?.type ?? categoryService?.name,
         selectedHours:
             houseConfig?.durationHours ?? categoryService?.durationHours ?? 4,
         selectedCleaners: houseConfig?.workers ?? categoryService?.workers ?? 1,
         selectedBasePrice:
             houseConfig?.basePrice ?? categoryService?.basePrice ?? 0,
         defaultCleaners: houseConfig?.workers ?? categoryService?.workers ?? 1,
-        selectedTimeSlot: '05:30 pm - 06:00 pm',
+        selectedTimeSlot: '08:00 AM',
         needMaterials: needMaterials,
         materialType: BookingMaterial.algerian,
         needEquipment: false,
@@ -90,9 +101,13 @@ class BookingState extends Equatable {
         importedProductPrice: service?.importedProductPrice ??
             category?.importedProductPrice ??
             0,
+        sizeM2: null,
+        availableSlots: const [],
+        isCheckingAvailability: false,
+        service: service,
+        category: category,
       );
 
-  /// Rapid pricing is only offered when the backend configured a rapid rate.
   bool get supportsRapid => selectedRapidBasePrice > 0;
 
   double get effectiveBasePrice =>
@@ -105,11 +120,8 @@ class BookingState extends Equatable {
           ? rapidExtraWorkerPrice
           : extraWorkerPrice;
 
-  /// Mirrors the backend's order-total computation so the displayed price
-  /// matches what gets stored: base + extra workers + materials + products.
   double get totalPrice {
     if (selectedBasePrice <= 0) {
-      // Demo/no-backend fallback keeps the legacy hourly estimate.
       return BookingPricing.total(
         basePrice: selectedBasePrice,
         hours: selectedHours,
@@ -129,13 +141,10 @@ class BookingState extends Equatable {
     return price;
   }
 
-  /// The selected date with the selected time slot's start time merged in,
-  /// so the backend receives the real appointment time (not midnight).
   DateTime get scheduledDateTime {
     final match = RegExp(r'(\d{1,2}):(\d{2})\s*(AM|PM)', caseSensitive: false)
         .firstMatch(selectedTimeSlot);
     if (match == null) {
-      // Fallback: 8 AM if the slot string is unparsable.
       return DateTime(
           selectedDate.year, selectedDate.month, selectedDate.day, 8);
     }
@@ -151,7 +160,6 @@ class BookingState extends Equatable {
   static String _dayKey(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  /// Whether the admin has locked this calendar day for booking.
   bool isDateLocked(DateTime date) => lockedDays.contains(_dayKey(date));
 
   int get extraWorkers =>
@@ -160,6 +168,7 @@ class BookingState extends Equatable {
   BookingState copyWith({
     DateTime? selectedDate,
     String? selectedHouseConfigId,
+    String? selectedCategoryServiceId,
     String? selectedHouseType,
     int? selectedHours,
     int? selectedCleaners,
@@ -173,11 +182,16 @@ class BookingState extends Equatable {
     List<String>? lockedDays,
     bool? isRapid,
     double? selectedRapidBasePrice,
+    double? sizeM2,
+    List<String>? availableSlots,
+    bool? isCheckingAvailability,
   }) {
     return BookingState(
       selectedDate: selectedDate ?? this.selectedDate,
       selectedHouseConfigId:
           selectedHouseConfigId ?? this.selectedHouseConfigId,
+      selectedCategoryServiceId:
+          selectedCategoryServiceId ?? this.selectedCategoryServiceId,
       selectedHouseType: selectedHouseType ?? this.selectedHouseType,
       selectedHours: selectedHours ?? this.selectedHours,
       selectedCleaners: selectedCleaners ?? this.selectedCleaners,
@@ -197,6 +211,11 @@ class BookingState extends Equatable {
       materialPrice: materialPrice,
       localProductPrice: localProductPrice,
       importedProductPrice: importedProductPrice,
+      sizeM2: sizeM2 ?? this.sizeM2,
+      availableSlots: availableSlots ?? this.availableSlots,
+      isCheckingAvailability: isCheckingAvailability ?? this.isCheckingAvailability,
+      service: service,
+      category: category,
     );
   }
 
@@ -204,6 +223,7 @@ class BookingState extends Equatable {
   List<Object?> get props => [
         selectedDate,
         selectedHouseConfigId,
+        selectedCategoryServiceId,
         selectedHouseType,
         selectedHours,
         selectedCleaners,
@@ -222,6 +242,11 @@ class BookingState extends Equatable {
         materialPrice,
         localProductPrice,
         importedProductPrice,
+        sizeM2,
+        availableSlots,
+        isCheckingAvailability,
+        service,
+        category,
       ];
 }
 
@@ -233,8 +258,7 @@ class BookingCubit extends Cubit<BookingState> {
     String? initialHouseType,
     AppService? service,
     AppCategory? category,
-  })
-      : super(
+  }) : super(
           BookingState.initial(
             houseConfig: houseConfig,
             categoryService: categoryService,
@@ -242,10 +266,14 @@ class BookingCubit extends Cubit<BookingState> {
             service: service,
             category: category,
           ).copyWith(
-            selectedHouseType: initialHouseType ?? houseConfig?.type,
+            selectedHouseType: initialHouseType ?? houseConfig?.type ?? categoryService?.name,
+            selectedCategoryServiceId: categoryService?.id,
+            // Enforce minimum 3 days restriction for normal booking
+            selectedDate: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 3),
           ),
         ) {
     _loadLockedDays();
+    checkAvailability();
   }
 
   Future<void> _loadLockedDays() async {
@@ -259,34 +287,132 @@ class BookingCubit extends Cubit<BookingState> {
   }
 
   void selectDate(DateTime date) {
-    if (state.isDateLocked(date)) return; // locked days are not selectable
+    if (state.isDateLocked(date)) return;
     emit(state.copyWith(selectedDate: date));
+    checkAvailability();
   }
-  void selectHouseConfig(AppHouseConfig config) => emit(
-        state.copyWith(
-          selectedHouseConfigId: config.id,
-          selectedHouseType: config.type,
-          selectedHours: config.durationHours,
-          selectedCleaners: config.workers,
-          selectedBasePrice: config.basePrice,
-          selectedRapidBasePrice: config.rapidBasePrice,
-          defaultCleaners: config.workers,
-        ),
-      );
-  void toggleRapid(bool value) => emit(state.copyWith(isRapid: value));
-  void selectHours(int hours) => emit(state.copyWith(selectedHours: hours));
-  void selectExtraWorkers(int count) =>
-      emit(state.copyWith(selectedCleaners: state.defaultCleaners + count));
-  void selectCleaners(int count) =>
-      emit(state.copyWith(selectedCleaners: count));
+
+  void selectHouseConfig(AppHouseConfig config) {
+    emit(state.copyWith(
+      selectedHouseConfigId: config.id,
+      selectedHouseType: config.type,
+      selectedHours: config.durationHours,
+      selectedCleaners: config.workers,
+      selectedBasePrice: config.basePrice,
+      selectedRapidBasePrice: config.rapidBasePrice,
+      defaultCleaners: config.workers,
+    ));
+    checkAvailability();
+  }
+
+  void selectCategoryService(AppCategoryService config) {
+    emit(state.copyWith(
+      selectedCategoryServiceId: config.id,
+      selectedHouseType: config.name,
+      selectedHours: config.durationHours,
+      selectedCleaners: config.workers,
+      selectedBasePrice: config.basePrice,
+      selectedRapidBasePrice: config.rapidBasePrice,
+      defaultCleaners: config.workers,
+    ));
+    checkAvailability();
+  }
+
+  void setSizeM2(double? val) {
+    emit(state.copyWith(sizeM2: val));
+  }
+
+  void toggleRapid(bool value) {
+    final now = DateTime.now();
+    final minDate = value
+        ? DateTime(now.year, now.month, now.day + 1)
+        : DateTime(now.year, now.month, now.day + 3);
+
+    var newDate = state.selectedDate;
+    if (newDate.isBefore(minDate)) {
+      newDate = minDate;
+    }
+    emit(state.copyWith(isRapid: value, selectedDate: newDate));
+    checkAvailability();
+  }
+
+  void selectHours(int hours) {
+    emit(state.copyWith(selectedHours: hours));
+    checkAvailability();
+  }
+
+  void selectExtraWorkers(int count) {
+    emit(state.copyWith(selectedCleaners: state.defaultCleaners + count));
+    checkAvailability();
+  }
+
+  void selectCleaners(int count) {
+    emit(state.copyWith(selectedCleaners: count));
+    checkAvailability();
+  }
+
   void selectTimeSlot(String slot) =>
       emit(state.copyWith(selectedTimeSlot: slot));
+
   void toggleMaterials(bool need) =>
       emit(state.copyWith(needMaterials: need));
+
   void selectMaterial(BookingMaterial type) =>
       emit(state.copyWith(materialType: type));
+
   void toggleEquipment(bool need) =>
       emit(state.copyWith(needEquipment: need));
+
   void toggleBreakdown() =>
       emit(state.copyWith(showBreakdown: !state.showBreakdown));
+
+  String formatTimeSlot(String timeStr) {
+    final parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    var hour = int.tryParse(parts[0]) ?? 8;
+    final minute = parts[1];
+    final ampm = hour >= 12 ? 'PM' : 'AM';
+    if (hour > 12) hour -= 12;
+    if (hour == 0) hour = 12;
+    return '${hour.toString().padLeft(2, '0')}:$minute $ampm';
+  }
+
+  Future<void> checkAvailability() async {
+    final dateStr = '${state.selectedDate.year.toString().padLeft(4, '0')}-${state.selectedDate.month.toString().padLeft(2, '0')}-${state.selectedDate.day.toString().padLeft(2, '0')}';
+
+    emit(state.copyWith(isCheckingAvailability: true));
+    try {
+      final slots = await locator<OrdersApiService>().getAvailableSlots(
+        date: dateStr,
+        serviceId: state.service?.id,
+        houseConfigId: state.selectedHouseConfigId,
+        categoryId: state.category?.id,
+        categoryServiceId: state.selectedCategoryServiceId,
+        extraWorkers: state.extraWorkers,
+        isRapid: state.isRapid,
+      );
+
+      if (isClosed) return;
+
+      final formattedSlots = slots.map(formatTimeSlot).toList();
+      String? newSlot;
+      if (formattedSlots.isNotEmpty) {
+        if (formattedSlots.contains(state.selectedTimeSlot)) {
+          newSlot = state.selectedTimeSlot;
+        } else {
+          newSlot = formattedSlots.first;
+        }
+      }
+
+      emit(state.copyWith(
+        availableSlots: formattedSlots,
+        selectedTimeSlot: newSlot ?? state.selectedTimeSlot,
+        isCheckingAvailability: false,
+      ));
+    } catch (_) {
+      if (!isClosed) {
+        emit(state.copyWith(isCheckingAvailability: false));
+      }
+    }
+  }
 }

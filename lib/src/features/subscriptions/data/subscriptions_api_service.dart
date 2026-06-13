@@ -245,6 +245,8 @@ class SubscriptionsApiService extends BaseApiService {
     required int daysPerWeek,
     required String address,
     List<String>? pictures,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       await dio.post(
@@ -257,6 +259,8 @@ class SubscriptionsApiService extends BaseApiService {
           'daysPerWeek': daysPerWeek,
           'address': address,
           if (pictures != null && pictures.isNotEmpty) 'pictures': pictures,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
         },
       );
     } on DioException catch (e) {

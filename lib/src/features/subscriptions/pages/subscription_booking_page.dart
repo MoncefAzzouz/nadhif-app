@@ -3,6 +3,7 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/subscriptions/data/subscriptions_api_service.dart';
+import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:flutter/material.dart';
 
 /// Subscription request screen styled like the service Booking Details page:
@@ -40,6 +41,8 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
   final _surfaceController = TextEditingController();
   final _roomsController = TextEditingController();
   final _addressController = TextEditingController();
+  double? _latitude;
+  double? _longitude;
 
   @override
   void initState() {
@@ -130,6 +133,8 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
         serviceTierId: _tier!.id,
         daysPerWeek: _daysPerWeek,
         address: address,
+        latitude: _latitude,
+        longitude: _longitude,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -216,8 +221,38 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
                                   const SizedBox(height: 16),
                                   _buildField(
                                       'Address', _addressController,
-                                      hint:
-                                          'Enter your full address...'),
+                                      hint: 'Enter your full address...',
+                                      suffixIcon: GestureDetector(
+                                        onTap: () async {
+                                          final result = await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => const LocationSetupPage(),
+                                            ),
+                                          );
+                                          if (result is SelectedLocation) {
+                                            setState(() {
+                                              _addressController.text = result.address;
+                                              _latitude = result.latitude;
+                                              _longitude = result.longitude;
+                                            });
+                                          } else if (result is String) {
+                                            setState(() {
+                                              _addressController.text = result;
+                                            });
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 50,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            color: ColorApp.softGrey,
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: const Icon(Icons.map_outlined,
+                                              color: ColorApp.textGrey, size: 24),
+                                        ),
+                                      )),
                                   const SizedBox(height: 140),
                                 ],
                               ),
@@ -427,35 +462,45 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
   }
 
   Widget _buildField(String label, TextEditingController controller,
-      {bool isNumber = false, String? hint}) {
+      {bool isNumber = false, String? hint, Widget? suffixIcon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(title: label, trailing: ''),
-        TextField(
-          controller: controller,
-          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-          minLines: 1,
-          maxLines: isNumber ? 1 : 3,
-          style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: ColorApp.textBlack),
-          decoration: InputDecoration(
-            hintText: hint ?? '0',
-            hintStyle: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 13,
-                fontWeight: FontWeight.w500),
-            filled: true,
-            fillColor: ColorApp.softGrey,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+                minLines: 1,
+                maxLines: isNumber ? 1 : 3,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: ColorApp.textBlack),
+                decoration: InputDecoration(
+                  hintText: hint ?? '0',
+                  hintStyle: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500),
+                  filled: true,
+                  fillColor: ColorApp.softGrey,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
+            if (suffixIcon != null) ...[
+              const SizedBox(width: 12),
+              suffixIcon,
+            ],
+          ],
         ),
       ],
     );

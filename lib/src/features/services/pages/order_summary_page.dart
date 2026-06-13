@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
+import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
@@ -28,6 +29,7 @@ class OrderSummaryPage extends StatefulWidget {
   final BookingMaterial materialType;
   final double subtotal;
   final bool isRapid;
+  final double? sizeM2;
 
   const OrderSummaryPage({
     super.key,
@@ -49,6 +51,7 @@ class OrderSummaryPage extends StatefulWidget {
     required this.materialType,
     required this.subtotal,
     this.isRapid = false,
+    this.sizeM2,
   });
 
   @override
@@ -64,6 +67,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   final TextEditingController _notesController = TextEditingController();
   late final TextEditingController _addressController =
       TextEditingController(text: widget.address);
+  double? _latitude;
+  double? _longitude;
 
   @override
   void dispose() {
@@ -401,6 +406,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           clientNote: clientNote,
           housePictures: housePictures,
           isRapid: widget.isRapid,
+          sizeM2: widget.sizeM2,
+          latitude: _latitude,
+          longitude: _longitude,
         );
       } else {
         await locator<OrdersApiService>().createCategoryOrder(
@@ -414,6 +422,9 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
           clientNote: clientNote,
           housePictures: housePictures,
           isRapid: widget.isRapid,
+          sizeM2: widget.sizeM2,
+          latitude: _latitude,
+          longitude: _longitude,
         );
       }
       if (!mounted) return;
@@ -549,15 +560,36 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: ColorApp.softGrey,
-                              borderRadius: BorderRadius.circular(12),
+                          GestureDetector(
+                            onTap: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LocationSetupPage(),
+                                ),
+                              );
+                              if (result is SelectedLocation) {
+                                setState(() {
+                                  _addressController.text = result.address;
+                                  _latitude = result.latitude;
+                                  _longitude = result.longitude;
+                                });
+                              } else if (result is String) {
+                                setState(() {
+                                  _addressController.text = result;
+                                });
+                              }
+                            },
+                            child: Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: ColorApp.softGrey,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.map_outlined,
+                                  color: ColorApp.textGrey, size: 24),
                             ),
-                            child: const Icon(Icons.map_outlined,
-                                color: ColorApp.textGrey, size: 24),
                           ),
                         ],
                       ),
