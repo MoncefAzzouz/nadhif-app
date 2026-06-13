@@ -129,7 +129,9 @@ class _ServiceBookingView extends StatelessWidget {
                                     b.selectedHouseConfigId ||
                                 a.selectedHours != b.selectedHours ||
                                 a.selectedCleaners != b.selectedCleaners ||
-                                a.selectedBasePrice != b.selectedBasePrice,
+                                a.selectedBasePrice != b.selectedBasePrice ||
+                                a.selectedRapidBasePrice != b.selectedRapidBasePrice ||
+                                a.isRapid != b.isRapid,
                             builder: (context, state) => _HouseTypeSection(
                               configs: houseConfigs,
                               state: state,
@@ -159,7 +161,9 @@ class _ServiceBookingView extends StatelessWidget {
                                     b.selectedCategoryServiceId ||
                                 a.selectedHours != b.selectedHours ||
                                 a.selectedCleaners != b.selectedCleaners ||
-                                a.selectedBasePrice != b.selectedBasePrice,
+                                a.selectedBasePrice != b.selectedBasePrice ||
+                                a.selectedRapidBasePrice != b.selectedRapidBasePrice ||
+                                a.isRapid != b.isRapid,
                             builder: (context, state) => _CategoryServiceSection(
                               configs: category!.categoryServices,
                               state: state,
@@ -264,12 +268,35 @@ class _ServiceBookingView extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
             icon: const _CircleIcon(icon: Icons.arrow_back_rounded),
           ),
-          Text(
-            l10n.bookingDetails,
-            style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-                color: ColorApp.textBlack),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.bookingDetails,
+                style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: ColorApp.textBlack),
+              ),
+              if (isRapid) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '⚡ Rapid',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           const _CircleIcon(icon: Icons.favorite_border_rounded),
         ],
@@ -403,8 +430,12 @@ class _CalendarDateSection extends StatelessWidget {
     final firstDate = state.isRapid
         ? DateTime(now.year, now.month, now.day + 1)
         : DateTime(now.year, now.month, now.day + 3);
-        
-    final lastDate = now.add(const Duration(days: 365));
+
+    // Rapid mode: only show the next 3 days from today
+    // Normal mode: show up to 365 days out
+    final lastDate = state.isRapid
+        ? DateTime(now.year, now.month, now.day + 3)
+        : now.add(const Duration(days: 365));
 
     final initialDate = state.selectedDate.isBefore(firstDate) ? firstDate : state.selectedDate;
 
@@ -553,8 +584,8 @@ class _CategoryServiceSection extends StatelessWidget {
               ),
               Expanded(
                 child: _ConfigMetric(
-                  label: l10n.basePrice,
-                  value: 'DA ${state.selectedBasePrice.toStringAsFixed(0)}',
+                  label: state.isRapid ? '${l10n.basePrice} ⚡' : l10n.basePrice,
+                  value: 'DA ${state.effectiveBasePrice.toStringAsFixed(0)}',
                 ),
               ),
             ],
@@ -714,8 +745,8 @@ class _HouseTypeSection extends StatelessWidget {
               ),
               Expanded(
                 child: _ConfigMetric(
-                  label: l10n.basePrice,
-                  value: 'DA ${state.selectedBasePrice.toStringAsFixed(0)}',
+                  label: state.isRapid ? '${l10n.basePrice} ⚡' : l10n.basePrice,
+                  value: 'DA ${state.effectiveBasePrice.toStringAsFixed(0)}',
                 ),
               ),
             ],
