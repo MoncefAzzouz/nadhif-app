@@ -74,9 +74,10 @@ class BookingState extends Equatable {
     bool needMaterials = false,
     AppService? service,
     AppCategory? category,
+    bool isRapid = false,
   }) =>
       BookingState(
-        selectedDate: DateTime.now().add(const Duration(days: 3)), // Default normal rule
+        selectedDate: DateTime.now().add(Duration(days: isRapid ? 1 : 3)), // Default rule based on speed
         selectedHouseConfigId: houseConfig?.id,
         selectedCategoryServiceId: categoryService?.id,
         selectedHouseType: houseConfig?.type ?? categoryService?.name,
@@ -91,6 +92,7 @@ class BookingState extends Equatable {
         materialType: BookingMaterial.algerian,
         needEquipment: false,
         showBreakdown: false,
+        isRapid: isRapid,
         selectedRapidBasePrice:
             houseConfig?.rapidBasePrice ?? categoryService?.rapidBasePrice ?? 0,
         extraWorkerPrice: service?.extraWorkerPrice ?? 0,
@@ -258,6 +260,7 @@ class BookingCubit extends Cubit<BookingState> {
     String? initialHouseType,
     AppService? service,
     AppCategory? category,
+    bool isRapid = false,
   }) : super(
           BookingState.initial(
             houseConfig: houseConfig,
@@ -265,11 +268,12 @@ class BookingCubit extends Cubit<BookingState> {
             needMaterials: needMaterials,
             service: service,
             category: category,
+            isRapid: isRapid,
           ).copyWith(
             selectedHouseType: initialHouseType ?? houseConfig?.type ?? categoryService?.name,
             selectedCategoryServiceId: categoryService?.id,
-            // Enforce minimum 3 days restriction for normal booking
-            selectedDate: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 3),
+            // Enforce minimum restriction: tomorrow (1 day) for rapid, 3 days for normal
+            selectedDate: DateTime.now().add(Duration(days: isRapid ? 1 : 3)),
           ),
         ) {
     _loadLockedDays();

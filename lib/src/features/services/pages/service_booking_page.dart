@@ -18,6 +18,7 @@ class ServiceBookingPage extends StatelessWidget {
   final String? serviceImage;
   final IconData? serviceIcon;
   final String? selectedPropertyType;
+  final bool isRapid;
 
   const ServiceBookingPage({
     super.key,
@@ -27,6 +28,7 @@ class ServiceBookingPage extends StatelessWidget {
     this.serviceImage,
     this.serviceIcon,
     this.selectedPropertyType,
+    this.isRapid = false,
   });
 
   @override
@@ -62,6 +64,7 @@ class ServiceBookingPage extends StatelessWidget {
         initialHouseType: selectedPropertyType,
         service: service,
         category: category,
+        isRapid: isRapid,
       ),
       child: _ServiceBookingView(
         serviceName: serviceName,
@@ -69,34 +72,19 @@ class ServiceBookingPage extends StatelessWidget {
         category: category,
         serviceImage: serviceImage,
         serviceIcon: serviceIcon,
+        isRapid: isRapid,
       ),
     );
   }
 }
 
 class _ServiceBookingView extends StatelessWidget {
-  static const List<String> _weekDays = <String>[
-    'MON',
-    'TUE',
-    'WED',
-    'THU',
-    'FRI',
-    'SAT',
-    'SUN',
-  ];
-  static const List<String> _timeSlots = <String>[
-    '08:00 AM',
-    '10:30 AM',
-    '01:00 PM',
-    '03:30 PM',
-    '06:00 PM',
-  ];
-
   final String serviceName;
   final AppService? service;
   final AppCategory? category;
   final String? serviceImage;
   final IconData? serviceIcon;
+  final bool isRapid;
 
   const _ServiceBookingView({
     required this.serviceName,
@@ -104,6 +92,7 @@ class _ServiceBookingView extends StatelessWidget {
     this.category,
     this.serviceImage,
     this.serviceIcon,
+    this.isRapid = false,
   });
 
   @override
@@ -258,7 +247,7 @@ class _ServiceBookingView extends StatelessWidget {
                               a.isRapid != b.isRapid ||
                               a.selectedRapidBasePrice !=
                                   b.selectedRapidBasePrice,
-                          builder: (context, state) => state.supportsRapid
+                          builder: (context, state) => state.supportsRapid && !isRapid
                               ? Padding(
                                   padding: const EdgeInsets.only(top: 16),
                                   child: _RapidCard(
@@ -441,29 +430,64 @@ class _CalendarDateSection extends StatelessWidget {
 
     final initialDate = state.selectedDate.isBefore(firstDate) ? firstDate : state.selectedDate;
 
+    final dateText = '${state.selectedDate.day.toString().padLeft(2, '0')}/${state.selectedDate.month.toString().padLeft(2, '0')}/${state.selectedDate.year}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
           title: l10n.selectDate,
-          trailing: '${state.selectedDate.day}/${state.selectedDate.month}/${state.selectedDate.year}',
+          trailing: '',
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: ColorApp.greyBorder, width: 1.5),
-          ),
-          child: CalendarDatePicker(
-            initialDate: initialDate,
-            firstDate: firstDate,
-            lastDate: lastDate,
-            onDateChanged: (DateTime date) {
-              context.read<BookingCubit>().selectDate(date);
-            },
-            selectableDayPredicate: (DateTime date) {
-              return !isLocked(date);
-            },
+        GestureDetector(
+          onTap: () async {
+            final DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: firstDate,
+              lastDate: lastDate,
+              selectableDayPredicate: (DateTime date) => !isLocked(date),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: ColorApp.primary,
+                      onPrimary: Colors.white,
+                      onSurface: ColorApp.textBlack,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null && context.mounted) {
+              context.read<BookingCubit>().selectDate(picked);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: ColorApp.greyBorder, width: 1.5),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_month_rounded, color: ColorApp.primary, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    dateText,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: ColorApp.textBlack,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_right_rounded, color: ColorApp.textGrey, size: 20),
+              ],
+            ),
           ),
         ),
       ],

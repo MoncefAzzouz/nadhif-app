@@ -19,6 +19,7 @@ import 'package:cleanapp/src/features/services/data/service_models.dart';
 import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
+import 'package:cleanapp/src/features/services/pages/rapid_selection_page.dart';
 import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
 import 'package:cleanapp/src/features/subscriptions/pages/subscriptions_page.dart';
 import 'package:flutter/material.dart';
@@ -443,6 +444,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
+  void _openRapidSelectionFlow() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const RapidSelectionPage(),
+      ),
+    );
+  }
+
   void _openServiceDetails(AppService service, String localeCode) {
     Navigator.push(
       context,
@@ -466,6 +476,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     final cards = <_RecommendedCardData>[];
 
+    // 1. Rapid Service Card
+    cards.add(_RecommendedCardData(
+      title: '⚡ ${l10n.urgentCleaning}',
+      subtitle: 'Priority booking in 24 hours',
+      price: 'Premium',
+      bgColor: nextTint(),
+      imageUrl: 'assets/images/urgent.png',
+      isNew: true,
+      onTap: _openRapidSelectionFlow,
+    ));
+
+    // 2. Normal Service Cards
     for (final service in services) {
       final config = service.defaultHouseConfig;
       cards.add(_RecommendedCardData(
@@ -478,20 +500,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ));
     }
 
-    for (final service in services) {
-      final rapidPrice = service.defaultHouseConfig?.rapidBasePrice ?? 0;
-      if (rapidPrice <= 0) continue;
-      cards.add(_RecommendedCardData(
-        title: '⚡ ${service.nameFor(localeCode)}',
-        subtitle: 'Priority scheduling',
-        price: 'DA ${rapidPrice.toStringAsFixed(0)}',
-        bgColor: nextTint(),
-        imageUrl: service.picture,
-        isNew: true,
-        onTap: () => _openServiceDetails(service, localeCode),
-      ));
-    }
-
+    // 3. Subscription Pack Card
     cards.add(_RecommendedCardData(
       title: l10n.subscriptionPack,
       subtitle: l10n.fullMaintenance,
