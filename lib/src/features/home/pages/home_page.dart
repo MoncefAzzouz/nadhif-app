@@ -848,7 +848,7 @@ class _HorizontalServiceCard extends StatelessWidget {
       child: Align(
         alignment: Alignment.topCenter,
         child: SizedBox(
-          height: 184,
+          height: 190,
           child: Container(
             width: 200,
             margin: const EdgeInsets.only(right: 16),
