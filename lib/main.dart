@@ -7,6 +7,7 @@ import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
 import 'package:cleanapp/src/features/home/cubit/home_content_cubit.dart';
 import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
+import 'package:cleanapp/src/features/notifications/data/notification_inbox_repository.dart';
 import 'package:cleanapp/src/features/splash/pages/splash_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -31,6 +32,7 @@ Future<void> main() async {
   // Load the last cached home content so the home screen renders real data
   // on its first frame instead of the static placeholders.
   await locator<HomeContentRepository>().hydrate();
+  await locator<NotificationInboxRepository>().hydrate();
   runApp(
     MultiBlocProvider(
       providers: [

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
+import 'package:cleanapp/src/features/notifications/data/notification_inbox_repository.dart';
 import 'package:cleanapp/src/features/notifications/data/notifications_api_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -19,9 +20,10 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// notification channel used to display messages while the app is in the
 /// foreground, token retrieval, and forwarding the token to the backend.
 class NotificationService {
-  NotificationService(this._api);
+  NotificationService(this._api, this._inbox);
 
   final NotificationsApiService _api;
+  final NotificationInboxRepository _inbox;
   FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -52,8 +54,7 @@ class NotificationService {
 
     await _messaging.requestPermission();
 
-    const androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
@@ -64,12 +65,21 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
-    FirebaseMessaging.onMessage.listen((message) {
-      _showLocalNotification(message);
+    FirebaseMessaging.onMessage.listen((message) async {
+      await _inbox.addRemoteMessage(message);
+      await _showLocalNotification(message);
       _maybeNotifyOrderUpdate(message);
     });
     // App opened by tapping a notification (from background).
-    FirebaseMessaging.onMessageOpenedApp.listen(_maybeNotifyOrderUpdate);
+    FirebaseMessaging.onMessageOpenedApp.listen((message) async {
+      await _inbox.addRemoteMessage(message);
+      _maybeNotifyOrderUpdate(message);
+    });
+    final initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) {
+      await _inbox.addRemoteMessage(initialMessage);
+      _maybeNotifyOrderUpdate(initialMessage);
+    }
     _messaging.onTokenRefresh.listen((token) {
       _cachedToken = token;
       _sendToken(token);

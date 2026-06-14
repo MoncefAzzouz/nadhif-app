@@ -11,6 +11,8 @@ import 'package:cleanapp/src/core/widgets/app_image.dart';
 import 'package:cleanapp/src/features/home/cubit/home_content_cubit.dart';
 import 'package:cleanapp/src/features/home/cubit/home_tab_cubit.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
+import 'package:cleanapp/src/features/notifications/data/notification_inbox_repository.dart';
+import 'package:cleanapp/src/features/notifications/pages/notifications_page.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
@@ -20,7 +22,6 @@ import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/services/pages/rapid_selection_page.dart';
 import 'package:cleanapp/src/features/slides/data/slides_api_service.dart';
-import 'package:cleanapp/src/features/subscriptions/pages/subscriptions_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -358,19 +359,38 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: ColorApp.softGrey,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-            ),
-            child: const Badge(
-              label: Text('2'),
-              backgroundColor: ColorApp.primary,
-              child: Icon(Icons.notifications_outlined,
-                  color: ColorApp.textBlack, size: 22),
-            ),
+          StreamBuilder<List<AppNotification>>(
+            stream: locator<NotificationInboxRepository>().stream,
+            initialData: locator<NotificationInboxRepository>().items,
+            builder: (context, snapshot) {
+              final unreadCount = (snapshot.data ?? const [])
+                  .where((item) => !item.read)
+                  .length;
+              return GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsPage(),
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: ColorApp.softGrey,
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                  ),
+                  child: Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+                    backgroundColor: ColorApp.primary,
+                    child: const Icon(Icons.notifications_outlined,
+                        color: ColorApp.textBlack, size: 22),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -538,10 +558,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GestureDetector(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const SubscriptionsPage()),
-        ),
+        onTap: _openSubscriptionFlow,
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -629,7 +646,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       itemBuilder: (context, index) => _ServiceGridTile(service: tiles[index]),
     );
   }
-
 }
 
 class _SectionHeader extends StatelessWidget {

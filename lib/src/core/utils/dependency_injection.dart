@@ -4,6 +4,7 @@ import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
 import 'package:cleanapp/src/features/home/data/home_content_repository.dart';
+import 'package:cleanapp/src/features/notifications/data/notification_inbox_repository.dart';
 import 'package:cleanapp/src/features/notifications/data/notifications_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/pages/data/pages_api_service.dart';
@@ -89,7 +90,13 @@ void setupLocator() {
   locator.registerLazySingleton<NotificationsApiService>(
     () => NotificationsApiService(),
   );
+  locator.registerLazySingleton<NotificationInboxRepository>(
+    () => NotificationInboxRepository(),
+  );
   locator.registerLazySingleton<NotificationService>(
-    () => NotificationService(locator<NotificationsApiService>()),
+    () => NotificationService(
+      locator<NotificationsApiService>(),
+      locator<NotificationInboxRepository>(),
+    ),
   );
 }
