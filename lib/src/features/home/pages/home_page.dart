@@ -16,7 +16,6 @@ import 'package:cleanapp/src/features/orders/pages/orders_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 import 'package:cleanapp/src/features/profile/pages/profile_page.dart';
 import 'package:cleanapp/src/features/services/data/service_models.dart';
-import 'package:cleanapp/src/features/services/pages/service_booking_page.dart';
 import 'package:cleanapp/src/features/services/pages/service_details_page.dart';
 import 'package:cleanapp/src/features/services/pages/services_page.dart';
 import 'package:cleanapp/src/features/services/pages/rapid_selection_page.dart';
@@ -289,10 +288,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           _buildServiceGrid(context, content.categories),
           const SizedBox(height: 10),
           _buildSubscriptionBanner(context),
-          const SizedBox(height: 10),
-          _buildBrandsSection(context),
-          const SizedBox(height: 10),
-          _buildCustomizeSection(context),
           const SizedBox(height: 100),
         ],
       ),
@@ -635,111 +630,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildBrandsSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(title: l10n.officialPartners),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-          child: Row(
-            children: [
-              _BrandCard(
-                title: l10n.luxuryCare,
-                subtitle: 'Dior',
-                bgColor: ColorApp.tintSlate,
-                serviceIcon: Icons.verified_rounded,
-              ),
-              const SizedBox(width: 16),
-              _BrandCard(
-                title: l10n.babySafe,
-                subtitle: 'Nadhif Kids',
-                bgColor: ColorApp.tintAmberSoft,
-                serviceIcon: Icons.child_care_rounded,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCustomizeSection(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [ColorApp.textBlack, ColorApp.gradientSecondary],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.exclusiveOffers,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  l10n.joinPremium,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: ColorApp.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    l10n.joinNow,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.stars_rounded,
-            size: 60,
-            color: Colors.white.withValues(alpha: 0.1),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -1033,78 +923,6 @@ class _ServiceGridTile extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BrandCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Color bgColor;
-  final IconData serviceIcon;
-
-  const _BrandCard({
-    required this.title,
-    required this.subtitle,
-    required this.bgColor,
-    required this.serviceIcon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ServiceBookingPage(
-              serviceName: subtitle,
-              serviceIcon: serviceIcon,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: ColorApp.primary,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      color: ColorApp.textBlack,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.verified_rounded,
-                size: 24, color: ColorApp.primary),
-          ],
-        ),
       ),
     );
   }
