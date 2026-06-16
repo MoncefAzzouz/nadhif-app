@@ -12,6 +12,6 @@ class AppConfig {
   ///   flutter run --dart-define=API_BASE_URL=http://localhost:5001   (iOS simulator)
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://vps79m16u.oct-xpd1.xyz',
+    defaultValue: 'http://localhost:5001',
   );
 }
