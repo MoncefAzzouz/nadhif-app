@@ -362,6 +362,20 @@ export default function CommandsPage() {
         }
       });
 
+      // Check subscription sessions
+      subscriptions.forEach(sub => {
+        sub.sessions?.forEach(session => {
+          if (!session.cleanerId || session.status === 'CANCELLED') return;
+          const startSession = new Date(session.scheduledDate).getTime();
+          const durationSession = session.durationHours || 3;
+          const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+          if (testTime < endSession && startSession < end1) {
+            session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+          }
+        });
+      });
+
       const activeCount = cleaners.filter(c => c.isActive).length;
       const availableCount = activeCount - busyCleanerIds.size;
 

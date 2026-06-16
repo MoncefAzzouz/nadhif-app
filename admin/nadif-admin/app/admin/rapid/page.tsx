@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, imgUrl, promosApi, uploadImage, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiPromo } from '../../lib/api';
+import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, imgUrl, promosApi, uploadImage, subscriptionsApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiPromo, type ApiSubscription } from '../../lib/api';
 
 const LocationPicker = dynamic(() => import('../../components/LocationPicker'), {
   ssr: false,
@@ -80,6 +80,7 @@ export default function RapidPage() {
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
   const [allOrdersForAvailability, setAllOrdersForAvailability] = useState<ApiOrder[]>([]);
+  const [subscriptions, setSubscriptions] = useState<ApiSubscription[]>([]);
   
   // Creation States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -177,14 +178,15 @@ export default function RapidPage() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [allOrders, srvs, cats, clns, lockedDaysData, skData, promosData] = await Promise.all([
+      const [allOrders, srvs, cats, clns, lockedDaysData, skData, promosData, subs] = await Promise.all([
         ordersApi.getAll(),
         servicesApi.getAll(),
         categoriesApi.getAll(),
         cleanersApi.getAll(),
         lockedDaysApi.getAll().catch(() => [] as string[]),
         skillsApi.getAll().catch(() => [] as ApiSkill[]),
-        promosApi.getAll().catch(() => [] as ApiPromo[])
+        promosApi.getAll().catch(() => [] as ApiPromo[]),
+        subscriptionsApi.getAll().catch(() => [] as ApiSubscription[])
       ]);
       // Only filter for rapid orders
       setOrders(allOrders.filter(o => o.isRapid === true));
@@ -195,6 +197,7 @@ export default function RapidPage() {
       setLockedDays(lockedDaysData);
       setSkills(skData);
       setPromos(promosData);
+      setSubscriptions(subs);
       setError(null);
     } catch (err: any) {
       console.error(err);
@@ -264,8 +267,22 @@ export default function RapidPage() {
       const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
       if (start1 < end2 && start2 < end1) {
-        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+        other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
       }
+    });
+
+    // Check subscription sessions
+    subscriptions.forEach(sub => {
+      sub.sessions?.forEach(session => {
+        if (!session.cleanerId || session.status === 'CANCELLED') return;
+        const startSession = new Date(session.scheduledDate).getTime();
+        const durationSession = session.durationHours || 3;
+        const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+        if (start1 < endSession && startSession < end1) {
+          session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+        }
+      });
     });
 
     const available = activeCleaners.filter(c => !busyCleanerIds.has(c.id));
@@ -308,8 +325,22 @@ export default function RapidPage() {
         const end2 = start2 + durationHours2 * 60 * 60 * 1000;
 
         if (testTime < end2 && start2 < end1) {
-          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid));
+          other.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
         }
+      });
+
+      // Check subscription sessions
+      subscriptions.forEach(sub => {
+        sub.sessions?.forEach(session => {
+          if (!session.cleanerId || session.status === 'CANCELLED') return;
+          const startSession = new Date(session.scheduledDate).getTime();
+          const durationSession = session.durationHours || 3;
+          const endSession = startSession + durationSession * 60 * 60 * 1000;
+
+          if (testTime < endSession && startSession < end1) {
+            session.cleanerId.split(',').forEach(cid => busyCleanerIds.add(cid.trim()));
+          }
+        });
       });
 
       const availableCount = activeCleaners.length - busyCleanerIds.size;
