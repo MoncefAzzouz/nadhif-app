@@ -180,5 +180,6 @@
   "monthlyPrice": "السعر الشهري",
   "failedPickImage": "فشل اختيار الصورة",
   "onConfirmation": "عند التأكيد",
-  "photos": "الصور"
+  "photos": "الصور",
+  "noCleanersAvailable": "لا يوجد أي عامل تنظيف متاح في هذا اليوم. يرجى اختيار تاريخ آخر."
 }

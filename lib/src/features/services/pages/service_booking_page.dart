@@ -992,11 +992,46 @@ class _TimeSlotSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    if (slots.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeader(title: l10n.timeSlot, trailing: ''),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFEE2E2), width: 1.5),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l10n.noCleanersAvailable,
+                    style: const TextStyle(
+                      color: Color(0xFF991B1B),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
-            title: l10n.timeSlot, trailing: selectedTimeSlot.split(' ')[0]),
+            title: l10n.timeSlot, trailing: selectedTimeSlot.isNotEmpty ? selectedTimeSlot.split(' ')[0] : ''),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -1343,25 +1378,35 @@ class _BottomAction extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: GestureDetector(
-                        onTap: () => _openSummary(context, state),
+                        onTap: state.availableSlots.isEmpty
+                            ? null
+                            : () => _openSummary(context, state),
                         child: Container(
                           height: 44,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                ColorApp.primary,
-                                ColorApp.gradientTeal,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            gradient: state.availableSlots.isEmpty
+                                ? null
+                                : const LinearGradient(
+                                    colors: [
+                                      ColorApp.primary,
+                                      ColorApp.gradientTeal,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                            color: state.availableSlots.isEmpty
+                                ? const Color(0xFFCBD5E1) // slate-300
+                                : null,
                             borderRadius: BorderRadius.circular(14),
-                            boxShadow:
-                                AppShadows.primaryGlow(opacity: 0.39),
+                            boxShadow: state.availableSlots.isEmpty
+                                ? null
+                                : AppShadows.primaryGlow(opacity: 0.39),
                           ),
                           child: Center(
                             child: Text(
-                              l10n.bookNow,
+                              state.availableSlots.isEmpty
+                                  ? "Indisponible"
+                                  : l10n.bookNow,
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,

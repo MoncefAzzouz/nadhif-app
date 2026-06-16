@@ -180,5 +180,6 @@
   "monthlyPrice": "Monthly price",
   "failedPickImage": "Failed to pick image",
   "onConfirmation": "On confirmation",
-  "photos": "Photos"
+  "photos": "Photos",
+  "noCleanersAvailable": "No cleaner available on this day. Please choose another date."
 }

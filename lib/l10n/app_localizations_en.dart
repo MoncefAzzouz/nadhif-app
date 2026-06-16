@@ -577,4 +577,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get photos => 'Photos';
+
+  @override
+  String get noCleanersAvailable =>
+      'No cleaner available on this day. Please choose another date.';
 }
