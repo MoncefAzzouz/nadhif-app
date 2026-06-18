@@ -1192,6 +1192,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Photos'**
   String get photos;
+
+  /// No description provided for @noCleanersAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No cleaner available on this day. Please choose another date.'**
+  String get noCleanersAvailable;
 }
 
 class _AppLocalizationsDelegate

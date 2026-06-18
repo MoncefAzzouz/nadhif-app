@@ -574,4 +574,8 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get photos => 'الصور';
+
+  @override
+  String get noCleanersAvailable =>
+      'لا يوجد أي عامل تنظيف متاح في هذا اليوم. يرجى اختيار تاريخ آخر.';
 }

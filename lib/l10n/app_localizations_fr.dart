@@ -582,4 +582,8 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get photos => 'Photos';
+
+  @override
+  String get noCleanersAvailable =>
+      'Aucun agent disponible à cette date. Veuillez choisir un autre jour.';
 }

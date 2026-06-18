@@ -179,5 +179,6 @@
   "monthlyPrice": "Prix mensuel",
   "failedPickImage": "Échec du chargement de l'image",
   "onConfirmation": "À la confirmation",
-  "photos": "Photos"
+  "photos": "Photos",
+  "noCleanersAvailable": "Aucun agent disponible à cette date. Veuillez choisir un autre jour."
 }

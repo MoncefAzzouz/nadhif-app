@@ -399,15 +399,15 @@ class BookingCubit extends Cubit<BookingState> {
       if (isClosed) return;
 
       final formattedSlots = slots.map(formatTimeSlot).toList();
-      final finalSlots = formattedSlots.isNotEmpty
-          ? formattedSlots
-          : const ['08:00 AM', '10:30 AM', '01:00 PM', '03:30 PM', '06:00 PM'];
+      final finalSlots = formattedSlots;
 
-      String? newSlot;
+      String newSlot;
       if (finalSlots.contains(state.selectedTimeSlot)) {
         newSlot = state.selectedTimeSlot;
-      } else {
+      } else if (finalSlots.isNotEmpty) {
         newSlot = finalSlots.first;
+      } else {
+        newSlot = '';
       }
 
       emit(state.copyWith(
@@ -417,16 +417,9 @@ class BookingCubit extends Cubit<BookingState> {
       ));
     } catch (_) {
       if (!isClosed) {
-        const fallbackSlots = ['08:00 AM', '10:30 AM', '01:00 PM', '03:30 PM', '06:00 PM'];
-        String? newSlot;
-        if (fallbackSlots.contains(state.selectedTimeSlot)) {
-          newSlot = state.selectedTimeSlot;
-        } else {
-          newSlot = fallbackSlots.first;
-        }
         emit(state.copyWith(
-          availableSlots: fallbackSlots,
-          selectedTimeSlot: newSlot,
+          availableSlots: const [],
+          selectedTimeSlot: '',
           isCheckingAvailability: false,
         ));
       }
