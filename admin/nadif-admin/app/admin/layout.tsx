@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar, Zap, CalendarCheck } from 'lucide-react';
-import { getToken, getUser, clearAuth, type ApiUser, ordersApi } from '../lib/api';
+import { getToken, getUser, clearAuth, type ApiUser, ordersApi, adminAlertsApi, type ApiAdminAlert } from '../lib/api';
 
 interface NavItem {
   name: string;
@@ -16,7 +16,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Dashboard', href: '/admin/dashboard-mock', icon: LayoutDashboard, disabled: true },
+  { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, disabled: false },
   { name: 'Categories', href: '/admin/categories', icon: Layers, disabled: false },
   { name: 'Services', href: '/admin/services', icon: ShoppingBag, disabled: false },
   { name: 'Service Rapide', href: '/admin/rapid', icon: Zap, disabled: false },
@@ -30,7 +30,6 @@ const navItems: NavItem[] = [
   { name: 'Notifications', href: '/admin/notifications', icon: Bell, disabled: false },
   { name: 'Slides', href: '/admin/slides', icon: Sliders, disabled: false },
   { name: 'Pages Manager', href: '/admin/pages', icon: BookOpen, disabled: false },
-  { name: 'Settings', href: '/admin/settings-mock', icon: Settings, disabled: true },
 ];
 
 export default function AdminLayout({
@@ -45,6 +44,42 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [hasPendingOrders, setHasPendingOrders] = useState(false);
   const [hasPendingRapidOrders, setHasPendingRapidOrders] = useState(false);
+  const [alerts, setAlerts] = useState<ApiAdminAlert[]>([]);
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+
+  const fetchAlerts = async () => {
+    try {
+      const res = await adminAlertsApi.getAll();
+      setAlerts(res);
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  const handleMarkAlertAsRead = async (id: string) => {
+    try {
+      await adminAlertsApi.markAsRead(id);
+      fetchAlerts();
+    } catch (err) {
+      console.error('Failed to mark alert as read:', err);
+    }
+  };
+
+  const handleClearAllAlerts = async () => {
+    try {
+      await adminAlertsApi.clearAll();
+      setAlerts([]);
+    } catch (err) {
+      console.error('Failed to clear alerts:', err);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -320,12 +355,82 @@ export default function AdminLayout({
 
           {/* Action Items */}
           <div className="flex items-center gap-4">
-            {/* Notification Mock Icon */}
-            <button className="w-12 h-12 bg-slate-50 hover:bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-100 text-slate-500 relative transition-all active:scale-95">
-              <Bell size={18} />
-              <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-              <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full" />
-            </button>
+            {/* Active Notification Alerts Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsAlertsOpen(!isAlertsOpen)}
+                className="w-12 h-12 bg-slate-50 hover:bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-100 text-slate-500 relative transition-all active:scale-95 cursor-pointer"
+              >
+                <Bell size={18} />
+                {alerts.filter(a => !a.isRead).length > 0 && (
+                  <>
+                    <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                    <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full" />
+                  </>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isAlertsOpen && (
+                  <>
+                    {/* Invisible click backdrop */}
+                    <div className="fixed inset-0 z-40" onClick={() => setIsAlertsOpen(false)} />
+                    
+                    {/* Alerts Popover List */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-slate-100 rounded-[2rem] shadow-xl z-50 p-5 space-y-4 max-h-[70vh] overflow-y-auto"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-50 pb-3">
+                        <span className="text-xs font-black uppercase text-slate-800 tracking-wider">Notifications</span>
+                        {alerts.length > 0 && (
+                          <button
+                            onClick={handleClearAllAlerts}
+                            className="text-[9px] font-black text-rose-500 uppercase tracking-widest hover:underline cursor-pointer"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-3 divide-y divide-slate-50">
+                        {alerts.length === 0 ? (
+                          <p className="text-center py-6 text-slate-400 font-bold text-[10px] uppercase tracking-wider font-inter">
+                            No notifications logged.
+                          </p>
+                        ) : (
+                          alerts.map((alert) => (
+                            <div
+                              key={alert.id}
+                              onClick={() => {
+                                if (!alert.isRead) handleMarkAlertAsRead(alert.id);
+                                setIsAlertsOpen(false);
+                              }}
+                              className={`pt-3 first:pt-0 flex flex-col gap-1 text-left cursor-pointer transition-all hover:opacity-80 ${!alert.isRead ? 'border-l-2 border-primary pl-2' : ''}`}
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <span className={`text-[10px] font-black uppercase tracking-wider ${!alert.isRead ? 'text-primary' : 'text-slate-500'}`}>
+                                  {alert.title}
+                                </span>
+                                <span className="text-[8px] font-mono text-slate-400 font-bold shrink-0 font-inter">
+                                  {new Date(alert.createdAt).toLocaleDateString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-[10px] font-semibold text-slate-600 leading-normal font-inter">
+                                {alert.message}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Quick Profile Widget */}
             <div className="flex items-center gap-3 pl-4 border-l border-slate-100">

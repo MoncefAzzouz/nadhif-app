@@ -1656,35 +1656,8 @@ export default function CommandsPage() {
                       </div>
                     </div>
 
-                    {/* Speed Priority Toggle */}
-                    <div className="space-y-4 pt-6 border-t border-slate-100">
-                      <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl">
-                        <div>
-                          <p className="text-xs font-black uppercase tracking-tight text-amber-600 flex items-center gap-1">
-                            ⚡ Service Rapide
-                          </p>
-                          <p className="text-[10px] font-bold text-slate-500 mt-0.5">
-                            Appliquer le tarif rapide (Urgence / Réservation le jour même)
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAddFormData(prev => ({ ...prev, isRapid: !prev.isRapid }))}
-                          className={`w-12 h-7 rounded-full transition-colors cursor-pointer relative p-1 ${
-                            addFormData.isRapid ? 'bg-amber-500' : 'bg-slate-300'
-                          }`}
-                        >
-                          <motion.div 
-                            layout
-                            className="w-5 h-5 bg-white rounded-full shadow-sm"
-                            animate={{ x: addFormData.isRapid ? 20 : 0 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          />
-                        </button>
-                      </div>
-                    </div>
-
                     {/* Service Package */}
+
                     {addFormType === 'service' ? (
                       <div className="space-y-4 pt-6 border-t border-slate-100">
                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Service Package Details</h4>

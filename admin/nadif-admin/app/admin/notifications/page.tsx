@@ -165,36 +165,14 @@ export default function NotificationsPage() {
     e.preventDefault();
     if (isSending) return;
 
-    let newLog: NotificationLog;
-
-    if (notificationForm.deliveryType === 'now') {
-      setIsSending(true);
-      newLog = await dispatchBroadcast(
-        notificationForm.title,
-        notificationForm.body,
-        notificationForm.targetAudience,
-        notificationForm.specificClientPhone,
-      );
-      setIsSending(false);
-    } else {
-      // No backend scheduler yet: the entry is saved locally only and is NOT
-      // delivered automatically — use "Resend" at the scheduled time.
-      const scheduledDisplay = `${notificationForm.scheduledDate} ${notificationForm.scheduledTime}`;
-      newLog = {
-        id: `NTF-${Math.floor(100 + Math.random() * 900)}`,
-        title: notificationForm.title,
-        body: notificationForm.body,
-        targetAudience: notificationForm.targetAudience,
-        scheduledTime: scheduledDisplay,
-        status: 'scheduled',
-        createdAt: new Date().toISOString(),
-        recipientCount: 0,
-        phone: notificationForm.specificClientPhone || undefined,
-      };
-      setSuccessToast(
-        `📅 Saved locally for ${scheduledDisplay} — not sent automatically; use Resend at that time.`,
-      );
-    }
+    setIsSending(true);
+    const newLog = await dispatchBroadcast(
+      notificationForm.title,
+      notificationForm.body,
+      notificationForm.targetAudience,
+      notificationForm.specificClientPhone,
+    );
+    setIsSending(false);
 
     setLogs(prev => [newLog, ...prev]);
 
@@ -343,64 +321,6 @@ export default function NotificationsPage() {
                   className="w-full px-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl text-xs font-semibold text-slate-800 focus:bg-white focus:border-primary/20 outline-none transition-all resize-none font-inter"
                 />
               </div>
-
-              {/* Dispatch Schedule */}
-              <div className="sm:col-span-2">
-                <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Delivery Schedule</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => handleInputChange('deliveryType', 'now')}
-                    className={`py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border ${notificationForm.deliveryType === 'now'
-                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/10'
-                        : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
-                      }`}
-                  >
-                    🚀 Broadcast Now
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleInputChange('deliveryType', 'schedule')}
-                    className={`py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border ${notificationForm.deliveryType === 'schedule'
-                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/10'
-                        : 'bg-slate-50 text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
-                      }`}
-                  >
-                    📅 Schedule Later
-                  </button>
-                </div>
-              </div>
-
-              {/* Conditional Schedule Fields */}
-              {notificationForm.deliveryType === 'schedule' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2 overflow-hidden"
-                >
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Target Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={notificationForm.scheduledDate}
-                      onChange={(e) => handleInputChange('scheduledDate', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-xs font-bold text-slate-800 focus:bg-white focus:border-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-black uppercase text-slate-400 mb-1.5">Target Hour</label>
-                    <input
-                      type="time"
-                      required
-                      value={notificationForm.scheduledTime}
-                      onChange={(e) => handleInputChange('scheduledTime', e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-xs font-bold text-slate-800 focus:bg-white focus:border-primary/20 outline-none transition-all"
-                    />
-                  </div>
-                </motion.div>
-              )}
             </div>
 
             {/* Action dispatch */}
@@ -408,8 +328,9 @@ export default function NotificationsPage() {
               type="submit"
               className="w-full py-4.5 bg-primary hover:bg-primary/95 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] shadow-xl shadow-primary/15 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2"
             >
+
               <Send size={14} />
-              {notificationForm.deliveryType === 'now' ? 'Dispatch Live Broadcast' : 'Deploy Scheduled Campaign'}
+              Dispatch Live Broadcast
             </button>
           </form>
         </div>

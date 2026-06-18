@@ -653,3 +653,36 @@ export function imgUrl(src?: string | null): string {
   if (src.startsWith('/uploads/')) return `${BASE}${src}`;
   return src;
 }
+
+// ─── Admin Dashboard Stats & Alerts ──────────────────────────────────────────
+export interface ApiAdminAlert {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface ApiDashboardStats {
+  stats: {
+    totalRevenue: number;
+    pendingOrders: number;
+    activeCleaners: number;
+    activeSubscriptions: number;
+  };
+  orderStatusBreakdown: Record<string, number>;
+  recentOrders: ApiOrder[];
+  recentSubscriptions: ApiSubscription[];
+}
+
+export const dashboardApi = {
+  getStats: () => apiFetch<ApiDashboardStats>('/api/admin/dashboard-stats'),
+};
+
+export const adminAlertsApi = {
+  getAll: () => apiFetch<ApiAdminAlert[]>('/api/admin/alerts'),
+  markAsRead: (id: string) => apiFetch<ApiAdminAlert>(`/api/admin/alerts/${id}/read`, { method: 'PATCH' }),
+  clearAll: () => apiFetch<{ success: boolean }>('/api/admin/alerts/clear-all', { method: 'DELETE' }),
+};
+
