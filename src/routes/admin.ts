@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { handleOrderCreated } from '../lib/notificationsHelper';
 
 const router = Router();
 
@@ -625,6 +626,9 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       }
     });
 
+    // Trigger notification helpers
+    void handleOrderCreated(order.id);
+
     res.status(201).json(order);
   } catch (err) {
     console.error(err);
@@ -1005,11 +1009,119 @@ router.put('/skills/:id', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// DELETE /api/admin/skills/:id
-router.delete('/skills/:id', async (req: AuthenticatedRequest, res: Response) => {
+// GET /api/admin/dashboard-stats
+router.get('/dashboard-stats', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // 1. Get total completed orders revenue
+    const completedOrders = await prisma.order.findMany({
+      where: { status: 'COMPLETED' },
+      select: { totalPrice: true }
+    });
+    const completedOrdersRevenue = completedOrders.reduce((sum, o) => sum + o.totalPrice, 0);
+
+    // 2. Get total subscriptions paid amount
+    const subscriptions = await prisma.subscription.findMany({
+      select: { amountPaid: true }
+    });
+    const subscriptionsRevenue = subscriptions.reduce((sum, s) => sum + s.amountPaid, 0);
+
+    const totalRevenue = completedOrdersRevenue + subscriptionsRevenue;
+
+    // 3. Pending orders
+    const pendingOrdersCount = await prisma.order.count({
+      where: { status: 'PENDING' }
+    });
+
+    // 4. Active cleaners
+    const activeCleanersCount = await prisma.cleaner.count({
+      where: { isActive: true }
+    });
+
+    // 5. Active subscriptions (excluding CANCELLED and COMPLETED)
+    const activeSubscriptionsCount = await prisma.subscription.count({
+      where: { status: { notIn: ['CANCELLED', 'COMPLETED'] } }
+    });
+
+    // 6. Order status breakdown
+    const orderStatuses = ['PENDING', 'CALLED_NOT_PAID', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+    const orderStatusBreakdown: Record<string, number> = {};
+    for (const status of orderStatuses) {
+      orderStatusBreakdown[status] = await prisma.order.count({ where: { status: status as any } });
+    }
+
+    // 7. Recent orders
+    const recentOrders = await prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { fullName: true, email: true, phone: true } },
+        service: { select: { name: true } },
+        category: { select: { name: true } }
+      }
+    });
+
+    // 8. Recent subscriptions
+    const recentSubscriptions = await prisma.subscription.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { fullName: true, email: true } },
+        serviceTier: { select: { name: true } }
+      }
+    });
+
+    res.json({
+      stats: {
+        totalRevenue,
+        pendingOrders: pendingOrdersCount,
+        activeCleaners: activeCleanersCount,
+        activeSubscriptions: activeSubscriptionsCount
+      },
+      orderStatusBreakdown,
+      recentOrders,
+      recentSubscriptions
+    });
+  } catch (err) {
+    console.error('Dashboard stats error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/admin/alerts
+router.get('/alerts', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const alerts = await prisma.adminAlert.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json(alerts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
+// PATCH /api/admin/alerts/:id/read
+router.patch('/alerts/:id/read', async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.skill.delete({ where: { id } });
+    const updated = await prisma.adminAlert.update({
+      where: { id },
+      data: { isRead: true }
+    });
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/admin/alerts/clear-all
+router.delete('/alerts/clear-all', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    await prisma.adminAlert.deleteMany();
     res.json({ success: true });
   } catch (err) {
     console.error(err);

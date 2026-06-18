@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 import { ProductOrigin, OrderStatus } from '@prisma/client';
 import { sendPushToUser } from '../lib/firebaseAdmin';
+import { handleOrderCreated, handleOrderStatusChanged } from '../lib/notificationsHelper';
 
 const router = Router();
 
@@ -209,6 +210,9 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
         promo: true
       }
     });
+
+    // Trigger notification helpers
+    void handleOrderCreated(order.id);
 
     res.status(201).json(order);
   } catch (err) {
@@ -482,7 +486,7 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
     if (role === 'ADMIN') {
       // Admin has full control
       const dataToUpdate: any = { status: newStatus };
-      if (newStatus === OrderStatus.PENDING || newStatus === OrderStatus.CALLED_NOT_PAID) {
+      if (newStatus === OrderStatus.PENDING || newStatus === OrderStatus.CALLED_NOT_PAID || newStatus === OrderStatus.CANCELLED) {
         dataToUpdate.cleanerId = null;
       }
       const updated = await prisma.order.update({
@@ -491,7 +495,7 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
         include: { service: true, houseConfig: true, category: true, categoryService: true }
       });
       if (order.status !== newStatus) {
-        notifyOrderStatus(order.userId, id, newStatus);
+        void handleOrderStatusChanged(id, order.status, newStatus);
       }
       res.json(updated);
       return;
@@ -513,9 +517,10 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
 
       const updated = await prisma.order.update({
         where: { id },
-        data: { status: OrderStatus.CANCELLED },
+        data: { status: OrderStatus.CANCELLED, cleanerId: null },
         include: { service: true, houseConfig: true, category: true, categoryService: true }
       });
+      void handleOrderStatusChanged(id, order.status, OrderStatus.CANCELLED);
       res.json(updated);
       return;
     }
@@ -566,7 +571,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         ...(address !== undefined && { address }),
         ...(isRapid !== undefined && { isRapid: isRapid === true || isRapid === 'true' }),
         ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
-        cleanerId: (status === 'PENDING' || status === 'CALLED_NOT_PAID') 
+        cleanerId: (status === 'PENDING' || status === 'CALLED_NOT_PAID' || status === 'CANCELLED') 
           ? null 
           : (cleanerId !== undefined ? cleanerId : undefined),
         ...(extraWorkers !== undefined && { extraWorkers }),
@@ -596,7 +601,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
     });
 
     if (status !== undefined && status !== order.status) {
-      notifyOrderStatus(order.userId, id, status);
+      void handleOrderStatusChanged(id, order.status, status);
     }
 
     res.json(updated);

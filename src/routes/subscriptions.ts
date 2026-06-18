@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 import { SubscriptionStatus } from '@prisma/client';
 import { sendPushToUser } from '../lib/firebaseAdmin';
+import { handleSubscriptionCreated, handleSubscriptionStatusChanged } from '../lib/notificationsHelper';
 
 const router = Router();
 
@@ -252,6 +253,9 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
       include: subscriptionInclude,
     });
 
+    // Trigger notification helpers
+    void handleSubscriptionCreated(subscription.id);
+
     res.status(201).json(subscription);
   } catch (err) {
     console.error(err);
@@ -350,14 +354,9 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
       include: subscriptionInclude,
     });
 
-    // Notify user on status change
-    if (status && status !== existing.status && existing.userId) {
-      const label = status.toLowerCase().replace(/_/g, ' ');
-      void sendPushToUser(existing.userId, {
-        title: 'Subscription update',
-        body: `Your subscription is now ${label}.`,
-        data: { type: 'subscription_status', subscriptionId: id, status },
-      });
+    // Notify user and admin on status change
+    if (status && status !== existing.status) {
+      void handleSubscriptionStatusChanged(id, existing.status, status);
     }
 
     res.json(updated);

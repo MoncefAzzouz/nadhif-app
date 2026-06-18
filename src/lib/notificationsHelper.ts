@@ -1,0 +1,356 @@
+import prisma from './prisma';
+import { sendEmail } from './email';
+import { sendPushToUser } from './firebaseAdmin';
+
+// Fetch all admin users dynamically from database
+async function getAdminEmails(): Promise<string[]> {
+  try {
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN' },
+      select: { email: true }
+    });
+    const emails = admins.map(a => a.email).filter(Boolean);
+    return emails.length > 0 ? emails : ['admin@nadif.com'];
+  } catch (error) {
+    console.error('Failed to fetch admin emails from database:', error);
+    return ['admin@nadif.com'];
+  }
+}
+
+// Helper to create an in-app admin alert
+export async function createAdminAlert(title: string, message: string, type: string) {
+  try {
+    await prisma.adminAlert.create({
+      data: {
+        title,
+        message,
+        type,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create admin alert:', error);
+  }
+}
+
+// 1. New Order Created (both Normal/Rapid, Category/Service commands)
+export async function handleOrderCreated(orderId: string) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: true,
+        service: true,
+        category: true,
+        houseConfig: true,
+        categoryService: true,
+      },
+    });
+    if (!order) return;
+
+    const userEmail = order.user.email;
+    const userName = order.user.fullName;
+    const serviceName = order.service?.name || order.category?.name || 'Service de Nettoyage';
+    const total = order.totalPrice;
+    
+    // Format scheduledDate nicely
+    const dateStr = new Date(order.scheduledDate).toLocaleString('fr-FR', {
+      timeZone: 'UTC',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    
+    const isRapid = order.isRapid ? 'RAPIDE ⚡' : 'NORMAL';
+
+    const subject = `Confirmation de votre commande Nadif - #${order.id.slice(0, 8)}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded-lg;">
+        <h2 style="color: #0ea5e9;">Bonjour ${userName},</h2>
+        <p>Votre commande de nettoyage <strong>${isRapid}</strong> a bien été enregistrée dans notre système.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <h3 style="color: #334155;">Détails de la commande :</h3>
+        <ul style="list-style-type: none; padding: 0;">
+          <li style="padding: 8px 0;"><strong>ID Commande :</strong> #${order.id}</li>
+          <li style="padding: 8px 0;"><strong>Type :</strong> ${isRapid}</li>
+          <li style="padding: 8px 0;"><strong>Service :</strong> ${serviceName}</li>
+          <li style="padding: 8px 0;"><strong>Date et heure planifiées :</strong> ${dateStr}</li>
+          <li style="padding: 8px 0;"><strong>Adresse de prestation :</strong> ${order.address}</li>
+          <li style="padding: 8px 0; font-size: 16px;"><strong>Prix total :</strong> <span style="color: #0ea5e9; font-weight: bold;">${total} DZD</span></li>
+          <li style="padding: 8px 0;"><strong>Statut :</strong> <span style="background-color: #fef3c7; color: #d97706; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">EN ATTENTE (PENDING)</span></li>
+        </ul>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #64748b; font-size: 12px;">Cet e-mail a été envoyé automatiquement par le système Nadif.</p>
+      </div>
+    `;
+
+    // Send confirmation to client
+    await sendEmail({ to: userEmail, subject, html });
+
+    // Send email to admin
+    const adminSubject = `[NOUVELLE COMMANDE] - ${isRapid} - #${order.id.slice(0, 8)}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #0ea5e9;">Nouvelle commande de nettoyage reçue !</h2>
+        <p>Le client <strong>${userName}</strong> (${order.user.phone}) vient de soumettre une nouvelle commande.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <ul>
+          <li><strong>ID Commande :</strong> ${order.id}</li>
+          <li><strong>Client :</strong> ${userName} (${order.user.phone})</li>
+          <li><strong>Type :</strong> ${isRapid}</li>
+          <li><strong>Service/Catégorie :</strong> ${serviceName}</li>
+          <li><strong>Date planifiée :</strong> ${dateStr}</li>
+          <li><strong>Adresse :</strong> ${order.address}</li>
+          <li><strong>Prix total :</strong> ${total} DZD</li>
+        </ul>
+        <p><a href="http://localhost:3000/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Voir dans le Panel Admin</a></p>
+      </div>
+    `;
+    const adminEmails = await getAdminEmails();
+    for (const email of adminEmails) {
+      await sendEmail({ to: email, subject: adminSubject, html: adminHtml });
+    }
+
+    // Log admin in-app notification alert
+    await createAdminAlert(
+      `Nouvelle commande #${order.id.slice(0, 8)}`,
+      `Le client ${userName} a soumis une commande (${isRapid}) pour ${serviceName}.`,
+      'ORDER_CREATED'
+    );
+  } catch (err) {
+    console.error('Error in handleOrderCreated notification helper:', err);
+  }
+}
+
+// 2. New Subscription Requested
+export async function handleSubscriptionCreated(subscriptionId: string) {
+  try {
+    const sub = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        user: true,
+        propertyType: true,
+        serviceTier: true,
+      },
+    });
+    if (!sub) return;
+
+    const userEmail = sub.user?.email || sub.phone.includes('@') ? sub.phone : '';
+    const userName = sub.fullName;
+    const tierName = sub.serviceTier.name;
+    const propName = sub.propertyType.name;
+    const days = sub.daysPerWeek;
+
+    const subject = `Confirmation de votre demande d'abonnement Nadif - #${sub.id.slice(0, 8)}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded-lg;">
+        <h2 style="color: #0ea5e9;">Bonjour ${userName},</h2>
+        <p>Votre demande d'abonnement a bien été reçue et est en cours d'examen par notre équipe.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <h3 style="color: #334155;">Détails de la demande :</h3>
+        <ul>
+          <li><strong>ID Abonnement :</strong> #${sub.id}</li>
+          <li><strong>Type de propriété :</strong> ${propName}</li>
+          <li><strong>Formule choisie :</strong> ${tierName}</li>
+          <li><strong>Surface du logement :</strong> ${sub.surfaceM2} m²</li>
+          <li><strong>Jours d'intervention par semaine :</strong> ${days}</li>
+          <li><strong>Statut actuel :</strong> En attente (PENDING)</li>
+        </ul>
+        <p>Un administrateur va vous contacter ou vous proposer des créneaux dans les plus brefs délais.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #64748b; font-size: 12px;">Cet e-mail a été envoyé automatiquement par le système Nadif.</p>
+      </div>
+    `;
+
+    if (userEmail) {
+      await sendEmail({ to: userEmail, subject, html });
+    }
+
+    // Send to admin
+    const adminSubject = `[NOUVEL ABONNEMENT] - Demande reçue - #${sub.id.slice(0, 8)}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #0ea5e9;">Nouvelle demande d'abonnement reçue !</h2>
+        <p>Le client <strong>${userName}</strong> (Tél: ${sub.phone}) a fait une demande d'abonnement.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <ul>
+          <li><strong>ID Abonnement :</strong> ${sub.id}</li>
+          <li><strong>Client :</strong> ${userName} (${sub.phone})</li>
+          <li><strong>Propriété :</strong> ${propName}</li>
+          <li><strong>Formule :</strong> ${tierName}</li>
+          <li><strong>Surface :</strong> ${sub.surfaceM2} m²</li>
+          <li><strong>Jours / Semaine :</strong> ${days}</li>
+        </ul>
+        <p><a href="http://localhost:3000/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer dans le Panel Admin</a></p>
+      </div>
+    `;
+    const adminEmails = await getAdminEmails();
+    for (const email of adminEmails) {
+      await sendEmail({ to: email, subject: adminSubject, html: adminHtml });
+    }
+
+    // Log admin in-app notification alert
+    await createAdminAlert(
+      `Nouvel abonnement #${sub.id.slice(0, 8)}`,
+      `Le client ${userName} a demandé un abonnement (${tierName}, ${days}j/semaine).`,
+      'SUBSCRIPTION_CREATED'
+    );
+  } catch (err) {
+    console.error('Error in handleSubscriptionCreated notification helper:', err);
+  }
+}
+
+// 3. Order Status Changed
+export async function handleOrderStatusChanged(orderId: string, oldStatus: string, newStatus: string) {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: true,
+        service: true,
+        category: true,
+      },
+    });
+    if (!order) return;
+
+    const userEmail = order.user.email;
+    const userName = order.user.fullName;
+    const serviceName = order.service?.name || order.category?.name || 'Service de Nettoyage';
+
+    const subject = `Mise à jour du statut de votre commande - #${order.id.slice(0, 8)}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded-lg;">
+        <h2 style="color: #0ea5e9;">Bonjour ${userName},</h2>
+        <p>Le statut de votre commande de nettoyage pour <strong>${serviceName}</strong> a été mis à jour.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 16px;">
+          Statut de votre commande : 
+          <span style="background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 6px; font-weight: bold;">
+            ${newStatus}
+          </span>
+          (précédemment : ${oldStatus})
+        </p>
+        <p><strong>Adresse :</strong> ${order.address}</p>
+        <p><strong>Montant :</strong> ${order.totalPrice} DZD</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #64748b; font-size: 12px;">Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+      </div>
+    `;
+    await sendEmail({ to: userEmail, subject, html });
+
+    // Send email to admin
+    const adminSubject = `[STATUT MODIFIÉ] Commande #${order.id.slice(0, 8)} -> ${newStatus}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #0ea5e9;">Changement de statut pour la commande #${order.id.slice(0, 8)}</h2>
+        <p>Le statut de la commande de <strong>${userName}</strong> a été modifié.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <ul>
+          <li><strong>Client :</strong> ${userName} (${order.user.phone})</li>
+          <li><strong>Service :</strong> ${serviceName}</li>
+          <li><strong>Ancien Statut :</strong> ${oldStatus}</li>
+          <li><strong>Nouveau Statut :</strong> <span style="font-weight: bold; color: #0ea5e9;">${newStatus}</span></li>
+        </ul>
+        <p><a href="http://localhost:3000/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer la commande</a></p>
+      </div>
+    `;
+    const adminEmails = await getAdminEmails();
+    for (const email of adminEmails) {
+      await sendEmail({ to: email, subject: adminSubject, html: adminHtml });
+    }
+
+    // Log admin alert
+    await createAdminAlert(
+      `Statut commande #${order.id.slice(0, 8)} modifié`,
+      `Le statut de la commande de ${userName} est passé de ${oldStatus} à ${newStatus}.`,
+      'STATUS_CHANGED'
+    );
+
+    // Dispatch FCM Mobile Push Notification
+    const label = newStatus.toLowerCase().replace(/_/g, ' ');
+    void sendPushToUser(order.userId, {
+      title: 'Mise à jour de votre commande',
+      body: `Le statut de votre commande pour ${serviceName} est maintenant : ${label}.`,
+      data: { type: 'order_status', orderId, status: newStatus },
+    });
+  } catch (err) {
+    console.error('Error in handleOrderStatusChanged notification helper:', err);
+  }
+}
+
+// 4. Subscription Status Changed
+export async function handleSubscriptionStatusChanged(subscriptionId: string, oldStatus: string, newStatus: string) {
+  try {
+    const sub = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: {
+        user: true,
+        serviceTier: true,
+      },
+    });
+    if (!sub) return;
+
+    const userEmail = sub.user?.email || '';
+    const userName = sub.fullName;
+    const tierName = sub.serviceTier.name;
+
+    const subject = `Mise à jour de votre abonnement Nadif - #${sub.id.slice(0, 8)}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded-lg;">
+        <h2 style="color: #0ea5e9;">Bonjour ${userName},</h2>
+        <p>Le statut de votre abonnement <strong>${tierName}</strong> a été mis à jour.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 16px;">
+          Statut de votre abonnement : 
+          <span style="background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 6px; font-weight: bold;">
+            ${newStatus}
+          </span>
+          (précédemment : ${oldStatus})
+        </p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="color: #64748b; font-size: 12px;">Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+      </div>
+    `;
+    if (userEmail) {
+      await sendEmail({ to: userEmail, subject, html });
+    }
+
+    // Send to admin
+    const adminSubject = `[STATUT MODIFIÉ] Abonnement #${sub.id.slice(0, 8)} -> ${newStatus}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #0ea5e9;">Changement de statut pour l'abonnement #${sub.id.slice(0, 8)}</h2>
+        <p>Le statut de l'abonnement de <strong>${userName}</strong> a été modifié.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <ul>
+          <li><strong>Client :</strong> ${userName} (${sub.phone})</li>
+          <li><strong>Formule :</strong> ${tierName}</li>
+          <li><strong>Ancien Statut :</strong> ${oldStatus}</li>
+          <li><strong>Nouveau Statut :</strong> <span style="font-weight: bold; color: #0ea5e9;">${newStatus}</span></li>
+        </ul>
+        <p><a href="http://localhost:3000/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer l'abonnement</a></p>
+      </div>
+    `;
+    const adminEmails = await getAdminEmails();
+    for (const email of adminEmails) {
+      await sendEmail({ to: email, subject: adminSubject, html: adminHtml });
+    }
+
+    // Log admin alert
+    await createAdminAlert(
+      `Statut abonnement #${sub.id.slice(0, 8)} modifié`,
+      `Le statut de l'abonnement de ${userName} est passé de ${oldStatus} à ${newStatus}.`,
+      'STATUS_CHANGED'
+    );
+
+    // Dispatch FCM Mobile Push Notification
+    if (sub.userId) {
+      const label = newStatus.toLowerCase().replace(/_/g, ' ');
+      void sendPushToUser(sub.userId, {
+        title: 'Mise à jour de votre abonnement',
+        body: `Le statut de votre abonnement (${tierName}) est maintenant : ${label}.`,
+        data: { type: 'subscription_status', subscriptionId, status: newStatus },
+      });
+    }
+  } catch (err) {
+    console.error('Error in handleSubscriptionStatusChanged notification helper:', err);
+  }
+}

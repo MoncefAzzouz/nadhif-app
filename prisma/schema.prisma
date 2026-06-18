@@ -364,3 +364,13 @@ model SubscriptionPayment {
   
   @@index([subscriptionId])
 }
+
+model AdminAlert {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String   // "ORDER_CREATED" | "SUBSCRIPTION_CREATED" | "STATUS_CHANGED"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+

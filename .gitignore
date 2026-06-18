@@ -10,3 +10,4 @@ firebase-admin*.json
 
 # Uploaded images (runtime data, never commit)
 uploads/
+emails.log
