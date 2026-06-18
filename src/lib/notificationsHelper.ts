@@ -2,6 +2,8 @@ import prisma from './prisma';
 import { sendEmail } from './email';
 import { sendPushToUser } from './firebaseAdmin';
 
+const adminPortalUrl = process.env.ADMIN_PORTAL_URL || 'http://localhost:3000';
+
 // Fetch all admin users dynamically from database
 async function getAdminEmails(): Promise<string[]> {
   try {
@@ -101,7 +103,7 @@ export async function handleOrderCreated(orderId: string) {
           <li><strong>Adresse :</strong> ${order.address}</li>
           <li><strong>Prix total :</strong> ${total} DZD</li>
         </ul>
-        <p><a href="http://localhost:3000/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Voir dans le Panel Admin</a></p>
+        <p><a href="${adminPortalUrl}/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Voir dans le Panel Admin</a></p>
       </div>
     `;
     const adminEmails = await getAdminEmails();
@@ -179,7 +181,7 @@ export async function handleSubscriptionCreated(subscriptionId: string) {
           <li><strong>Surface :</strong> ${sub.surfaceM2} m²</li>
           <li><strong>Jours / Semaine :</strong> ${days}</li>
         </ul>
-        <p><a href="http://localhost:3000/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer dans le Panel Admin</a></p>
+        <p><a href="${adminPortalUrl}/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer dans le Panel Admin</a></p>
       </div>
     `;
     const adminEmails = await getAdminEmails();
@@ -249,7 +251,7 @@ export async function handleOrderStatusChanged(orderId: string, oldStatus: strin
           <li><strong>Ancien Statut :</strong> ${oldStatus}</li>
           <li><strong>Nouveau Statut :</strong> <span style="font-weight: bold; color: #0ea5e9;">${newStatus}</span></li>
         </ul>
-        <p><a href="http://localhost:3000/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer la commande</a></p>
+        <p><a href="${adminPortalUrl}/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer la commande</a></p>
       </div>
     `;
     const adminEmails = await getAdminEmails();
@@ -326,7 +328,7 @@ export async function handleSubscriptionStatusChanged(subscriptionId: string, ol
           <li><strong>Ancien Statut :</strong> ${oldStatus}</li>
           <li><strong>Nouveau Statut :</strong> <span style="font-weight: bold; color: #0ea5e9;">${newStatus}</span></li>
         </ul>
-        <p><a href="http://localhost:3000/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer l'abonnement</a></p>
+        <p><a href="${adminPortalUrl}/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer l'abonnement</a></p>
       </div>
     `;
     const adminEmails = await getAdminEmails();
