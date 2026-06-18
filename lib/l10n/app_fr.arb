@@ -47,6 +47,7 @@
   "acServicesDesc": "Réparation experte AC et maintenance approfondie",
   "pestControl": "Anti-nuisibles",
   "pestControlDesc": "Services d'élimination des nuisibles sûrs et efficaces",
+  "carpetDesc": "Nettoyage professionnel de tapis et moquettes",
   "furnitureDesc": "Nettoyage en profondeur des tissus et des meubles",
   "fromPrice": "À partir de {price}",
   "recommendedServices": "Services Recommandés",
