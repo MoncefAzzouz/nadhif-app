@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 import { handleOrderCreated } from '../lib/notificationsHelper';
+import { parseLocalDate } from './orders';
 
 const router = Router();
 
@@ -580,7 +581,7 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // Check if scheduled date falls on a locked day
-    const scheduled = new Date(scheduledDate);
+    const scheduled = parseLocalDate(scheduledDate);
     const offset = scheduled.getTimezoneOffset();
     const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
     const dateString = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -602,7 +603,7 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
         categoryServiceId: categoryServiceId || null,
         status: 'PENDING',
         totalPrice: calculatedTotal,
-        scheduledDate: new Date(scheduledDate),
+        scheduledDate: parseLocalDate(scheduledDate),
         extraWorkers: workersCount,
         useMaterials: materialsFlag,
         productOrigin: origin,

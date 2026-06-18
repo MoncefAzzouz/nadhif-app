@@ -7,6 +7,14 @@ import { handleOrderCreated, handleOrderStatusChanged } from '../lib/notificatio
 
 const router = Router();
 
+// Helper to parse ISO date strings consistently into Algeria local timezone (UTC+1)
+export function parseLocalDate(dateStr: string): Date {
+  if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.match(/-\d{2}:\d{2}$/)) {
+    return new Date(`${dateStr}+01:00`);
+  }
+  return new Date(dateStr);
+}
+
 // Human-friendly status text used in push notification bodies.
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'pending',
@@ -167,7 +175,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
     }
 
     // Check if scheduled date falls on a locked day
-    const scheduled = new Date(scheduledDate);
+    const scheduled = parseLocalDate(scheduledDate);
     const offset = scheduled.getTimezoneOffset();
     const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
     const dateString = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -192,7 +200,7 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
         useMaterials: materialsFlag,
         productOrigin: origin,
         totalPrice: calculatedTotal,
-        scheduledDate: new Date(scheduledDate),
+        scheduledDate: parseLocalDate(scheduledDate),
         address,
         isRapid: isRapid === true || isRapid === 'true',
         latitude: latitude ? parseFloat(latitude.toString()) : null,
@@ -290,6 +298,15 @@ router.get('/availability', authenticateToken, async (req: AuthenticatedRequest,
     const workersCount = extraWorkers ? parseInt(extraWorkers.toString(), 10) : 0;
     const rapidFlag = isRapid === 'true';
 
+    // Debug logging
+    try {
+      const fs = require('fs');
+      const logLine = `[${new Date().toISOString()}] REQ: date=${date}, serviceId=${serviceId}, houseConfigId=${houseConfigId}, categoryId=${categoryId}, categoryServiceId=${categoryServiceId}, extraWorkers=${extraWorkers}, isRapid=${isRapid}\n`;
+      fs.appendFileSync('availability_debug.log', logLine);
+    } catch (err) {
+      console.error('Failed to write to debug log:', err);
+    }
+
     let requiredWorkers = 1;
     let durationHours = 3;
 
@@ -351,12 +368,6 @@ router.get('/availability', authenticateToken, async (req: AuthenticatedRequest,
       }
     });
 
-    // Helper to get local time representation on Node.js
-    const getLocalTimeMs = (d: Date): number => {
-      const offset = d.getTimezoneOffset();
-      return d.getTime() - offset * 60 * 1000;
-    };
-
     // We check availability for these standard slots
     const timeSlots = [
       "08:00", "09:00", "10:00", "11:00", "12:00",
@@ -366,7 +377,8 @@ router.get('/availability', authenticateToken, async (req: AuthenticatedRequest,
     const availableSlots: string[] = [];
 
     timeSlots.forEach(timeStr => {
-      const slotStart = new Date(`${dateString}T${timeStr}:00.000Z`).getTime();
+      // Parse slot time in UTC+1 timezone (Algeria local time)
+      const slotStart = new Date(`${dateString}T${timeStr}:00.000+01:00`).getTime();
       const slotEnd = slotStart + durationHours * 60 * 60 * 1000;
 
       const busyCleanerIds = new Set<string>();
@@ -374,7 +386,7 @@ router.get('/availability', authenticateToken, async (req: AuthenticatedRequest,
       // Check order overlaps
       orders.forEach(other => {
         if (!other.cleanerId) return;
-        const otherStart = getLocalTimeMs(other.scheduledDate);
+        const otherStart = other.scheduledDate.getTime();
         const otherDuration = other.houseConfig?.durationHours ?? other.categoryService?.durationHours ?? other.service?.durationHours ?? 3;
         const otherEnd = otherStart + otherDuration * 60 * 60 * 1000;
 
@@ -389,7 +401,7 @@ router.get('/availability', authenticateToken, async (req: AuthenticatedRequest,
       // Check session overlaps
       sessions.forEach(session => {
         if (!session.cleanerId) return;
-        const sessionStart = getLocalTimeMs(session.scheduledDate);
+        const sessionStart = session.scheduledDate.getTime();
         const sessionEnd = sessionStart + session.durationHours * 60 * 60 * 1000;
 
         if (slotStart < sessionEnd && sessionStart < slotEnd) {
@@ -405,6 +417,12 @@ router.get('/availability', authenticateToken, async (req: AuthenticatedRequest,
         availableSlots.push(timeStr);
       }
     });
+
+    try {
+      const fs = require('fs');
+      const logLine = `[${new Date().toISOString()}] RES: requiredWorkers=${requiredWorkers}, durationHours=${durationHours}, totalActiveCleaners=${totalActiveCleaners}, availableSlots=${JSON.stringify(availableSlots)}\n`;
+      fs.appendFileSync('availability_debug.log', logLine);
+    } catch (err) {}
 
     res.json({
       date: dateString,
@@ -552,7 +570,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
     }
 
     if (scheduledDate !== undefined) {
-      const scheduled = new Date(scheduledDate);
+      const scheduled = parseLocalDate(scheduledDate);
       const offset = scheduled.getTimezoneOffset();
       const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
       const dateString = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
@@ -570,7 +588,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
       data: {
         ...(address !== undefined && { address }),
         ...(isRapid !== undefined && { isRapid: isRapid === true || isRapid === 'true' }),
-        ...(scheduledDate !== undefined && { scheduledDate: new Date(scheduledDate) }),
+        ...(scheduledDate !== undefined && { scheduledDate: parseLocalDate(scheduledDate) }),
         cleanerId: (status === 'PENDING' || status === 'CALLED_NOT_PAID' || status === 'CANCELLED') 
           ? null 
           : (cleanerId !== undefined ? cleanerId : undefined),
