@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar, Zap, CalendarCheck } from 'lucide-react';
-import { getToken, getUser, clearAuth, type ApiUser, ordersApi, adminAlertsApi, type ApiAdminAlert } from '../lib/api';
+import { getToken, getUser, clearAuth, type ApiUser, ordersApi, adminAlertsApi, type ApiAdminAlert, subscriptionsApi } from '../lib/api';
 
 interface NavItem {
   name: string;
@@ -44,6 +44,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [hasPendingOrders, setHasPendingOrders] = useState(false);
   const [hasPendingRapidOrders, setHasPendingRapidOrders] = useState(false);
+  const [hasPendingSubscriptions, setHasPendingSubscriptions] = useState(false);
   const [alerts, setAlerts] = useState<ApiAdminAlert[]>([]);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
 
@@ -92,6 +93,13 @@ export default function AdminLayout({
         setHasPendingRapidOrders(hasPendingRapid);
       } catch (err) {
         console.error("Error fetching orders for layout:", err);
+      }
+      try {
+        const subs = await subscriptionsApi.getAll();
+        const hasPendingSubs = subs.some(s => s.status === 'PENDING');
+        setHasPendingSubscriptions(hasPendingSubs);
+      } catch (err) {
+        console.error("Error fetching subscriptions for layout:", err);
       }
     };
     checkPending();
@@ -190,6 +198,9 @@ export default function AdminLayout({
                   <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
                 )}
                 {item.name === 'Service Rapide' && hasPendingRapidOrders && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
+                )}
+                {item.name === 'Abonnements' && hasPendingSubscriptions && (
                   <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
                 )}
                 {isActive && (
@@ -299,6 +310,9 @@ export default function AdminLayout({
                         <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
                       )}
                       {item.name === 'Service Rapide' && hasPendingRapidOrders && (
+                        <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
+                      )}
+                      {item.name === 'Abonnements' && hasPendingSubscriptions && (
                         <span className="w-2 h-2 rounded-full bg-rose-500 ml-auto animate-pulse shrink-0" />
                       )}
                     </Link>
