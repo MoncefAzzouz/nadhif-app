@@ -351,16 +351,16 @@ router.post('/services', async (req: AuthenticatedRequest, res: Response) => {
         isActive: isActive ?? true,
         houseConfigs: houseConfigs
           ? {
-              create: houseConfigs.map((hc: any) => ({
-                type: hc.type,
-                typeAr: hc.typeAr || '',
-                typeFr: hc.typeFr || '',
-                workers: parseInt(hc.workers),
-                basePrice: parseFloat(hc.basePrice),
-                rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
-                durationHours: parseInt(hc.durationHours ?? 3),
-              })),
-            }
+            create: houseConfigs.map((hc: any) => ({
+              type: hc.type,
+              typeAr: hc.typeAr || '',
+              typeFr: hc.typeFr || '',
+              workers: parseInt(hc.workers),
+              basePrice: parseFloat(hc.basePrice),
+              rapidBasePrice: parseFloat(hc.rapidBasePrice ?? 0),
+              durationHours: parseInt(hc.durationHours ?? 3),
+            })),
+          }
           : undefined,
       },
       include: { houseConfigs: true },
@@ -532,10 +532,10 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       extraWorkersPrice = workersCount * extraPriceUnit;
       materialsFlag = useMaterials === true || service.materialsMandatory;
       materialsPrice = materialsFlag ? service.materialPrice : 0;
-      
+
       if (origin === 'LOCAL') productsPrice = service.localProductPrice;
       else if (origin === 'IMPORTED') productsPrice = service.importedProductPrice;
-      
+
       calculatedTotal = basePrice + extraWorkersPrice + materialsPrice + productsPrice;
     } else if (categoryId && categoryServiceId) {
       // 2. Fetch category and category service
@@ -559,10 +559,10 @@ router.post('/orders', async (req: AuthenticatedRequest, res: Response) => {
       basePrice = (isRapid === true || isRapid === 'true') ? categoryService.rapidBasePrice : categoryService.basePrice;
       materialsFlag = useMaterials === true || category.materialsMandatory;
       materialsPrice = materialsFlag ? category.materialPrice : 0;
-      
+
       if (origin === 'LOCAL') productsPrice = category.localProductPrice;
       else if (origin === 'IMPORTED') productsPrice = category.importedProductPrice;
-      
+
       calculatedTotal = basePrice + materialsPrice + productsPrice;
     }
 
@@ -686,16 +686,16 @@ router.post('/categories', async (req: AuthenticatedRequest, res: Response) => {
         isActive: isActive ?? true,
         categoryServices: categoryServices
           ? {
-              create: categoryServices.map((cs: any) => ({
-                name: cs.name,
-                nameAr: cs.nameAr || '',
-                nameFr: cs.nameFr || '',
-                workers: parseInt(cs.workers),
-                basePrice: parseFloat(cs.basePrice),
-                rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
-                durationHours: parseInt(cs.durationHours ?? 3),
-              })),
-            }
+            create: categoryServices.map((cs: any) => ({
+              name: cs.name,
+              nameAr: cs.nameAr || '',
+              nameFr: cs.nameFr || '',
+              workers: parseInt(cs.workers),
+              basePrice: parseFloat(cs.basePrice),
+              rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
+              durationHours: parseInt(cs.durationHours ?? 3),
+            })),
+          }
           : undefined,
       },
       include: { categoryServices: true },
@@ -740,16 +740,16 @@ router.put('/categories/:id', async (req: AuthenticatedRequest, res: Response) =
         isActive: isActive ?? true,
         categoryServices: categoryServices
           ? {
-              create: categoryServices.map((cs: any) => ({
-                name: cs.name,
-                nameAr: cs.nameAr || '',
-                nameFr: cs.nameFr || '',
-                workers: parseInt(cs.workers),
-                basePrice: parseFloat(cs.basePrice),
-                rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
-                durationHours: parseInt(cs.durationHours ?? 3),
-              })),
-            }
+            create: categoryServices.map((cs: any) => ({
+              name: cs.name,
+              nameAr: cs.nameAr || '',
+              nameFr: cs.nameFr || '',
+              workers: parseInt(cs.workers),
+              basePrice: parseFloat(cs.basePrice),
+              rapidBasePrice: parseFloat(cs.rapidBasePrice ?? 0),
+              durationHours: parseInt(cs.durationHours ?? 3),
+            })),
+          }
           : undefined,
       },
       include: { categoryServices: true },
