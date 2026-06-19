@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { name: 'Promo Codes', href: '/admin/promos', icon: Ticket, disabled: false },
   { name: 'Notifications', href: '/admin/notifications', icon: Bell, disabled: false },
   { name: 'Slides', href: '/admin/slides', icon: Sliders, disabled: false },
+  { name: 'Pages Manager', href: '/admin/pages', icon: BookOpen, disabled: false },
 ];
 
 export default function AdminLayout({
