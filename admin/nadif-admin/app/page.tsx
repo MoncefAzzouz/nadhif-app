@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, CheckCircle, ChevronDown, Zap, Star, ShieldCheck, Download, Smartphone, Play, Apple, Truck, Globe, Mail, Phone, MapPin, Send } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { categoriesApi, imgUrl } from './lib/api';
 
 type Lang = 'EN' | 'FR' | 'AR';
 
@@ -141,12 +142,34 @@ export default function Home() {
   const t = translations[lang];
   const isRTL = lang === 'AR';
 
-  const services = [
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    categoriesApi.getPublicAll()
+      .then(setCategories)
+      .catch(err => console.error("Error loading categories for homepage:", err));
+  }, []);
+
+  const servicesFallback = [
     { name: t.catItems[0], image: "/assets/landiring.JPG", count: t.catCounts[0] },
     { name: t.catItems[1], image: "/assets/sejadaclean.JPG", count: t.catCounts[1] },
     { name: t.catItems[2], image: "/assets/clima.JPG", count: t.catCounts[2] },
     { name: t.catItems[3], image: "/assets/deepclean.JPG", count: t.catCounts[3] },
   ];
+
+  const services = categories.length > 0 
+    ? categories.map(cat => ({
+        name: lang === 'AR' ? (cat.nameAr || cat.name) : lang === 'FR' ? (cat.nameFr || cat.name) : cat.name,
+        image: imgUrl(cat.picture),
+        count: (() => {
+          if (!cat.categoryServices || cat.categoryServices.length === 0) {
+            return lang === 'AR' ? 'عناية ممتازة' : 'Premium Care';
+          }
+          const minPrice = Math.min(...cat.categoryServices.map((cs: any) => cs.basePrice));
+          return lang === 'AR' ? `ابتداءً من ${minPrice} دج` : lang === 'FR' ? `À partir de ${minPrice} DA` : `Starting at ${minPrice} DA`;
+        })()
+      }))
+    : servicesFallback;
 
   const popular = [
     { ...t.popularItems[0], image: "/assets/promo.png", tag: "NEW" },
@@ -242,8 +265,8 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {services.map((service, i) => (
               <motion.div key={i} whileHover={{ y: -10 }} className="group relative bg-gray-50/50 rounded-[3rem] p-10 text-center cursor-pointer border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-2xl transition-all duration-500">
-                <div className="w-32 h-32 relative mx-auto mb-8 rounded-full overflow-hidden shadow-xl ring-4 ring-white group-hover:scale-110 transition-transform duration-700">
-                  <Image src={service.image} alt={service.name} fill className="object-cover" />
+                <div className="w-32 h-32 relative mx-auto mb-8 rounded-full overflow-hidden shadow-xl ring-4 ring-white group-hover:scale-110 transition-transform duration-700 bg-slate-100">
+                  <img src={service.image} alt={service.name} className="w-full h-full object-cover" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground-nadif mb-2 uppercase tracking-tight">{service.name}</h3>
                 <p className="text-[10px] font-bold text-primary uppercase tracking-widest opacity-60">{service.count}</p>

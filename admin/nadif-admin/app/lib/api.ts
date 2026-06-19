@@ -326,6 +326,7 @@ export interface ApiCategory {
 // ─── Admin: Categories ────────────────────────────────────────────────────────
 export const categoriesApi = {
   getAll: () => apiFetch<ApiCategory[]>('/api/admin/categories'),
+  getPublicAll: () => apiFetch<ApiCategory[]>('/api/categories', {}, false),
 
   create: (data: Omit<Partial<ApiCategory>, 'categoryServices'> & { categoryServices?: any[] }) =>
     apiFetch<ApiCategory>('/api/admin/categories', {
