@@ -3,9 +3,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CheckCircle, ChevronDown, Zap, Star, ShieldCheck, Download, Smartphone, Play, Apple, Truck, Globe, Mail, Phone, MapPin, Send } from "lucide-react";
+import { ArrowRight, CheckCircle, ChevronDown, Zap, Star, ShieldCheck, Download, Smartphone, Play, Apple, Truck, Globe, Mail, Phone, MapPin, Send, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
-import { categoriesApi, imgUrl } from './lib/api';
+import { categoriesApi, imgUrl, slidesApi, servicesApi } from './lib/api';
 
 type Lang = 'EN' | 'FR' | 'AR';
 
@@ -23,11 +23,11 @@ const translations = {
     popularTitle: 'The Essentials.',
     popularSub: 'Most requested services this month',
     popularItems: [
-      { t: "Welcome Offer", d: "Get -20% on your first cleaning or laundry order.", p: "-20%" },
-      { t: "Clean Air (Clima+)", d: "HEALTH & COMFORT: Breathe pure air with our expert service.", p: "1500 DA" },
-      { t: "Home Pack", d: "Full cleaning subscription for your home and laundry.", p: "On Quote" }
+      { t: "Standard Service", d: "Professional home cleaning and laundry care with 48h delivery.", p: "" },
+      { t: "Service Rapide", d: "Express laundry service with home pickup and delivery within 24h.", p: "" },
+      { t: "Subscription Packs", d: "Flexible monthly schedules for regular cleaning visits and laundry care.", p: "" }
     ],
-    howTitle: 'L&apos;Expérience Nadif.',
+    howTitle: 'L\'Expérience Nadif.',
     howSub: 'Your cleaning service in 4 simple steps',
     steps: [
       { t: "Order", d: "Choose your services on the Nadif app." },
@@ -57,24 +57,24 @@ const translations = {
     cta: 'Commander',
     heroBadge: 'Service de Nettoyage Premium',
     heroTitle: 'Votre Maison Impeccable.',
-    heroDesc: 'Libérez votre temps. Nadif s&apos;occupe de tout : du nettoyage de votre domicile à l&apos;entretien de votre linge, avec une livraison en 24h.',
+    heroDesc: 'Libérez votre temps. Nadif s\'occupe de tout : du nettoyage de votre domicile à l\'entretien de votre linge, avec une livraison en 24h.',
     heroBtn: 'Réserver un Service',
     servicesTitle: 'Explorez nos Services.',
     servicesSub: 'Nettoyage complet pour votre quotidien',
     popularTitle: 'Les Incontournables.',
     popularSub: 'Services les plus demandés ce mois-ci',
     popularItems: [
-      { t: "Offre de Bienvenue", d: "Bénéficiez de -20% sur votre première commande de nettoyage.", p: "-20%" },
-      { t: "Clean Air (Clima+)", d: "SANTÉ & CONFORT: Respirez un air pur avec notre service expert.", p: "1500 DA" },
-      { t: "Pack Maison", d: "Abonnement nettoyage complet pour votre domicile et linge.", p: "Sur Devis" }
+      { t: "Service Standard", d: "Nettoyage de domicile et entretien de votre linge avec livraison en 48h.", p: "" },
+      { t: "Service Rapide", d: "Service express avec collecte et livraison à domicile en moins de 24h.", p: "" },
+      { t: "Abonnement Mensuel", d: "Formules mensuelles pour des passages réguliers de nettoyage et repassage.", p: "" }
     ],
-    howTitle: 'L&apos;Expérience Nadif.',
+    howTitle: 'L\'Expérience Nadif.',
     howSub: 'Votre service de nettoyage en 4 étapes simples',
     steps: [
-      { t: "Commande", d: "Choisissez vos services sur l&apos;application Nadif." },
+      { t: "Commande", d: "Choisissez vos services sur l'application Nadif." },
       { t: "Arrivée", d: "Notre expert arrive à votre domicile ou récupère votre linge." },
       { t: "Soin Expert", d: "Traitement spécialisé par nos experts qualifiés." },
-      { t: "Résultat", d: "Profitez d&apos;une maison propre et d&apos;un linge frais." }
+      { t: "Résultat", d: "Profitez d'une maison propre et d'un linge frais." }
     ],
     contactTitle: 'Contactez-nous.',
     contactSub: 'Notre équipe est à votre écoute',
@@ -105,9 +105,9 @@ const translations = {
     popularTitle: 'الأساسيات.',
     popularSub: 'الخدمات الأكثر طلباً هذا الشهر',
     popularItems: [
-      { t: "عرض الترحيب", d: "احصل على خصم 20% على أول طلب تنظيف أو غسيل.", p: "-20%" },
-      { t: "هواء نقي (كليما+)", d: "الصحة والراحة: تنفس هواءً نقياً مع خدمتنا الخبيرة.", p: "1500 دج" },
-      { t: "باقة المنزل", d: "اشتراك تنظيف كامل لمنزلك وغسيلك.", p: "حسب الطلب" }
+      { t: "الخدمة العادية", d: "تنظيف احترافي للمنازل والعناية بالغسيل مع التوصيل خلال 48 ساعة.", p: "" },
+      { t: "الخدمة السريعة", d: "خدمة الغسيل السريع مع الاستلام والتوصيل للمنازل في أقل من 24 ساعة.", p: "" },
+      { t: "باقات الاشتراك", d: "باقات شهرية مرنة لزيارات تنظيف دورية وخدمات الغسيل المستمرة.", p: "" }
     ],
     howTitle: 'تجربة نظيف.',
     howSub: 'خدمة التنظيف الخاصة بك في 4 خطوات بسيطة',
@@ -138,82 +138,198 @@ const translations = {
 export default function Home() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [lang, setLang] = useState<Lang>('FR');
+  const [categories, setCategories] = useState<any[]>([]);
+  const [dbServicesList, setDbServicesList] = useState<any[]>([]);
+  const [slides, setSlides] = useState<any[]>([]);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  // Contact Form states
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState(false);
+
+  useEffect(() => {
+    // Load categories
+    categoriesApi.getPublicAll()
+      .then(setCategories)
+      .catch((err: any) => console.error("Error loading categories for homepage:", err));
+
+    // Load services
+    servicesApi.getAll()
+      .then(setDbServicesList)
+      .catch((err: any) => console.error("Error loading services for homepage:", err));
+
+    // Load active slides
+    slidesApi.getPublicAll()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setSlides(data);
+        }
+      })
+      .catch((err: any) => console.error("Error loading slides for homepage:", err));
+  }, []);
+
+  // Autoplay slides carousel
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [slides]);
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactForm.name || !contactForm.email || !contactForm.message) return;
+    setIsSubmittingContact(true);
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    setIsSubmittingContact(false);
+    setContactSuccess(true);
+    setContactForm({ name: '', email: '', message: '' });
+    setTimeout(() => setContactSuccess(false), 5000);
+  };
 
   const t = translations[lang];
   const isRTL = lang === 'AR';
 
-  const [categories, setCategories] = useState<any[]>([]);
+  // Map dynamic database services with static fallback services as backup
+  const dbServices = dbServicesList.map((srv, idx) => {
+    let subServicesList: string[] = [];
+    const sName = (srv.name || '').toLowerCase();
+    if (sName.includes('simple')) {
+      subServicesList = lang === 'AR' 
+        ? ["غسيل وكي", "تنظيف الغبار", "كنس ومسح"] 
+        : lang === 'FR' 
+        ? ["Lavage & Repassage", "Dépoussiérage", "Balayage & Aspirateur"] 
+        : ["Wash & Ironing", "Dusting surfaces", "Sweeping & Vacuuming"];
+    } else if (sName.includes('semi grand') || sName.includes('semi-grand')) {
+      subServicesList = lang === 'AR' 
+        ? ["تنظيف النوافذ", "تعقيم الحمام", "تنظيف السجاد"] 
+        : lang === 'FR' 
+        ? ["Vitres intérieures", "Désinfection sanitaire", "Nettoyage Tapis/Tissus"] 
+        : ["Inside windows", "Sanitizing bathroom", "Carpet & Upholstery"];
+    } else if (sName.includes('grand')) {
+      subServicesList = lang === 'AR' 
+        ? ["تنظيف عميق للمطبخ", "غسيل الدهون والزيوت", "تنظيف النوافذ والأبواب"] 
+        : lang === 'FR' 
+        ? ["Cuisine en profondeur", "Dégraissage complet", "Rails de fenêtres & Aérations"] 
+        : ["Kitchen deep clean", "Grease removal", "Window tracks & Vents"];
+    } else {
+      subServicesList = (srv.description || '')
+        .split(/[.,;]/)
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0 && s.length < 45)
+        .slice(0, 3);
+    }
+    return {
+      name: lang === 'AR' ? (srv.nameAr || srv.name) : lang === 'FR' ? (srv.nameFr || srv.name) : srv.name,
+      image: imgUrl(srv.picture),
+      count: (() => {
+        const labels = {
+          EN: ["Premium Care", "Deep Clean", "Expert Tech", "Full Home"],
+          FR: ["Soin Premium", "Nettoyage Profond", "Technique Experte", "Complet"],
+          AR: ["عناية ممتازة", "تنظيف عميق", "تقنية الخبراء", "منزل كامل"]
+        };
+        const list = labels[lang] || labels.FR;
+        return list[idx % list.length];
+      })(),
+      subServices: subServicesList
+    };
+  });
 
-  useEffect(() => {
-    categoriesApi.getPublicAll()
-      .then(setCategories)
-      .catch(err => console.error("Error loading categories for homepage:", err));
-  }, []);
-
-  const servicesFallback = [
-    { name: t.catItems[0], image: "/assets/landiring.JPG", count: t.catCounts[0] },
-    { name: t.catItems[1], image: "/assets/sejadaclean.JPG", count: t.catCounts[1] },
-    { name: t.catItems[2], image: "/assets/clima.JPG", count: t.catCounts[2] },
-    { name: t.catItems[3], image: "/assets/deepclean.JPG", count: t.catCounts[3] },
+  const fallbackServices = [
+    { 
+      name: t.catItems[0], 
+      image: "/assets/landiring.JPG", 
+      count: t.catCounts[0],
+      subServices: lang === 'AR' ? ["تنظيف جاف", "غسيل وكي", "كي فقط"] : lang === 'FR' ? ["Nettoyage à sec", "Lavage & Repassage", "Repassage seul"] : ["Dry Clean", "Wash & Iron", "Ironing Only"]
+    },
+    { 
+      name: t.catItems[1], 
+      image: "/assets/sejadaclean.JPG", 
+      count: t.catCounts[1],
+      subServices: lang === 'AR' ? ["سجاد الصالون", "سجاد الصوف", "سجاد فارسي"] : lang === 'FR' ? ["Tapis de salon", "Tapis de laine", "Tapis persans"] : ["Living Room Carpet", "Woolen Rugs", "Persian Rugs"]
+    },
+    { 
+      name: t.catItems[2], 
+      image: "/assets/clima.JPG", 
+      count: t.catCounts[2],
+      subServices: lang === 'AR' ? ["تنظيف الفلاتر", "شحن الغاز", "فحص التكييف"] : lang === 'FR' ? ["Nettoyage filtre", "Recharge Gaz", "Audit Climatisation"] : ["Filter Cleaning", "Gas Recharge", "Full AC Audit"]
+    },
+    { 
+      name: t.catItems[3], 
+      image: "/assets/deepclean.JPG", 
+      count: t.catCounts[3],
+      subServices: lang === 'AR' ? ["تنظيف المطبخ", "تعقيم الحمام", "تنظيف المنزل بالكامل"] : lang === 'FR' ? ["Cuisine en profondeur", "Soin de salle de bain", "Pack maison complète"] : ["Kitchen Deep Clean", "Bathroom Care", "Full House Pack"]
+    },
   ];
 
-  const services = categories.length > 0 
-    ? categories.map(cat => ({
-        name: lang === 'AR' ? (cat.nameAr || cat.name) : lang === 'FR' ? (cat.nameFr || cat.name) : cat.name,
-        image: imgUrl(cat.picture),
-        count: (() => {
-          if (!cat.categoryServices || cat.categoryServices.length === 0) {
-            return lang === 'AR' ? 'عناية ممتازة' : 'Premium Care';
-          }
-          const minPrice = Math.min(...cat.categoryServices.map((cs: any) => cs.basePrice));
-          return lang === 'AR' ? `ابتداءً من ${minPrice} دج` : lang === 'FR' ? `À partir de ${minPrice} DA` : `Starting at ${minPrice} DA`;
-        })()
-      }))
-    : servicesFallback;
+  const services = dbServicesList.length > 0 ? dbServices : fallbackServices;
 
   const popular = [
-    { ...t.popularItems[0], image: "/assets/promo.png", tag: "NEW" },
-    { ...t.popularItems[1], image: "/assets/cleanair.png", tag: "HOT" },
-    { ...t.popularItems[2], image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop", tag: "PREMIUM" },
+    { ...t.popularItems[0], image: "/assets/second.png", tag: lang === 'AR' ? 'عادي' : 'STANDARD' },
+    { ...t.popularItems[1], image: "/assets/urgent.png", tag: lang === 'AR' ? 'سريع' : 'EXPRESS' },
+    { ...t.popularItems[2], image: "/assets/cleanair.png", tag: lang === 'AR' ? 'اشتراك' : 'PREMIUM' },
   ];
 
+  // Formatting utility to highlight the last word in titles
+  const formatHeading = (titleText: string) => {
+    const parts = (titleText || '').trim().split(/\s+/);
+    if (parts.length <= 1) return <>{titleText}</>;
+    const lastWord = parts[parts.length - 1];
+    const rest = parts.slice(0, -1).join(' ');
+    return (
+      <>
+        {rest}{' '}
+        <span className="text-primary underline decoration-primary/10 underline-offset-8 block sm:inline">{lastWord}</span>
+      </>
+    );
+  };
+
   return (
-    <main className={`min-h-screen bg-white font-gilmer text-foreground-nadif selection:bg-primary selection:text-white overflow-x-hidden ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <main className={`min-h-screen bg-slate-50/50 text-slate-800 selection:bg-primary selection:text-white overflow-x-hidden ${isRTL ? 'font-cairo rtl' : 'font-gilmer ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Premium Navbar */}
-      <nav className="fixed top-0 w-full z-50 bg-white shadow-sm border-b border-gray-100">
+      <nav className="fixed top-0 w-full z-50 bg-white/85 backdrop-blur-lg shadow-sm border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="bg-primary p-2 rounded-xl group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
-              <Image src="/logo.png" alt="Nadif" width={28} height={28} className="brightness-0 invert" />
+            <div className="bg-primary p-2.5 rounded-2xl group-hover:rotate-6 transition-transform shadow-lg shadow-primary/20">
+              <Image src="/logo.png" alt="Nadif Logo" width={26} height={26} className="brightness-0 invert animate-none" />
             </div>
             <span className="text-xl font-bold tracking-tighter uppercase text-primary">NADIF</span>
           </Link>
 
-          <div className="hidden lg:flex items-center gap-10">
+          <div className="hidden lg:flex items-center gap-8">
             {t.nav.map((item, i) => (
-              <Link key={item} href={`#${['services', 'processus', 'application', 'contact'][i]}`} className="text-[11px] font-bold uppercase tracking-widest text-foreground-nadif/60 hover:text-primary transition-colors">
+              <Link key={item} href={`#${['services', 'processus', 'application', 'contact'][i]}`} className="text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:text-primary transition-colors duration-200">
                 {item}
               </Link>
             ))}
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="hidden md:flex items-center gap-3 border-r border-gray-100 pr-6 mr-2">
-              <Globe size={14} className="text-gray-400" />
+            <div className="hidden md:flex items-center gap-3 border-r border-slate-100 pr-6">
+              <Globe size={15} className="text-slate-400" />
               <div className="flex gap-2">
                 {(['EN', 'FR', 'AR'] as Lang[]).map((l) => (
                   <button
                     key={l}
                     onClick={() => setLang(l)}
-                    className={`text-[10px] font-bold transition-colors ${lang === l ? 'text-primary' : 'text-gray-400 hover:text-foreground-nadif'}`}
+                    className={`text-[10px] font-extrabold transition-colors py-1 px-1.5 rounded-md ${lang === l ? 'text-primary bg-primary/5' : 'text-slate-400 hover:text-slate-800'}`}
                   >
                     {l}
                   </button>
                 ))}
               </div>
             </div>
-            <Link href="/login" className="hidden sm:block text-[11px] font-bold uppercase tracking-widest text-foreground-nadif hover:text-primary transition-colors">{t.login}</Link>
-            <button className="px-6 py-3 bg-primary text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-full shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+            <Link href="/login" className="hidden sm:block text-[11px] font-bold uppercase tracking-widest text-slate-700 hover:text-primary transition-colors duration-200">{t.login}</Link>
+            
+            <button 
+              onClick={() => {
+                const element = document.getElementById('services');
+                if (element) element.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-6 py-3 bg-primary text-white text-[10px] font-extrabold uppercase tracking-[0.2em] rounded-full shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            >
               {t.cta}
             </button>
           </div>
@@ -221,55 +337,175 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section id="accueil" className="relative pt-40 pb-24 overflow-hidden">
-        <div className="absolute inset-0 hero-gradient pointer-events-none opacity-50" />
+      <section id="accueil" className="relative pt-40 pb-28 overflow-hidden">
+        <div className="absolute inset-0 hero-gradient pointer-events-none opacity-40" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div initial={{ opacity: 0, x: isRTL ? 50 : -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}>
-              <div className="inline-flex items-center gap-2 bg-primary/5 px-4 py-2 rounded-full border border-primary/10 mb-8">
-                <Zap size={14} className="text-primary fill-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">{t.heroBadge}</span>
+            
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
+              <div className="inline-flex items-center gap-2 bg-primary/5 px-4.5 py-2 rounded-full border border-primary/10 mb-8">
+                <Zap size={13} className="text-primary fill-primary" />
+                <span className="text-[9px] font-extrabold uppercase tracking-[0.25em] text-primary">{t.heroBadge}</span>
               </div>
-              <h1 className="text-6xl lg:text-8xl font-bold leading-[0.9] tracking-tighter text-foreground-nadif mb-8 uppercase font-gilmer">
-                {t.heroTitle.split('.')[0]} <br />
-                <span className="text-primary underline decoration-primary/10 underline-offset-8">Impeccable.</span>
+              <h1 className="text-5xl lg:text-7xl font-bold leading-[0.95] tracking-tighter text-slate-850 mb-8 uppercase font-gilmer">
+                {formatHeading(t.heroTitle)}
               </h1>
-              <p className="text-lg lg:text-xl text-foreground-nadif/50 max-w-lg mb-10 leading-relaxed font-medium">
+              <p className="text-slate-500 text-md lg:text-lg leading-relaxed font-semibold max-w-lg mb-10">
                 {t.heroDesc}
               </p>
+              
               <div className="flex flex-wrap gap-4">
-                <button className="btn-premium flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    const element = document.getElementById('services');
+                    if (element) element.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="btn-premium flex items-center gap-3 text-xs uppercase tracking-widest cursor-pointer font-bold"
+                >
                   {t.heroBtn}
-                  <ArrowRight size={20} className={isRTL ? 'rotate-180' : ''} />
+                  <ArrowRight size={18} className={isRTL ? 'rotate-180' : ''} />
                 </button>
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2 }} className="relative flex flex-col items-center group">
-              <div className="relative z-10 rounded-[4rem] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,0.15)] transition-transform duration-700 group-hover:scale-[1.02]">
-                <Image src="/hero-3d.png" alt="Nadif 3D" width={700} height={700} className="w-full h-auto" />
-              </div>
-              <div className="w-[60%] h-12 bg-black/20 blur-[50px] rounded-[100%] mt-[-40px] mx-auto animate-pulse opacity-50" />
-            </motion.div>
+            {/* Slider/Carousel or Hero Image (Right Side) */}
+            <div className="relative w-full flex flex-col items-center">
+              {slides.length > 0 ? (
+                <div className="w-full relative aspect-[16/10] rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.06)] border-[6px] border-white bg-white group">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentSlideIndex}
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.02 }}
+                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute inset-0 w-full h-full"
+                    >
+                      <img 
+                        src={imgUrl(slides[currentSlideIndex].imageUrl)} 
+                        alt={slides[currentSlideIndex].title} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-102"
+                      />
+                      
+                      {/* Glassmorphic Slide Information Box */}
+                      <div className="absolute inset-x-4 bottom-4 glass-morphism rounded-[2rem] p-5 text-left flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-white/40 shadow-lg">
+                        <div className="space-y-1">
+                          <span className="bg-primary/10 text-primary text-[8px] font-black px-2.5 py-1 rounded-md uppercase tracking-wider">
+                            {slides[currentSlideIndex].actionRoute || 'NADIF EXCLUSIVE'}
+                          </span>
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight line-clamp-1">
+                            {slides[currentSlideIndex].title}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-semibold line-clamp-1">
+                            {slides[currentSlideIndex].description}
+                          </p>
+                        </div>
+                        
+                        <button 
+                          onClick={() => {
+                            const element = document.getElementById('services');
+                            if (element) element.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="px-4 py-2.5 bg-primary text-white text-[9px] font-black uppercase tracking-wider rounded-xl hover:bg-primary-600 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                        >
+                          {lang === 'AR' ? 'اطلب الآن' : lang === 'FR' ? 'Réserver' : 'Book Now'}
+                          <ArrowRight size={10} className={isRTL ? 'rotate-180' : ''} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* Navigation Arrows */}
+                  <div className="absolute inset-y-0 left-4 right-4 flex justify-between items-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-350">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentSlideIndex((prev) => (prev - 1 + slides.length) % slides.length);
+                      }}
+                      className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-md border border-white/30 text-slate-700 hover:bg-white hover:text-primary flex items-center justify-center pointer-events-auto transition-all active:scale-90 cursor-pointer shadow-md"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentSlideIndex((prev) => (prev + 1) % slides.length);
+                      }}
+                      className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-md border border-white/30 text-slate-700 hover:bg-white hover:text-primary flex items-center justify-center pointer-events-auto transition-all active:scale-90 cursor-pointer shadow-md"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1 }} className="relative flex flex-col items-center group w-full">
+                  <div className="relative z-10 rounded-[3.5rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.06)] transition-transform duration-700 group-hover:scale-[1.01] aspect-[16/10] w-full bg-white border border-slate-100/50">
+                    <img src="/hero-3d.png" alt="Nadif Hero illustration" className="w-full h-full object-cover" />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Slider Dots */}
+              {slides.length > 1 && (
+                <div className="flex gap-2 mt-6 z-20 relative">
+                  {slides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentSlideIndex(idx)}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        currentSlideIndex === idx ? 'w-6 bg-primary shadow-sm' : 'w-1.5 bg-slate-200 hover:bg-slate-350'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* Categories */}
-      <section id="services" className="py-24 bg-white relative">
+      {/* Services Grid Section */}
+      <section id="services" className="py-28 bg-white relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16 space-y-4">
+          <div className="text-center mb-20 space-y-4">
             <h2 className="text-4xl lg:text-6xl font-bold tracking-tighter uppercase font-gilmer">{t.servicesTitle}</h2>
-            <p className="text-foreground-nadif/40 text-sm font-bold uppercase tracking-[0.3em]">{t.servicesSub}</p>
+            <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.25em]">{t.servicesSub}</p>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          
+          <div className={`grid gap-8 ${services.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
             {services.map((service, i) => (
-              <motion.div key={i} whileHover={{ y: -10 }} className="group relative bg-gray-50/50 rounded-[3rem] p-10 text-center cursor-pointer border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-2xl transition-all duration-500">
-                <div className="w-32 h-32 relative mx-auto mb-8 rounded-full overflow-hidden shadow-xl ring-4 ring-white group-hover:scale-110 transition-transform duration-700 bg-slate-100">
-                  <img src={service.image} alt={service.name} className="w-full h-full object-cover" />
+              <motion.div 
+                key={i} 
+                whileHover={{ y: -8, scale: 1.01 }} 
+                transition={{ duration: 0.3 }}
+                className="group relative bg-slate-50/50 rounded-[2.5rem] p-6 text-center cursor-pointer border border-slate-100 hover:border-primary/10 hover:bg-white hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)] transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-full aspect-square relative mb-6 rounded-[1.8rem] overflow-hidden shadow-sm bg-slate-100/50">
+                    <img src={service.image} alt={service.name} className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500" />
+                  </div>
+                  <h3 className="text-md font-bold text-slate-800 mb-4 uppercase tracking-tight">{service.name}</h3>
+                  
+                  {service.subServices && service.subServices.length > 0 && (
+                    <div className="flex justify-center mb-6">
+                      <ul className="space-y-2 text-left inline-block">
+                        {service.subServices.slice(0, 3).map((sub: string, sIdx: number) => (
+                          <li key={sIdx} className="flex items-center gap-2 text-slate-500 text-[11px] font-semibold">
+                            <CheckCircle size={12} className="text-primary shrink-0" />
+                            <span className="line-clamp-1">{sub}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-                <h3 className="text-lg font-bold text-foreground-nadif mb-2 uppercase tracking-tight">{service.name}</h3>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest opacity-60">{service.count}</p>
+                
+                <div className="pt-2">
+                  <span className="inline-block bg-primary/5 text-primary text-[9px] font-black px-3.5 py-1.5 rounded-xl uppercase tracking-wider">
+                    {service.count}
+                  </span>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -277,33 +513,37 @@ export default function Home() {
       </section>
 
       {/* Popular Services */}
-      <section className="py-24 bg-gray-50/30">
+      <section className="py-28 bg-slate-50/40 border-y border-slate-100">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col lg:flex-row justify-between items-end gap-10 mb-16">
+          <div className="flex flex-col lg:flex-row justify-between items-end gap-10 mb-20">
             <div className="space-y-4">
               <h2 className="text-4xl lg:text-6xl font-bold tracking-tighter uppercase font-gilmer">{t.popularTitle}</h2>
-              <p className="text-foreground-nadif/40 text-sm font-bold uppercase tracking-[0.3em]">{t.popularSub}</p>
+              <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.25em]">{t.popularSub}</p>
             </div>
             <Link href="#" className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-[0.2em] group">
               {t.viewAll} <ArrowRight size={14} className={isRTL ? 'rotate-180 group-hover:-translate-x-2' : 'group-hover:translate-x-2'} />
             </Link>
           </div>
+
           <div className="grid md:grid-cols-3 gap-10">
             {popular.map((item, i) => (
-              <motion.div key={i} whileHover={{ y: -10 }} className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-100 group">
-                <div className="relative h-64 overflow-hidden">
-                  <Image src={item.image} alt={item.t} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
+              <motion.div 
+                key={i} 
+                whileHover={{ y: -8 }} 
+                className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:border-slate-100 transition-all duration-300 border border-slate-100/50 group"
+              >
+                <div className="relative h-64 overflow-hidden bg-slate-50">
+                  <Image src={item.image} alt={item.t} fill className="object-cover group-hover:scale-104 transition-transform duration-700" />
                   <div className="absolute top-6 left-6">
-                    <span className="bg-primary text-white text-[9px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-xl">{item.tag}</span>
+                    <span className="bg-primary text-white text-[9px] font-black px-4 py-2 rounded-full uppercase tracking-widest shadow-md">{item.tag}</span>
                   </div>
                 </div>
-                <div className="p-10">
-                  <h3 className="text-2xl font-bold text-foreground-nadif mb-4 uppercase tracking-tighter">{item.t}</h3>
-                  <p className="text-sm text-foreground-nadif/40 leading-relaxed font-medium mb-8">{item.d}</p>
-                  <div className="flex justify-between items-center pt-8 border-t border-gray-50">
-                    <p className="text-2xl font-bold text-primary">{item.p}</p>
-                    <button className="w-14 h-14 bg-foreground-nadif text-white rounded-full flex items-center justify-center hover:bg-primary transition-all shadow-lg hover:rotate-90">
-                      <ArrowRight size={24} className={isRTL ? 'rotate-180' : ''} />
+                <div className="p-9">
+                  <h3 className="text-2xl font-bold text-slate-800 mb-3 uppercase tracking-tighter">{item.t}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed font-semibold mb-8 line-clamp-2">{item.d}</p>
+                  <div className="flex justify-end items-center pt-6 border-t border-slate-100/70">
+                    <button className="w-12 h-12 bg-slate-900 text-white rounded-full flex items-center justify-center hover:bg-primary transition-all shadow-sm hover:scale-105 active:scale-95">
+                      <ArrowRight size={20} className={isRTL ? 'rotate-180' : ''} />
                     </button>
                   </div>
                 </div>
@@ -313,181 +553,239 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Steps Section - REDESIGNED "BEST UI" */}
-      <section id="processus" className="py-32 bg-white relative overflow-hidden">
+      {/* Process Section */}
+      <section id="processus" className="py-28 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="text-center mb-24 space-y-4">
-            <h2 className="text-4xl lg:text-8xl font-bold tracking-tighter uppercase font-gilmer italic">{t.howTitle}</h2>
-            <p className="text-foreground-nadif/40 text-sm font-bold uppercase tracking-[0.3em]">{t.howSub}</p>
+          <div className="text-center mb-20 space-y-4">
+            <h2 className="text-4xl lg:text-7xl font-bold tracking-tighter uppercase font-gilmer italic">{t.howTitle}</h2>
+            <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.25em]">{t.howSub}</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 relative">
-            {/* Connecting line for desktop */}
-            <div className="hidden lg:block absolute top-1/3 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/20 to-transparent -translate-y-1/2" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 relative">
+            <div className="hidden lg:block absolute top-1/3 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-slate-100 to-transparent -translate-y-1/2" />
 
             {t.steps.map((step, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 30 }}
+                initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.08 }}
                 viewport={{ once: true }}
-                className="relative group text-center lg:text-left space-y-8 p-8 bg-gray-50/50 rounded-[3rem] border border-transparent hover:border-primary/10 hover:bg-white hover:shadow-xl transition-all duration-500"
+                className="relative group text-center lg:text-left space-y-6 p-8 bg-slate-50/50 rounded-[2.2rem] border border-transparent hover:border-slate-100 hover:bg-white hover:shadow-md transition-all duration-300"
               >
-                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-primary shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative z-10">
-                  {[<Smartphone key="1" />, <Truck key="2" />, <Zap key="3" />, <CheckCircle key="4" />][i]}
-                  <span className="absolute -top-4 -right-4 w-12 h-12 bg-primary text-white rounded-2xl flex items-center justify-center text-sm font-black shadow-xl shadow-primary/20 border-4 border-white">{i + 1}</span>
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:scale-105 transition-transform duration-300 relative z-10">
+                  {[<Smartphone size={22} key="1" />, <Truck size={22} key="2" />, <Zap size={22} key="3" />, <CheckCircle size={22} key="4" />][i]}
+                  <span className="absolute -top-3 -right-3 w-8 h-8 bg-primary text-white rounded-xl flex items-center justify-center text-xs font-black shadow-md border-2 border-white">{i + 1}</span>
                 </div>
-                <div className="space-y-4">
-                  <h3 className="text-3xl font-bold text-foreground-nadif uppercase tracking-tighter leading-none">{step.t}</h3>
-                  <p className="text-sm text-foreground-nadif/40 font-medium leading-relaxed">{step.d}</p>
+                <div className="space-y-3">
+                  <h3 className="text-xl font-bold text-slate-800 uppercase tracking-tighter">{step.t}</h3>
+                  <p className="text-xs text-slate-400 font-semibold leading-relaxed">{step.d}</p>
                 </div>
               </motion.div>
             ))}
           </div>
         </div>
-        {/* Background elements */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] translate-x-1/3 -translate-y-1/2" />
       </section>
 
-      {/* Contact Section - NEW SECTION */}
-      <section id="contact" className="py-32 bg-gray-50/30 relative">
+      {/* Dynamic Interactive Contact Section */}
+      <section id="contact" className="py-28 bg-slate-50/40 relative">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-20 items-center">
+            
             <div className="space-y-12">
               <div className="space-y-4">
-                <h2 className="text-5xl lg:text-8xl font-bold tracking-tighter uppercase font-gilmer">{t.contactTitle}</h2>
-                <p className="text-foreground-nadif/40 text-sm font-bold uppercase tracking-[0.3em]">{t.contactSub}</p>
+                <h2 className="text-5xl lg:text-7xl font-bold tracking-tighter uppercase font-gilmer">{t.contactTitle}</h2>
+                <p className="text-slate-400 text-[11px] font-black uppercase tracking-[0.25em]">{t.contactSub}</p>
               </div>
 
-              <div className="space-y-8">
-                <div className="flex items-center gap-6 group cursor-pointer">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-all">
-                    <Phone size={24} />
+              <div className="space-y-6">
+                <a href="tel:+213555123456" className="flex items-center gap-5 group cursor-pointer">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-all duration-200">
+                    <Phone size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-foreground-nadif/40 uppercase tracking-widest">Phone</p>
-                    <p className="text-xl font-bold text-foreground-nadif">+213 555 123 456</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Phone</p>
+                    <p className="text-lg font-bold text-slate-850">+213 555 123 456</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-6 group cursor-pointer">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-all">
-                    <Mail size={24} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-foreground-nadif/40 uppercase tracking-widest">Email</p>
-                    <p className="text-xl font-bold text-foreground-nadif">contact@nadif.dz</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6 group cursor-pointer">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-all">
-                    <MapPin size={24} />
+                </a>
+                
+                <a href="mailto:contact@nadif.dz" className="flex items-center gap-5 group cursor-pointer">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:bg-primary group-hover:text-white transition-all duration-200">
+                    <Mail size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-foreground-nadif/40 uppercase tracking-widest">Location</p>
-                    <p className="text-xl font-bold text-foreground-nadif">{t.location.split(' — ')[1]}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Email</p>
+                    <p className="text-lg font-bold text-slate-850">contact@nadif.dz</p>
+                  </div>
+                </a>
+
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Location</p>
+                    <p className="text-lg font-bold text-slate-850">{t.location.split(' — ')[1]}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.98 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="bg-white p-10 lg:p-16 rounded-[4rem] shadow-2xl border border-gray-100 relative overflow-hidden"
+              className="bg-white p-8 lg:p-12 rounded-[2.5rem] shadow-sm border border-slate-100 relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full blur-3xl" />
-              <form className="space-y-8 relative z-10">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-foreground-nadif/40 uppercase tracking-[0.2em] px-2">{t.contactName}</label>
-                  <input type="text" className="w-full px-8 py-5 bg-gray-50 rounded-3xl outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white border border-transparent focus:border-primary/20 transition-all font-bold" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-foreground-nadif/40 uppercase tracking-[0.2em] px-2">{t.contactEmail}</label>
-                  <input type="email" className="w-full px-8 py-5 bg-gray-50 rounded-3xl outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white border border-transparent focus:border-primary/20 transition-all font-bold" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-foreground-nadif/40 uppercase tracking-[0.2em] px-2">{t.contactMsg}</label>
-                  <textarea rows={4} className="w-full px-8 py-5 bg-gray-50 rounded-3xl outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white border border-transparent focus:border-primary/20 transition-all font-bold resize-none" />
-                </div>
-                <button className="btn-premium w-full !py-5 flex items-center justify-center gap-3">
-                  {t.contactBtn}
-                  <Send size={20} className={isRTL ? 'rotate-180' : ''} />
-                </button>
-              </form>
+              {contactSuccess ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-emerald-50/50 border border-emerald-100 rounded-[2rem] p-10 text-center flex flex-col items-center justify-center min-h-[300px]"
+                >
+                  <div className="w-14 h-14 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-6 animate-bounce">
+                    <CheckCircle size={28} />
+                  </div>
+                  <h3 className="text-lg font-extrabold uppercase text-emerald-800 mb-2">
+                    {lang === 'AR' ? 'تم الإرسال بنجاح!' : lang === 'FR' ? 'Message Envoyé !' : 'Message Sent!'}
+                  </h3>
+                  <p className="text-xs text-emerald-600 font-semibold max-w-xs leading-relaxed">
+                    {lang === 'AR' 
+                      ? 'شكراً لتواصلك معنا. سنقوم بالرد عليك في أقرب وقت ممكن.' 
+                      : lang === 'FR' 
+                      ? 'Merci de nous avoir contactés. Notre équipe vous répondra très rapidement.' 
+                      : 'Thank you for reaching out. Our team will get back to you shortly.'}
+                  </p>
+                </motion.div>
+              ) : (
+                <form onSubmit={handleContactSubmit} className="space-y-6 relative z-10">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">{t.contactName}</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={contactForm.name}
+                      onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border border-transparent focus:border-primary/20 rounded-2xl outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all font-semibold text-xs" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">{t.contactEmail}</label>
+                    <input 
+                      type="email" 
+                      required
+                      value={contactForm.email}
+                      onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border border-transparent focus:border-primary/20 rounded-2xl outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all font-semibold text-xs" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">{t.contactMsg}</label>
+                    <textarea 
+                      rows={4} 
+                      required
+                      value={contactForm.message}
+                      onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                      className="w-full px-5 py-4 bg-slate-50 border border-transparent focus:border-primary/20 rounded-2xl outline-none focus:ring-4 focus:ring-primary/5 focus:bg-white transition-all font-semibold text-xs resize-none" 
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={isSubmittingContact}
+                    className="btn-premium w-full !py-4.5 flex items-center justify-center gap-2.5 uppercase text-[10px] tracking-[0.2em] cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingContact ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        {t.contactBtn}
+                        <Send size={15} className={isRTL ? 'rotate-180' : ''} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
             </motion.div>
+
           </div>
         </div>
       </section>
 
-      {/* App Download */}
-      <section id="application" className="py-32 bg-white relative overflow-hidden">
+      {/* App Download Screen Mockup */}
+      <section id="application" className="py-28 bg-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-gray-50/80 border border-gray-100 rounded-[4rem] p-16 lg:p-24 flex flex-col md:flex-row items-center justify-between gap-20 overflow-hidden relative shadow-sm">
-            <div className={`md:w-1/2 space-y-10 relative z-10 ${isRTL ? 'text-right' : 'text-left'}`}>
-              <h2 className="text-5xl lg:text-7xl font-bold text-foreground-nadif tracking-tighter leading-[0.9] font-gilmer uppercase italic">{t.appTitle.split(' ')[0]} <span className="text-primary">{t.appTitle.split(' ').slice(1).join(' ')}</span></h2>
-              <p className="text-foreground-nadif/50 text-lg leading-relaxed font-medium">{t.appDesc}</p>
-              <div className="flex flex-wrap gap-6">
-                <button className="flex items-center gap-4 bg-white border border-gray-100 text-foreground-nadif px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-all shadow-sm">
-                  <Apple size={28} />
+          <div className="bg-slate-50/70 border border-slate-100/70 rounded-[3rem] p-12 lg:p-20 flex flex-col md:flex-row items-center justify-between gap-16 overflow-hidden relative shadow-sm">
+            <div className={`md:w-1/2 space-y-8 relative z-10 ${isRTL ? 'text-right' : 'text-left'}`}>
+              <h2 className="text-4xl lg:text-6xl font-bold text-slate-850 tracking-tighter leading-[0.95] font-gilmer uppercase italic">
+                {t.appTitle.split(' ')[0]} <span className="text-primary">{t.appTitle.split(' ').slice(1).join(' ')}</span>
+              </h2>
+              <p className="text-slate-400 text-md leading-relaxed font-semibold max-w-md">{t.appDesc}</p>
+              
+              <div className="flex flex-wrap gap-4">
+                <button className="flex items-center gap-3.5 bg-white border border-slate-100 text-slate-700 px-6 py-3.5 rounded-2xl font-extrabold hover:scale-103 hover:shadow-md transition-all">
+                  <Apple size={24} />
                   <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
-                    <p className="text-[10px] font-bold opacity-40 uppercase">{t.download}</p>
-                    <p className="text-lg leading-none font-gilmer">iPhone</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase">{t.download}</p>
+                    <p className="text-md leading-none font-gilmer">iPhone</p>
                   </div>
                 </button>
-                <button className="flex items-center gap-4 bg-primary text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-all shadow-xl">
-                  <Play size={28} className="fill-white" />
+                
+                <button className="flex items-center gap-3.5 bg-primary text-white px-6 py-3.5 rounded-2xl font-extrabold hover:scale-103 hover:shadow-lg hover:shadow-primary/25 transition-all">
+                  <Play size={24} className="fill-white" />
                   <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
-                    <p className="text-[10px] font-bold opacity-40 uppercase">{t.download}</p>
-                    <p className="text-lg leading-none font-gilmer">Android</p>
+                    <p className="text-[9px] font-black opacity-60 uppercase">{t.download}</p>
+                    <p className="text-md leading-none font-gilmer">Android</p>
                   </div>
                 </button>
               </div>
             </div>
+
             <div className="md:w-1/2 flex justify-center relative">
-              <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 4, repeat: Infinity }} className="w-[280px] aspect-[9/19.5] bg-white rounded-[3rem] border-[12px] border-foreground-nadif shadow-2xl overflow-hidden relative z-10">
-                <Image src="/postcss.config.jpg" alt="Nadif App Mockup" fill className="object-cover" />
+              <motion.div animate={{ y: [0, -12, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }} className="w-[260px] aspect-[9/19.5] bg-white rounded-[2.8rem] border-[10px] border-slate-900 shadow-2xl overflow-hidden relative z-10">
+                <Image src="/assets/photo_app.jpg" alt="Nadif App Screen Mockup" fill className="object-cover" />
               </motion.div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer - Compact Gray */}
-      <footer className="bg-gray-50 border-t border-gray-100 text-foreground-nadif py-12 relative overflow-hidden">
+      {/* Footer */}
+      <footer className="bg-slate-50 border-t border-slate-100 text-slate-600 py-16 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-10 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12 text-left">
+            
             <div className="space-y-6">
               <Link href="/" className="flex items-center gap-3">
                 <div className="bg-primary p-2 rounded-xl">
-                  <Image src="/logo.png" alt="Nadif" width={24} height={24} className="brightness-0 invert" />
+                  <Image src="/logo.png" alt="Nadif Logo Small" width={22} height={22} className="brightness-0 invert" />
                 </div>
-                <span className="text-2xl font-bold tracking-tighter uppercase font-gilmer text-primary">NADIF</span>
+                <span className="text-xl font-bold tracking-tighter uppercase text-primary">NADIF</span>
               </Link>
-              <p className="text-foreground-nadif/40 text-[10px] font-bold uppercase tracking-widest leading-loose max-w-xs">{t.footerDesc}</p>
-              <div className="flex gap-3">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest leading-loose max-w-xs">{t.footerDesc}</p>
+              <div className="flex gap-2.5">
                 {['FB', 'IG', 'TW'].map(s => (
-                  <Link key={s} href="#" className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-[10px] font-black hover:bg-primary hover:text-white hover:border-primary transition-all duration-300">{s}</Link>
+                  <Link key={s} href="#" className="w-9 h-9 rounded-full border border-slate-200/80 bg-white flex items-center justify-center text-[10px] font-black text-slate-500 hover:bg-primary hover:text-white hover:border-primary transition-all duration-200">{s}</Link>
                 ))}
               </div>
             </div>
+
             {t.nav.slice(0, 3).map((title, i) => (
               <div key={i} className="space-y-4">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">{title}</h4>
-                <ul className="space-y-2 text-[10px] font-bold uppercase tracking-widest text-foreground-nadif/50">
+                <ul className="space-y-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   {t.footerLinks.map(link => (
-                    <li key={link}><Link href="#" className="hover:text-primary transition-colors">{link}</Link></li>
+                    <li key={link}><Link href="#" className="hover:text-primary transition-colors duration-200">{link}</Link></li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-          <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-[8px] font-black uppercase tracking-[0.6em] text-foreground-nadif/20">&copy; 2026 NADIF PRESSING.</p>
-            <div className="flex gap-10 text-[8px] font-black uppercase tracking-[0.2em] text-foreground-nadif/30">
+
+          <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+            <p className="text-[9px] font-extrabold uppercase tracking-[0.45em] text-slate-400">&copy; 2026 NADIF PRESSING.</p>
+            <div className="flex gap-10 text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-450">
               <span>{t.location}</span>
-              <Link href="tel:+213555123456" className="hover:text-primary transition-all">+213 555 123 456</Link>
+              <a href="tel:+213555123456" className="hover:text-primary transition-all">+213 555 123 456</a>
             </div>
           </div>
         </div>

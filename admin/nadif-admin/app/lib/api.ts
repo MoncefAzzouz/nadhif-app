@@ -325,8 +325,8 @@ export interface ApiCategory {
 
 // ─── Admin: Categories ────────────────────────────────────────────────────────
 export const categoriesApi = {
-  getAll: () => apiFetch<ApiCategory[]>('/api/admin/categories'),
   getPublicAll: () => apiFetch<ApiCategory[]>('/api/categories', {}, false),
+  getAll: () => apiFetch<ApiCategory[]>('/api/admin/categories'),
 
   create: (data: Omit<Partial<ApiCategory>, 'categoryServices'> & { categoryServices?: any[] }) =>
     apiFetch<ApiCategory>('/api/admin/categories', {
@@ -408,7 +408,7 @@ export const pagesApi = {
 
 export const lockedDaysApi = {
   getAll: () => apiFetch<string[]>('/api/admin/locked-days'),
-  update: (lockedDays: string[]) => 
+  update: (lockedDays: string[]) =>
     apiFetch<string[]>('/api/admin/locked-days', {
       method: 'POST',
       body: JSON.stringify({ lockedDays }),
@@ -620,6 +620,7 @@ export interface ApiSlide {
 }
 
 export const slidesApi = {
+  getPublicAll: () => apiFetch<ApiSlide[]>('/api/slides', {}, false),
   getAll: () => apiFetch<ApiSlide[]>('/api/slides/all'),
   create: (payload: { title?: string; description?: string; imageUrl: string; actionRoute?: string; order?: number; isActive?: boolean }) =>
     apiFetch<ApiSlide>('/api/slides', { method: 'POST', body: JSON.stringify(payload) }),
@@ -627,6 +628,14 @@ export const slidesApi = {
     apiFetch<ApiSlide>(`/api/slides/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   delete: (id: string) =>
     apiFetch<{ success: boolean }>(`/api/slides/${id}`, { method: 'DELETE' }),
+};
+
+export const homepageCmsApi = {
+  get: () => apiFetch<any>('/api/pages/homepage-cms', {}, false),
+  update: (data: any) => apiFetch<any>('/api/admin/pages/homepage-cms', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
 };
 
 // ─── Image Uploads ───────────────────────────────────────────────────────────

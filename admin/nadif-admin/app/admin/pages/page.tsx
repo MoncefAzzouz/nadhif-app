@@ -23,7 +23,7 @@ import {
   MessageSquare,
   Layers
 } from 'lucide-react';
-import { pagesApi, type ApiFaq as FAQItem, type ApiAboutUs as AboutUsData , type ServiceDetails } from '../../lib/api';
+import { pagesApi, type ApiFaq as FAQItem, type ApiAboutUs as AboutUsData, type ServiceDetails } from '../../lib/api';
 
 // Initial Seeds
 const DEFAULT_FAQS: Omit<FAQItem, 'id' | 'createdAt'>[] = [
@@ -286,8 +286,8 @@ export default function PagesManager() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider cursor-pointer transition-all flex items-center justify-center gap-2 ${activeTab === tab.id
-                  ? 'bg-white text-slate-800 shadow-md shadow-slate-200 border border-slate-100'
-                  : 'text-slate-400 hover:text-slate-600'
+                ? 'bg-white text-slate-800 shadow-md shadow-slate-200 border border-slate-100'
+                : 'text-slate-400 hover:text-slate-600'
                 }`}
             >
               <Icon size={13} />
