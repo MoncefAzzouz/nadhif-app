@@ -2,7 +2,9 @@ import { Router, Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { sendEmail } from '../lib/email';
 
 const router = Router();
 
@@ -135,6 +137,62 @@ router.post('/register-phone', async (req: Request, res: Response) => {
     });
     const token = signUserToken(user.id, user.role);
     res.json({ token, user: serializeUser(user) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// In-memory reset code store (code expires after 10 minutes)
+const resetCodes = new Map<string, { code: string; expiresAt: number }>();
+
+// Forgot password — sends a 6-digit code to the user's email
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) {
+    res.status(400).json({ error: 'Missing email' });
+    return;
+  }
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Don't reveal whether the email exists
+      res.json({ success: true, message: 'If this email is registered, a reset code has been sent.' });
+      return;
+    }
+    const code = crypto.randomInt(100000, 999999).toString();
+    resetCodes.set(email, { code, expiresAt: Date.now() + 10 * 60 * 1000 });
+
+    await sendEmail({
+      to: email,
+      subject: 'Nadhif — Password Reset Code',
+      html: `<p>Your password reset code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
+    });
+
+    res.json({ success: true, message: 'If this email is registered, a reset code has been sent.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reset password — verifies code and sets new password
+router.post('/reset-password', async (req: Request, res: Response) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) {
+    res.status(400).json({ error: 'Missing required fields' });
+    return;
+  }
+  const stored = resetCodes.get(email);
+  if (!stored || stored.code !== code || Date.now() > stored.expiresAt) {
+    res.status(400).json({ error: 'Invalid or expired reset code' });
+    return;
+  }
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { email }, data: { passwordHash } });
+    resetCodes.delete(email);
+    res.json({ success: true, message: 'Password reset successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
