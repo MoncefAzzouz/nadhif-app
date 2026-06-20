@@ -499,6 +499,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       bgColor: nextTint(),
       imageUrl: 'assets/images/urgent.png',
       isNew: true,
+      badgeLabel: 'Urgent',
+      badgeColor: Colors.red,
       onTap: _openRapidSelectionFlow,
     ));
 
@@ -717,6 +719,8 @@ class _RecommendedCardData {
   final Color bgColor;
   final String imageUrl;
   final bool isNew;
+  final String? badgeLabel;
+  final Color? badgeColor;
   final VoidCallback? onTap;
 
   const _RecommendedCardData({
@@ -726,6 +730,8 @@ class _RecommendedCardData {
     required this.bgColor,
     required this.imageUrl,
     this.isNew = false,
+    this.badgeLabel,
+    this.badgeColor,
     this.onTap,
   });
 }
@@ -795,11 +801,11 @@ class _HorizontalServiceCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: ColorApp.primary,
+                              color: data.badgeColor ?? ColorApp.primary,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              l10n.newLabel,
+                              data.badgeLabel ?? l10n.newLabel,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 8,

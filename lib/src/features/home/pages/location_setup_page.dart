@@ -91,8 +91,16 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_isMapFullscreen,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          setState(() => _isMapFullscreen = false);
+        }
+      },
+      child: Scaffold(
       backgroundColor: Colors.white,
+      extendBodyBehindAppBar: _isMapFullscreen,
       appBar: _isMapFullscreen
           ? null
           : AppBar(
@@ -524,6 +532,7 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
             ),
         ],
       ),
+    ),
     );
   }
 }

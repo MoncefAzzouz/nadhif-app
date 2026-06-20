@@ -125,6 +125,32 @@ class AuthApiService extends BaseApiService {
   }
 
 
+  Future<void> forgotPassword({required String email}) async {
+    try {
+      await dio.post('/api/auth/forgot-password', data: {'email': email});
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to send reset code');
+    }
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await dio.post('/api/auth/reset-password', data: {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      });
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to reset password');
+    }
+  }
+
   /// Permanently deletes the logged-in user's account.
   Future<void> deleteAccount() async {
     try {

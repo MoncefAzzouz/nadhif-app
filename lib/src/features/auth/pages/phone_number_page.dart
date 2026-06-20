@@ -2,6 +2,7 @@ import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_state.dart';
+import 'package:cleanapp/src/features/auth/pages/forgot_password_page.dart';
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -180,7 +181,29 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 28),
+                          if (!_isRegisterMode) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ForgotPasswordPage(),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Forgot password?',
+                                  style: TextStyle(
+                                    color: ColorApp.primary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             height: 60,
