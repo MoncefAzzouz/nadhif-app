@@ -49,7 +49,14 @@ const translations = {
     footerLinks: ['Home', 'Contact', 'FAQ'],
     location: 'Algeria — Algiers, DZ 16000',
     download: 'Download for',
-    viewAll: 'View all catalog'
+    viewAll: 'View all catalog',
+    legalTitle: 'Legal & support',
+    legal: [
+      { href: '/privacy-policy', label: 'Privacy Policy' },
+      { href: '/terms', label: 'Terms & Conditions' },
+      { href: '/delete-account', label: 'Delete account' },
+      { href: '/support', label: 'Support' },
+    ]
   },
   FR: {
     nav: ['Services', 'Processus', 'Application', 'Contact'],
@@ -90,7 +97,14 @@ const translations = {
     footerLinks: ['Accueil', 'Contact', 'FAQ'],
     location: 'Algérie — Alger, DZ 16000',
     download: 'Télécharger pour',
-    viewAll: 'Voir tout le catalogue'
+    viewAll: 'Voir tout le catalogue',
+    legalTitle: 'Mentions légales & support',
+    legal: [
+      { href: '/privacy-policy', label: 'Politique de confidentialité' },
+      { href: '/terms', label: 'Conditions générales' },
+      { href: '/delete-account', label: 'Supprimer le compte' },
+      { href: '/support', label: 'Support' },
+    ]
   },
   AR: {
     nav: ['خدماتنا', 'كيف نعمل', 'التطبيق', 'اتصل بنا'],
@@ -131,7 +145,14 @@ const translations = {
     footerLinks: ['الرئيسية', 'اتصل بنا', 'الأسئلة الشائعة'],
     location: 'الجزائر — الجزائر العاصمة، DZ 16000',
     download: 'تحميل لـ',
-    viewAll: 'مشاهدة الكل'
+    viewAll: 'مشاهدة الكل',
+    legalTitle: 'القانونية والدعم',
+    legal: [
+      { href: '/privacy-policy', label: 'سياسة الخصوصية' },
+      { href: '/terms', label: 'الشروط والأحكام' },
+      { href: '/delete-account', label: 'حذف الحساب' },
+      { href: '/support', label: 'الدعم' },
+    ]
   }
 };
 
@@ -769,7 +790,7 @@ export default function Home() {
               </div>
             </div>
 
-            {t.nav.slice(0, 3).map((title, i) => (
+            {t.nav.slice(0, 2).map((title, i) => (
               <div key={i} className="space-y-4">
                 <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">{title}</h4>
                 <ul className="space-y-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -779,6 +800,18 @@ export default function Home() {
                 </ul>
               </div>
             ))}
+
+            {/* Legal & support pages (public, required for the app store listings) */}
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">{t.legalTitle}</h4>
+              <ul className="space-y-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {t.legal.map(link => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="hover:text-primary transition-colors duration-200">{link.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
