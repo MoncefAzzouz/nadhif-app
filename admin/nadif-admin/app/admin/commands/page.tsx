@@ -1263,10 +1263,10 @@ export default function CommandsPage() {
                         <span className="text-emerald-500 font-black text-base">{selectedOrder.totalPrice.toLocaleString('fr-DZ')} DA</span>
                       )}
                     </div>
-                    {selectedOrder.paidWithPoints && (
+                    {selectedOrder.paidWithPoints && selectedOrder.pointsRefunded && (
                       <div className="flex justify-between py-1 text-[11px] font-bold">
-                        <span className="text-slate-400">Reward redeemed:</span>
-                        <span className="text-slate-700">{selectedOrder.pointStoreItem?.name || '—'}</span>
+                        <span className="text-slate-400">Points refunded:</span>
+                        <span className="text-sky-600">yes — order cancelled</span>
                       </div>
                     )}
                     {(selectedOrder.pointsAwarded ?? 0) > 0 && (

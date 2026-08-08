@@ -100,6 +100,9 @@ export interface ApiHouseConfig {
   basePrice: number;
   rapidBasePrice: number;
   durationHours: number;
+  // Point store: what this house type costs in points (0 = not sold for points).
+  pointCost?: number;
+  rapidPointCost?: number;
 }
 
 // Mobile details page content for a service/category (EN + AR/FR).
@@ -131,6 +134,13 @@ export interface ApiService {
   createdAt: string;
   details?: ServiceDetails | null;
   houseConfigs: ApiHouseConfig[];
+  // Point store
+  pointStoreEnabled?: boolean;
+  extraWorkerPointCost?: number;
+  rapidExtraWorkerPointCost?: number;
+  materialPointCost?: number;
+  localProductPointCost?: number;
+  importedProductPointCost?: number;
 }
 
 export interface ApiOrder {
@@ -158,10 +168,8 @@ export interface ApiOrder {
   // Loyalty points: set when the order was redeemed from the point store.
   paidWithPoints?: boolean;
   pointsSpent?: number;
-  pointStoreItemId?: string | null;
   pointsAwarded?: number;
   pointsRefunded?: boolean;
-  pointStoreItem?: ApiPointStoreItem | null;
   createdAt: string;
   updatedAt: string;
   user?: { id: string; email: string; fullName: string; phone: string };
@@ -309,6 +317,9 @@ export interface ApiCategoryService {
   basePrice: number;
   rapidBasePrice: number;
   durationHours: number;
+  // Point store: what this option costs in points (0 = not sold for points).
+  pointCost?: number;
+  rapidPointCost?: number;
 }
 
 export interface ApiCategory {
@@ -329,6 +340,11 @@ export interface ApiCategory {
   createdAt: string;
   details?: ServiceDetails | null;
   categoryServices: ApiCategoryService[];
+  // Point store
+  pointStoreEnabled?: boolean;
+  materialPointCost?: number;
+  localProductPointCost?: number;
+  importedProductPointCost?: number;
 }
 
 // ─── Admin: Categories ────────────────────────────────────────────────────────
@@ -647,29 +663,8 @@ export const homepageCmsApi = {
 };
 
 // ─── Loyalty Points ──────────────────────────────────────────────────────────
-
-export interface ApiPointStoreItem {
-  id: string;
-  name: string;
-  nameAr: string;
-  nameFr: string;
-  description: string;
-  descriptionAr: string;
-  descriptionFr: string;
-  picture: string;
-  pointCost: number;
-  serviceId: string | null;
-  houseConfigId: string | null;
-  categoryId: string | null;
-  categoryServiceId: string | null;
-  isActive: boolean;
-  createdAt: string;
-  service?: { id: string; name: string; nameAr: string; nameFr: string; picture: string } | null;
-  houseConfig?: { id: string; type: string; typeAr: string; typeFr: string; workers: number; durationHours: number } | null;
-  category?: { id: string; name: string; nameAr: string; nameFr: string; picture: string } | null;
-  categoryService?: { id: string; name: string; nameAr: string; nameFr: string; workers: number; durationHours: number } | null;
-  _count?: { orders: number };
-}
+// The point store is the real catalog: a service or category is switched on for
+// points, and every priced step gets a point cost that replaces its DZD price.
 
 export type PointTransactionType = 'EARNED' | 'SPENT' | 'REFUNDED' | 'ADJUSTED';
 
@@ -685,7 +680,6 @@ export interface ApiPointTransaction {
   adminId: string | null;
   createdAt: string;
   user?: { id: string; fullName: string; phone: string };
-  storeItem?: { id: string; name: string } | null;
   order?: { id: string; status: ApiOrder['status']; scheduledDate: string; totalPrice?: number } | null;
 }
 
@@ -700,31 +694,38 @@ export interface ApiPointClient {
   totalSpent: number;
 }
 
-export interface PointStoreItemPayload {
-  name: string;
-  nameAr?: string;
-  nameFr?: string;
-  description?: string;
-  descriptionAr?: string;
-  descriptionFr?: string;
-  picture?: string;
-  pointCost: number;
-  serviceId?: string | null;
-  houseConfigId?: string | null;
-  categoryId?: string | null;
-  categoryServiceId?: string | null;
-  isActive?: boolean;
+// The admin catalog view: the same services and categories as everywhere else,
+// carrying both their DZD prices and their point costs.
+export interface ApiPointCatalog {
+  services: ApiService[];
+  categories: ApiCategory[];
+}
+
+export interface ServicePointsPayload {
+  pointStoreEnabled?: boolean;
+  extraWorkerPointCost?: number;
+  rapidExtraWorkerPointCost?: number;
+  materialPointCost?: number;
+  localProductPointCost?: number;
+  importedProductPointCost?: number;
+  houseConfigs?: { id: string; pointCost: number; rapidPointCost: number }[];
+}
+
+export interface CategoryPointsPayload {
+  pointStoreEnabled?: boolean;
+  materialPointCost?: number;
+  localProductPointCost?: number;
+  importedProductPointCost?: number;
+  categoryServices?: { id: string; pointCost: number; rapidPointCost: number }[];
 }
 
 export const pointsApi = {
   store: {
-    getAll: () => apiFetch<ApiPointStoreItem[]>('/api/points/store/all'),
-    create: (data: PointStoreItemPayload) =>
-      apiFetch<ApiPointStoreItem>('/api/points/store', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: PointStoreItemPayload) =>
-      apiFetch<ApiPointStoreItem>(`/api/points/store/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    delete: (id: string) =>
-      apiFetch<{ success: boolean; deactivated: boolean }>(`/api/points/store/${id}`, { method: 'DELETE' }),
+    getCatalog: () => apiFetch<ApiPointCatalog>('/api/points/store/all'),
+    updateService: (id: string, data: ServicePointsPayload) =>
+      apiFetch<ApiService>(`/api/points/store/services/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateCategory: (id: string, data: CategoryPointsPayload) =>
+      apiFetch<ApiCategory>(`/api/points/store/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   },
   clients: {
     getAll: () => apiFetch<ApiPointClient[]>('/api/points/clients'),

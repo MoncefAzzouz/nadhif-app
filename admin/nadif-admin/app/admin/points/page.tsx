@@ -3,14 +3,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Gift, Plus, Search, Trash2, Pencil, X, RefreshCw, AlertCircle, CheckCircle,
-  Users, History, TrendingUp, TrendingDown, Save, Coins, Package, Upload, Sparkles,
-  Code, Copy, Check,
+  Gift, Search, X, RefreshCw, AlertCircle, CheckCircle,
+  Users, History, TrendingUp, Save, Coins, Package, Sparkles,
+  Code, Copy, Check, Zap, Layers, ShoppingBag,
 } from 'lucide-react';
 import {
-  pointsApi, servicesApi, categoriesApi, uploadImage, imgUrl,
-  type ApiPointStoreItem, type ApiPointClient, type ApiPointTransaction,
-  type ApiService, type ApiCategory, type PointStoreItemPayload, type PointTransactionType,
+  pointsApi, imgUrl,
+  type ApiPointClient, type ApiPointTransaction,
+  type ApiService, type ApiCategory, type PointTransactionType,
 } from '../../lib/api';
 
 type Tab = 'store' | 'clients' | 'history';
@@ -22,18 +22,51 @@ const TX_STYLES: Record<PointTransactionType, { label: string; className: string
   ADJUSTED: { label: 'Adjusted', className: 'bg-violet-50 text-violet-600 border-violet-100' },
 };
 
-const emptyForm: PointStoreItemPayload & { target: 'service' | 'category' } = {
-  name: '', nameAr: '', nameFr: '',
-  description: '', descriptionAr: '', descriptionFr: '',
-  picture: '', pointCost: 100,
-  serviceId: '', houseConfigId: '', categoryId: '', categoryServiceId: '',
-  isActive: true,
-  target: 'service',
-};
-
 const fmt = (n: number) => n.toLocaleString('fr-DZ');
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+
+// Local edit buffer for one catalog entry: the toggle plus every point cost the
+// admin can type, kept separate from the fetched data until "Save" is pressed.
+interface ServiceDraft {
+  pointStoreEnabled: boolean;
+  extraWorkerPointCost: number;
+  rapidExtraWorkerPointCost: number;
+  materialPointCost: number;
+  localProductPointCost: number;
+  importedProductPointCost: number;
+  houseConfigs: Record<string, { pointCost: number; rapidPointCost: number }>;
+}
+
+interface CategoryDraft {
+  pointStoreEnabled: boolean;
+  materialPointCost: number;
+  localProductPointCost: number;
+  importedProductPointCost: number;
+  categoryServices: Record<string, { pointCost: number; rapidPointCost: number }>;
+}
+
+const serviceDraft = (service: ApiService): ServiceDraft => ({
+  pointStoreEnabled: service.pointStoreEnabled ?? false,
+  extraWorkerPointCost: service.extraWorkerPointCost ?? 0,
+  rapidExtraWorkerPointCost: service.rapidExtraWorkerPointCost ?? 0,
+  materialPointCost: service.materialPointCost ?? 0,
+  localProductPointCost: service.localProductPointCost ?? 0,
+  importedProductPointCost: service.importedProductPointCost ?? 0,
+  houseConfigs: Object.fromEntries(
+    service.houseConfigs.map(hc => [hc.id, { pointCost: hc.pointCost ?? 0, rapidPointCost: hc.rapidPointCost ?? 0 }]),
+  ),
+});
+
+const categoryDraft = (category: ApiCategory): CategoryDraft => ({
+  pointStoreEnabled: category.pointStoreEnabled ?? false,
+  materialPointCost: category.materialPointCost ?? 0,
+  localProductPointCost: category.localProductPointCost ?? 0,
+  importedProductPointCost: category.importedProductPointCost ?? 0,
+  categoryServices: Object.fromEntries(
+    category.categoryServices.map(cs => [cs.id, { pointCost: cs.pointCost ?? 0, rapidPointCost: cs.rapidPointCost ?? 0 }]),
+  ),
+});
 
 export default function PointsPage() {
   const [tab, setTab] = useState<Tab>('store');
@@ -41,25 +74,22 @@ export default function PointsPage() {
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  const [items, setItems] = useState<ApiPointStoreItem[]>([]);
-  const [clients, setClients] = useState<ApiPointClient[]>([]);
-  const [transactions, setTransactions] = useState<ApiPointTransaction[]>([]);
   const [services, setServices] = useState<ApiService[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [clients, setClients] = useState<ApiPointClient[]>([]);
+  const [transactions, setTransactions] = useState<ApiPointTransaction[]>([]);
+
+  const [serviceDrafts, setServiceDrafts] = useState<Record<string, ServiceDraft>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, CategoryDraft>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const [searchStore, setSearchStore] = useState('');
   const [searchClient, setSearchClient] = useState('');
+  const [catalogKind, setCatalogKind] = useState<'services' | 'categories'>('services');
 
   // Raw API payload viewer (same pattern as the Commands page)
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // Reward form (create + edit share it)
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   // Client history + adjustment
   const [openClient, setOpenClient] = useState<ApiPointClient | null>(null);
@@ -77,18 +107,17 @@ export default function PointsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [itemsData, clientsData, txData, servicesData, categoriesData] = await Promise.all([
-        pointsApi.store.getAll(),
+      const [catalog, clientsData, txData] = await Promise.all([
+        pointsApi.store.getCatalog(),
         pointsApi.clients.getAll(),
         pointsApi.transactions(200),
-        servicesApi.getAll(),
-        categoriesApi.getAll(),
       ]);
-      setItems(itemsData);
+      setServices(catalog.services);
+      setCategories(catalog.categories);
+      setServiceDrafts(Object.fromEntries(catalog.services.map(s => [s.id, serviceDraft(s)])));
+      setCategoryDrafts(Object.fromEntries(catalog.categories.map(c => [c.id, categoryDraft(c)])));
       setClients(clientsData);
       setTransactions(txData);
-      setServices(servicesData);
-      setCategories(categoriesData);
     } catch (err: any) {
       setError(err.message || 'Failed to load loyalty data. Is the backend running?');
     } finally {
@@ -98,111 +127,58 @@ export default function PointsPage() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ─── Reward form ────────────────────────────────────────────────────────────
+  // ─── Saving point costs ─────────────────────────────────────────────────────
 
-  const openCreate = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setIsFormOpen(true);
-  };
-
-  const openEdit = (item: ApiPointStoreItem) => {
-    setEditingId(item.id);
-    setForm({
-      name: item.name, nameAr: item.nameAr, nameFr: item.nameFr,
-      description: item.description, descriptionAr: item.descriptionAr, descriptionFr: item.descriptionFr,
-      picture: item.picture, pointCost: item.pointCost,
-      serviceId: item.serviceId ?? '', houseConfigId: item.houseConfigId ?? '',
-      categoryId: item.categoryId ?? '', categoryServiceId: item.categoryServiceId ?? '',
-      isActive: item.isActive,
-      target: item.categoryId ? 'category' : 'service',
-    });
-    setIsFormOpen(true);
-  };
-
-  const handlePicture = async (file: File) => {
-    setIsUploading(true);
+  const saveService = async (service: ApiService) => {
+    const draft = serviceDrafts[service.id];
+    if (!draft) return;
+    setSavingId(service.id);
     try {
-      const url = await uploadImage(file);
-      setForm(prev => ({ ...prev, picture: url }));
-    } catch (err: any) {
-      alert(`Upload failed: ${err.message}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    try {
-      // Only the selected target is sent; the other pair is cleared so the
-      // backend does not reject the item for pointing at two things at once.
-      const payload: PointStoreItemPayload = {
-        name: form.name, nameAr: form.nameAr, nameFr: form.nameFr,
-        description: form.description, descriptionAr: form.descriptionAr, descriptionFr: form.descriptionFr,
-        picture: form.picture,
-        pointCost: Number(form.pointCost),
-        isActive: form.isActive,
-        serviceId: form.target === 'service' ? form.serviceId || null : null,
-        houseConfigId: form.target === 'service' ? form.houseConfigId || null : null,
-        categoryId: form.target === 'category' ? form.categoryId || null : null,
-        categoryServiceId: form.target === 'category' ? form.categoryServiceId || null : null,
-      };
-
-      if (editingId) {
-        const updated = await pointsApi.store.update(editingId, payload);
-        setItems(prev => prev.map(i => (i.id === editingId ? { ...i, ...updated } : i)));
-        triggerToast('Reward updated');
-      } else {
-        const created = await pointsApi.store.create(payload);
-        setItems(prev => [created, ...prev]);
-        triggerToast('Reward added to the store');
-      }
-      setIsFormOpen(false);
+      const updated = await pointsApi.store.updateService(service.id, {
+        pointStoreEnabled: draft.pointStoreEnabled,
+        extraWorkerPointCost: draft.extraWorkerPointCost,
+        rapidExtraWorkerPointCost: draft.rapidExtraWorkerPointCost,
+        materialPointCost: draft.materialPointCost,
+        localProductPointCost: draft.localProductPointCost,
+        importedProductPointCost: draft.importedProductPointCost,
+        houseConfigs: Object.entries(draft.houseConfigs).map(([id, row]) => ({ id, ...row })),
+      });
+      setServices(prev => prev.map(s => (s.id === service.id ? updated : s)));
+      setServiceDrafts(prev => ({ ...prev, [service.id]: serviceDraft(updated) }));
+      triggerToast(`${service.name} point pricing saved`);
     } catch (err: any) {
       alert(`Save failed: ${err.message}`);
     } finally {
-      setIsSaving(false);
+      setSavingId(null);
     }
   };
 
-  const handleDelete = async (item: ApiPointStoreItem) => {
-    const used = item._count?.orders ?? 0;
-    const message = used > 0
-      ? `"${item.name}" was already redeemed ${used} time(s), so it will be disabled instead of deleted. Continue?`
-      : `Delete "${item.name}" permanently?`;
-    if (!confirm(message)) return;
-
+  const saveCategory = async (category: ApiCategory) => {
+    const draft = categoryDrafts[category.id];
+    if (!draft) return;
+    setSavingId(category.id);
     try {
-      const result = await pointsApi.store.delete(item.id);
-      if (result.deactivated) {
-        setItems(prev => prev.map(i => (i.id === item.id ? { ...i, isActive: false } : i)));
-        triggerToast('Reward disabled (it has redemptions)');
-      } else {
-        setItems(prev => prev.filter(i => i.id !== item.id));
-        triggerToast('Reward deleted');
-      }
-    } catch (err: any) {
-      alert(`Delete failed: ${err.message}`);
-    }
-  };
-
-  const toggleActive = async (item: ApiPointStoreItem) => {
-    try {
-      const updated = await pointsApi.store.update(item.id, {
-        name: item.name, nameAr: item.nameAr, nameFr: item.nameFr,
-        description: item.description, descriptionAr: item.descriptionAr, descriptionFr: item.descriptionFr,
-        picture: item.picture, pointCost: item.pointCost,
-        serviceId: item.serviceId, houseConfigId: item.houseConfigId,
-        categoryId: item.categoryId, categoryServiceId: item.categoryServiceId,
-        isActive: !item.isActive,
+      const updated = await pointsApi.store.updateCategory(category.id, {
+        pointStoreEnabled: draft.pointStoreEnabled,
+        materialPointCost: draft.materialPointCost,
+        localProductPointCost: draft.localProductPointCost,
+        importedProductPointCost: draft.importedProductPointCost,
+        categoryServices: Object.entries(draft.categoryServices).map(([id, row]) => ({ id, ...row })),
       });
-      setItems(prev => prev.map(i => (i.id === item.id ? updated : i)));
+      setCategories(prev => prev.map(c => (c.id === category.id ? updated : c)));
+      setCategoryDrafts(prev => ({ ...prev, [category.id]: categoryDraft(updated) }));
+      triggerToast(`${category.name} point pricing saved`);
     } catch (err: any) {
-      alert(`Update failed: ${err.message}`);
+      alert(`Save failed: ${err.message}`);
+    } finally {
+      setSavingId(null);
     }
   };
+
+  const serviceDirty = (service: ApiService) =>
+    JSON.stringify(serviceDrafts[service.id]) !== JSON.stringify(serviceDraft(service));
+  const categoryDirty = (category: ApiCategory) =>
+    JSON.stringify(categoryDrafts[category.id]) !== JSON.stringify(categoryDraft(category));
 
   // ─── Client history + adjustment ────────────────────────────────────────────
 
@@ -252,30 +228,23 @@ export default function PointsPage() {
   const stats = useMemo(() => ({
     circulating: clients.reduce((sum, c) => sum + c.points, 0),
     spent: clients.reduce((sum, c) => sum + c.totalSpent, 0),
-    activeRewards: items.filter(i => i.isActive).length,
+    inStore:
+      services.filter(s => s.pointStoreEnabled).length +
+      categories.filter(c => c.pointStoreEnabled).length,
     holders: clients.filter(c => c.points > 0).length,
-  }), [clients, items]);
+  }), [clients, services, categories]);
 
-  const filteredItems = items.filter(i =>
-    i.name.toLowerCase().includes(searchStore.toLowerCase()) ||
-    (i.service?.name || i.category?.name || '').toLowerCase().includes(searchStore.toLowerCase()),
-  );
-
-  const filteredClients = clients.filter(c => {
-    const q = searchClient.toLowerCase();
-    return c.fullName.toLowerCase().includes(q) || c.phone.includes(q) || c.email.toLowerCase().includes(q);
-  });
-
-  const selectedService = services.find(s => s.id === form.serviceId);
-  const selectedCategory = categories.find(c => c.id === form.categoryId);
-
-  // The viewer always shows the tab you are looking at, with the endpoint that
-  // returns it — handy when wiring the mobile app against the same data.
   const jsonView = useMemo(() => {
-    if (tab === 'store') return { label: 'GET /api/points/store', title: 'Point store JSON', data: items };
+    if (tab === 'store') {
+      return {
+        label: 'GET /api/points/store/all',
+        title: 'Point catalog JSON',
+        data: catalogKind === 'services' ? services : categories,
+      };
+    }
     if (tab === 'clients') return { label: 'GET /api/points/clients', title: 'Client balances JSON', data: clients };
     return { label: 'GET /api/points/transactions', title: 'Point history JSON', data: transactions };
-  }, [tab, items, clients, transactions]);
+  }, [tab, catalogKind, services, categories, clients, transactions]);
 
   const handleCopyJson = () => {
     navigator.clipboard.writeText(JSON.stringify(jsonView.data, null, 2));
@@ -283,11 +252,42 @@ export default function PointsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const targetLabel = (item: ApiPointStoreItem) => {
-    if (item.service) return `${item.service.name}${item.houseConfig ? ` · ${item.houseConfig.type}` : ''}`;
-    if (item.category) return `${item.category.name}${item.categoryService ? ` · ${item.categoryService.name}` : ''}`;
-    return '—';
-  };
+  const filteredServices = services.filter(s => s.name.toLowerCase().includes(searchStore.toLowerCase()));
+  const filteredCategories = categories.filter(c => c.name.toLowerCase().includes(searchStore.toLowerCase()));
+
+  const filteredClients = clients.filter(c => {
+    const q = searchClient.toLowerCase();
+    return c.fullName.toLowerCase().includes(q) || c.phone.includes(q) || c.email.toLowerCase().includes(q);
+  });
+
+  // A point input paired with the DZD price it replaces.
+  const PointInput = ({
+    label, price, value, onChange, accent = 'amber',
+  }: { label: string; price?: number; value: number; onChange: (v: number) => void; accent?: 'amber' | 'sky' }) => (
+    <div className="space-y-1.5">
+      <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest">
+        {label}
+        {price !== undefined && (
+          <span className="ml-1.5 text-slate-300 normal-case tracking-normal">({fmt(price)} DA)</span>
+        )}
+      </label>
+      <div className="relative">
+        <input
+          type="number"
+          min={0}
+          step={1}
+          value={value}
+          onChange={e => onChange(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          className={`w-full pl-3 pr-11 py-2.5 bg-white border rounded-xl outline-none text-xs font-black transition-all ${
+            accent === 'sky'
+              ? 'border-sky-100 focus:border-sky-300 text-sky-700'
+              : 'border-slate-100 focus:border-amber-300 text-slate-800'
+          }`}
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black uppercase text-slate-300">pts</span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-10 font-gilmer max-w-7xl mx-auto animate-fadeIn relative">
@@ -316,7 +316,7 @@ export default function PointsPage() {
             Client <span className="text-amber-500">Points</span>
           </h1>
           <p className="text-sm text-slate-400 font-medium font-inter">
-            Reward completed orders, run the point store, and follow every client balance.
+            Reward completed orders, price your services in points, and follow every client balance.
           </p>
         </div>
 
@@ -334,15 +334,6 @@ export default function PointsPage() {
           >
             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
           </button>
-          {tab === 'store' && (
-            <button
-              onClick={openCreate}
-              className="px-6 py-4 bg-amber-500 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] shadow-lg shadow-amber-500/20 hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-            >
-              <Plus size={15} />
-              New Reward
-            </button>
-          )}
         </div>
       </div>
 
@@ -357,8 +348,8 @@ export default function PointsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Points in circulation', val: fmt(stats.circulating), icon: Coins, color: 'text-amber-500 bg-amber-50 border-amber-100/50' },
-          { label: 'Points spent', val: fmt(stats.spent), icon: TrendingDown, color: 'text-violet-500 bg-violet-50 border-violet-100/50' },
-          { label: 'Active rewards', val: stats.activeRewards, icon: Gift, color: 'text-emerald-500 bg-emerald-50 border-emerald-100/50' },
+          { label: 'Points spent', val: fmt(stats.spent), icon: ShoppingBag, color: 'text-violet-500 bg-violet-50 border-violet-100/50' },
+          { label: 'In the point store', val: stats.inStore, icon: Gift, color: 'text-emerald-500 bg-emerald-50 border-emerald-100/50' },
           { label: 'Clients with points', val: stats.holders, icon: Users, color: 'text-indigo-500 bg-indigo-50 border-indigo-100/50' },
         ].map((card, idx) => (
           <div key={idx} className="p-6 bg-white border border-slate-100 rounded-[2rem] shadow-sm flex items-center justify-between gap-4">
@@ -400,102 +391,383 @@ export default function PointsPage() {
         </div>
       ) : (
         <>
-          {/* ── STORE ───────────────────────────────────────────────────────── */}
+          {/* ── STORE: the real catalog, priced in points ────────────────────── */}
           {tab === 'store' && (
             <div className="space-y-6">
-              <div className="relative max-w-md">
-                <input
-                  type="text"
-                  placeholder="Search a reward or a service..."
-                  value={searchStore}
-                  onChange={e => setSearchStore(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 focus:border-amber-200 outline-none transition-all font-inter"
-                />
-                <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="bg-amber-50/60 border border-amber-100 rounded-3xl p-5 flex gap-4">
+                <Sparkles size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[11px] font-bold text-amber-800 leading-relaxed">
+                  These are your existing services and categories. Switch one on to publish it in the app&apos;s point
+                  store, then give every priced step its cost in points — the client pays that instead of the price in DA.
+                  A step left at <strong>0</strong> stays hidden, and a service with no priced step never appears.
+                </p>
               </div>
 
-              {filteredItems.length === 0 ? (
-                <div className="bg-white border border-slate-100 rounded-[2.5rem] p-16 text-center space-y-4">
-                  <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-400 mx-auto">
-                    <Gift size={28} />
-                  </div>
-                  <p className="text-sm font-black uppercase tracking-wider text-slate-500">No reward yet</p>
-                  <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
-                    Add a reward to let clients exchange their points for a service in the mobile app.
-                  </p>
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+                <div className="relative flex-1 max-w-md">
+                  <input
+                    type="text"
+                    placeholder="Search a service or category..."
+                    value={searchStore}
+                    onChange={e => setSearchStore(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-slate-800 focus:border-amber-200 outline-none transition-all font-inter"
+                  />
+                  <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredItems.map(item => (
-                    <div
-                      key={item.id}
-                      className={`bg-white border rounded-[2rem] shadow-sm overflow-hidden flex flex-col ${item.isActive ? 'border-slate-100' : 'border-slate-100 opacity-60'}`}
+
+                <div className="flex p-1 bg-slate-100 rounded-xl gap-1 w-fit">
+                  {([
+                    { id: 'services', label: `Services (${services.length})`, icon: ShoppingBag },
+                    { id: 'categories', label: `Categories (${categories.length})`, icon: Layers },
+                  ] as const).map(k => (
+                    <button
+                      key={k.id}
+                      onClick={() => setCatalogKind(k.id)}
+                      className={`px-4 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all flex items-center gap-2 ${
+                        catalogKind === k.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                      }`}
                     >
-                      <div className="h-36 bg-slate-50 relative">
-                        {(item.picture || item.service?.picture || item.category?.picture) ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={imgUrl(item.picture || item.service?.picture || item.category?.picture)}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-300">
-                            <Package size={32} />
+                      <k.icon size={12} />
+                      {k.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Services */}
+              {catalogKind === 'services' && (
+                <div className="space-y-5">
+                  {filteredServices.map(service => {
+                    const draft = serviceDrafts[service.id];
+                    if (!draft) return null;
+                    const dirty = serviceDirty(service);
+                    return (
+                      <div
+                        key={service.id}
+                        className={`bg-white border rounded-[2rem] shadow-sm overflow-hidden transition-all ${
+                          draft.pointStoreEnabled ? 'border-amber-200' : 'border-slate-100'
+                        }`}
+                      >
+                        <div className="p-6 flex items-center gap-5 border-b border-slate-50">
+                          <div className="w-16 h-16 rounded-2xl bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                            {service.picture ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={imgUrl(service.picture)} alt={service.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Package size={22} className="text-slate-300" />
+                            )}
                           </div>
-                        )}
-                        <span className="absolute top-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg">
-                          <Coins size={11} />
-                          {fmt(item.pointCost)} pts
-                        </span>
-                        {!item.isActive && (
-                          <span className="absolute top-3 left-3 px-3 py-1.5 bg-slate-800 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                            Disabled
-                          </span>
-                        )}
-                      </div>
 
-                      <div className="p-6 space-y-3 flex-1 flex flex-col">
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-black uppercase tracking-tight text-slate-800">{item.name}</h3>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{targetLabel(item)}</p>
-                        </div>
-                        {item.description && (
-                          <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-2">{item.description}</p>
-                        )}
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-800 truncate">{service.name}</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {service.houseConfigs.length} house type(s) · {service.durationHours}h
+                              {!service.isActive && <span className="text-rose-400"> · service disabled</span>}
+                            </p>
+                          </div>
 
-                        <div className="flex items-center gap-2 pt-2 mt-auto">
                           <button
-                            onClick={() => toggleActive(item)}
-                            className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
-                              item.isActive
-                                ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'
-                                : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
+                            onClick={() =>
+                              setServiceDrafts(prev => ({
+                                ...prev,
+                                [service.id]: { ...draft, pointStoreEnabled: !draft.pointStoreEnabled },
+                              }))
+                            }
+                            className={`px-5 py-3 rounded-2xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border shrink-0 flex items-center gap-2 ${
+                              draft.pointStoreEnabled
+                                ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20'
+                                : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100'
                             }`}
                           >
-                            {item.isActive ? 'Active' : 'Disabled'}
-                          </button>
-                          <button
-                            onClick={() => openEdit(item)}
-                            className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-all cursor-pointer border border-slate-100"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center transition-all cursor-pointer border border-rose-100"
-                          >
-                            <Trash2 size={13} />
+                            <Gift size={12} />
+                            {draft.pointStoreEnabled ? 'In point store' : 'Not in store'}
                           </button>
                         </div>
-                        {(item._count?.orders ?? 0) > 0 && (
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">
-                            Redeemed {item._count?.orders} time(s)
-                          </p>
+
+                        {draft.pointStoreEnabled && (
+                          <div className="p-6 space-y-6 bg-slate-50/40">
+                            {/* House types */}
+                            <div className="space-y-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">House types</p>
+                              {service.houseConfigs.map(config => (
+                                <div key={config.id} className="grid sm:grid-cols-[1fr_auto_auto] gap-4 items-end bg-white border border-slate-100 rounded-2xl p-4">
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-black uppercase text-slate-700">{config.type}</p>
+                                    <p className="text-[10px] font-bold text-slate-400">
+                                      {config.workers} worker(s) · {config.durationHours}h
+                                    </p>
+                                  </div>
+                                  <div className="w-full sm:w-36">
+                                    <PointInput
+                                      label="Normal"
+                                      price={config.basePrice}
+                                      value={draft.houseConfigs[config.id]?.pointCost ?? 0}
+                                      onChange={v =>
+                                        setServiceDrafts(prev => ({
+                                          ...prev,
+                                          [service.id]: {
+                                            ...draft,
+                                            houseConfigs: {
+                                              ...draft.houseConfigs,
+                                              [config.id]: { ...draft.houseConfigs[config.id], pointCost: v },
+                                            },
+                                          },
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div className="w-full sm:w-36">
+                                    <PointInput
+                                      label="Rapid ⚡"
+                                      price={config.rapidBasePrice}
+                                      accent="sky"
+                                      value={draft.houseConfigs[config.id]?.rapidPointCost ?? 0}
+                                      onChange={v =>
+                                        setServiceDrafts(prev => ({
+                                          ...prev,
+                                          [service.id]: {
+                                            ...draft,
+                                            houseConfigs: {
+                                              ...draft.houseConfigs,
+                                              [config.id]: { ...draft.houseConfigs[config.id], rapidPointCost: v },
+                                            },
+                                          },
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Options */}
+                            <div className="space-y-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Options</p>
+                              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 bg-white border border-slate-100 rounded-2xl p-4">
+                                <PointInput
+                                  label="Extra worker"
+                                  price={service.extraWorkerPrice}
+                                  value={draft.extraWorkerPointCost}
+                                  onChange={v => setServiceDrafts(prev => ({ ...prev, [service.id]: { ...draft, extraWorkerPointCost: v } }))}
+                                />
+                                <PointInput
+                                  label="Extra worker (rapid)"
+                                  price={service.rapidExtraWorkerPrice}
+                                  accent="sky"
+                                  value={draft.rapidExtraWorkerPointCost}
+                                  onChange={v => setServiceDrafts(prev => ({ ...prev, [service.id]: { ...draft, rapidExtraWorkerPointCost: v } }))}
+                                />
+                                <PointInput
+                                  label="Materials"
+                                  price={service.materialPrice}
+                                  value={draft.materialPointCost}
+                                  onChange={v => setServiceDrafts(prev => ({ ...prev, [service.id]: { ...draft, materialPointCost: v } }))}
+                                />
+                                <PointInput
+                                  label="Local products"
+                                  price={service.localProductPrice}
+                                  value={draft.localProductPointCost}
+                                  onChange={v => setServiceDrafts(prev => ({ ...prev, [service.id]: { ...draft, localProductPointCost: v } }))}
+                                />
+                                <PointInput
+                                  label="Imported products"
+                                  price={service.importedProductPrice}
+                                  value={draft.importedProductPointCost}
+                                  onChange={v => setServiceDrafts(prev => ({ ...prev, [service.id]: { ...draft, importedProductPointCost: v } }))}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         )}
+
+                        <div className="px-6 py-4 flex items-center justify-between gap-4 border-t border-slate-50">
+                          <p className="text-[10px] font-bold text-slate-400">
+                            {dirty ? 'Unsaved changes' : 'Saved'}
+                          </p>
+                          <button
+                            onClick={() => saveService(service)}
+                            disabled={!dirty || savingId === service.id}
+                            className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {savingId === service.id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Saving…
+                              </>
+                            ) : (
+                              <>
+                                <Save size={13} />
+                                Save
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  {filteredServices.length === 0 && (
+                    <p className="text-center py-12 text-xs font-black uppercase tracking-wider text-slate-400">No service found</p>
+                  )}
+                </div>
+              )}
+
+              {/* Categories */}
+              {catalogKind === 'categories' && (
+                <div className="space-y-5">
+                  {filteredCategories.map(category => {
+                    const draft = categoryDrafts[category.id];
+                    if (!draft) return null;
+                    const dirty = categoryDirty(category);
+                    return (
+                      <div
+                        key={category.id}
+                        className={`bg-white border rounded-[2rem] shadow-sm overflow-hidden transition-all ${
+                          draft.pointStoreEnabled ? 'border-amber-200' : 'border-slate-100'
+                        }`}
+                      >
+                        <div className="p-6 flex items-center gap-5 border-b border-slate-50">
+                          <div className="w-16 h-16 rounded-2xl bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                            {category.picture ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={imgUrl(category.picture)} alt={category.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Layers size={22} className="text-slate-300" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-sm font-black uppercase tracking-tight text-slate-800 truncate">{category.name}</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              {category.categoryServices.length} option(s)
+                              {!category.isActive && <span className="text-rose-400"> · category disabled</span>}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              setCategoryDrafts(prev => ({
+                                ...prev,
+                                [category.id]: { ...draft, pointStoreEnabled: !draft.pointStoreEnabled },
+                              }))
+                            }
+                            className={`px-5 py-3 rounded-2xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer border shrink-0 flex items-center gap-2 ${
+                              draft.pointStoreEnabled
+                                ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20'
+                                : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100'
+                            }`}
+                          >
+                            <Gift size={12} />
+                            {draft.pointStoreEnabled ? 'In point store' : 'Not in store'}
+                          </button>
+                        </div>
+
+                        {draft.pointStoreEnabled && (
+                          <div className="p-6 space-y-6 bg-slate-50/40">
+                            <div className="space-y-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Options</p>
+                              {category.categoryServices.map(option => (
+                                <div key={option.id} className="grid sm:grid-cols-[1fr_auto_auto] gap-4 items-end bg-white border border-slate-100 rounded-2xl p-4">
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-black uppercase text-slate-700">{option.name}</p>
+                                    <p className="text-[10px] font-bold text-slate-400">
+                                      {option.workers} worker(s) · {option.durationHours}h
+                                    </p>
+                                  </div>
+                                  <div className="w-full sm:w-36">
+                                    <PointInput
+                                      label="Normal"
+                                      price={option.basePrice}
+                                      value={draft.categoryServices[option.id]?.pointCost ?? 0}
+                                      onChange={v =>
+                                        setCategoryDrafts(prev => ({
+                                          ...prev,
+                                          [category.id]: {
+                                            ...draft,
+                                            categoryServices: {
+                                              ...draft.categoryServices,
+                                              [option.id]: { ...draft.categoryServices[option.id], pointCost: v },
+                                            },
+                                          },
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div className="w-full sm:w-36">
+                                    <PointInput
+                                      label="Rapid ⚡"
+                                      price={option.rapidBasePrice}
+                                      accent="sky"
+                                      value={draft.categoryServices[option.id]?.rapidPointCost ?? 0}
+                                      onChange={v =>
+                                        setCategoryDrafts(prev => ({
+                                          ...prev,
+                                          [category.id]: {
+                                            ...draft,
+                                            categoryServices: {
+                                              ...draft.categoryServices,
+                                              [option.id]: { ...draft.categoryServices[option.id], rapidPointCost: v },
+                                            },
+                                          },
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="space-y-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Options</p>
+                              <div className="grid sm:grid-cols-3 gap-4 bg-white border border-slate-100 rounded-2xl p-4">
+                                <PointInput
+                                  label="Materials"
+                                  price={category.materialPrice}
+                                  value={draft.materialPointCost}
+                                  onChange={v => setCategoryDrafts(prev => ({ ...prev, [category.id]: { ...draft, materialPointCost: v } }))}
+                                />
+                                <PointInput
+                                  label="Local products"
+                                  price={category.localProductPrice}
+                                  value={draft.localProductPointCost}
+                                  onChange={v => setCategoryDrafts(prev => ({ ...prev, [category.id]: { ...draft, localProductPointCost: v } }))}
+                                />
+                                <PointInput
+                                  label="Imported products"
+                                  price={category.importedProductPrice}
+                                  value={draft.importedProductPointCost}
+                                  onChange={v => setCategoryDrafts(prev => ({ ...prev, [category.id]: { ...draft, importedProductPointCost: v } }))}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="px-6 py-4 flex items-center justify-between gap-4 border-t border-slate-50">
+                          <p className="text-[10px] font-bold text-slate-400">{dirty ? 'Unsaved changes' : 'Saved'}</p>
+                          <button
+                            onClick={() => saveCategory(category)}
+                            disabled={!dirty || savingId === category.id}
+                            className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {savingId === category.id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Saving…
+                              </>
+                            ) : (
+                              <>
+                                <Save size={13} />
+                                Save
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredCategories.length === 0 && (
+                    <p className="text-center py-12 text-xs font-black uppercase tracking-wider text-slate-400">No category found</p>
+                  )}
                 </div>
               )}
             </div>
@@ -591,9 +863,7 @@ export default function PointsPage() {
                             {TX_STYLES[tx.type].label}
                           </span>
                         </td>
-                        <td className="py-4 text-[11px] font-bold text-slate-500 max-w-[220px] truncate">
-                          {tx.storeItem?.name || tx.reason || '—'}
-                        </td>
+                        <td className="py-4 text-[11px] font-bold text-slate-500 max-w-[220px] truncate">{tx.reason || '—'}</td>
                         <td className={`py-4 text-right text-xs font-black ${tx.amount > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                           {tx.amount > 0 ? '+' : ''}{fmt(tx.amount)}
                         </td>
@@ -612,230 +882,6 @@ export default function PointsPage() {
           )}
         </>
       )}
-
-      {/* ── Reward form modal ─────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {isFormOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => !isSaving && setIsFormOpen(false)}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            />
-            <motion.form
-              onSubmit={handleSubmit}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-[2.5rem] p-8 lg:p-10 shadow-2xl border border-slate-100 relative z-10 space-y-6"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
-                    <Gift size={20} />
-                  </div>
-                  <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">
-                    {editingId ? 'Edit reward' : 'New reward'}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  className="w-10 h-10 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-all cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Name (EN) *</label>
-                  <input
-                    required
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    placeholder="Free deep clean"
-                    className="w-full px-4 py-3.5 bg-slate-50 border border-transparent focus:border-amber-200 rounded-2xl outline-none focus:bg-white transition-all text-xs font-bold"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Cost in points *</label>
-                  <input
-                    required
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={form.pointCost}
-                    onChange={e => setForm({ ...form, pointCost: Number(e.target.value) })}
-                    className="w-full px-4 py-3.5 bg-slate-50 border border-transparent focus:border-amber-200 rounded-2xl outline-none focus:bg-white transition-all text-xs font-black"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Name (AR)</label>
-                  <input
-                    dir="rtl"
-                    value={form.nameAr}
-                    onChange={e => setForm({ ...form, nameAr: e.target.value })}
-                    className="w-full px-4 py-3.5 bg-slate-50 border border-transparent focus:border-amber-200 rounded-2xl outline-none focus:bg-white transition-all text-xs font-bold font-cairo"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Name (FR)</label>
-                  <input
-                    value={form.nameFr}
-                    onChange={e => setForm({ ...form, nameFr: e.target.value })}
-                    className="w-full px-4 py-3.5 bg-slate-50 border border-transparent focus:border-amber-200 rounded-2xl outline-none focus:bg-white transition-all text-xs font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">Description</label>
-                <textarea
-                  rows={2}
-                  value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-transparent focus:border-amber-200 rounded-2xl outline-none focus:bg-white transition-all text-xs font-bold resize-none"
-                />
-              </div>
-
-              {/* What the client actually gets */}
-              <div className="space-y-4 border border-slate-100 rounded-3xl p-5 bg-slate-50/50">
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">What the client receives *</p>
-                <div className="flex p-1 bg-white rounded-xl gap-1 w-fit border border-slate-100">
-                  {(['service', 'category'] as const).map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setForm({ ...form, target: t })}
-                      className={`px-4 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all ${
-                        form.target === t ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      {t === 'service' ? 'Service' : 'Category'}
-                    </button>
-                  ))}
-                </div>
-
-                {form.target === 'service' ? (
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <select
-                      required
-                      value={form.serviceId ?? ''}
-                      onChange={e => setForm({ ...form, serviceId: e.target.value, houseConfigId: '' })}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-100 rounded-2xl outline-none text-xs font-bold cursor-pointer"
-                    >
-                      <option value="">Select a service…</option>
-                      {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <select
-                      required
-                      value={form.houseConfigId ?? ''}
-                      onChange={e => setForm({ ...form, houseConfigId: e.target.value })}
-                      disabled={!selectedService}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-100 rounded-2xl outline-none text-xs font-bold cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="">Select the house type…</option>
-                      {selectedService?.houseConfigs.map(hc => (
-                        <option key={hc.id} value={hc.id}>{hc.type} — {fmt(hc.basePrice)} DA</option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <select
-                      required
-                      value={form.categoryId ?? ''}
-                      onChange={e => setForm({ ...form, categoryId: e.target.value, categoryServiceId: '' })}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-100 rounded-2xl outline-none text-xs font-bold cursor-pointer"
-                    >
-                      <option value="">Select a category…</option>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <select
-                      required
-                      value={form.categoryServiceId ?? ''}
-                      onChange={e => setForm({ ...form, categoryServiceId: e.target.value })}
-                      disabled={!selectedCategory}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-100 rounded-2xl outline-none text-xs font-bold cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="">Select the option…</option>
-                      {selectedCategory?.categoryServices.map(cs => (
-                        <option key={cs.id} value={cs.id}>{cs.name} — {fmt(cs.basePrice)} DA</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Picture */}
-              <div className="flex items-center gap-4">
-                <div className="w-24 h-24 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shrink-0">
-                  {form.picture ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imgUrl(form.picture)} alt="Reward" className="w-full h-full object-cover" />
-                  ) : (
-                    <Package size={22} className="text-slate-300" />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="px-5 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl text-[9px] font-black uppercase tracking-wider text-slate-500 cursor-pointer inline-flex items-center gap-2 transition-all">
-                    <Upload size={13} />
-                    {isUploading ? 'Uploading…' : 'Upload picture'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) handlePicture(f); }}
-                    />
-                  </label>
-                  <p className="text-[10px] font-bold text-slate-400">Optional — the service picture is used when empty.</p>
-                </div>
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={e => setForm({ ...form, isActive: e.target.checked })}
-                  className="w-4 h-4 accent-amber-500 cursor-pointer"
-                />
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Visible in the mobile app store
-                </span>
-              </label>
-
-              <div className="flex gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(false)}
-                  disabled={isSaving}
-                  className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving || isUploading}
-                  className="flex-1 py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saving…
-                    </>
-                  ) : (
-                    <>
-                      <Save size={14} />
-                      {editingId ? 'Save changes' : 'Create reward'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.form>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* ── API JSON viewer ───────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -858,9 +904,7 @@ export default function PointsPage() {
                     <Code size={16} />
                     <span className="text-[10px] font-black uppercase tracking-widest truncate">{jsonView.label}</span>
                   </div>
-                  <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">
-                    {jsonView.title}
-                  </h2>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">{jsonView.title}</h2>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                     {jsonView.data.length} record(s) — switch tab to inspect another endpoint
                   </p>
@@ -924,7 +968,6 @@ export default function PointsPage() {
                 </div>
               </div>
 
-              {/* Adjustment */}
               <form onSubmit={handleAdjust} className="p-6 bg-slate-50/50 border-b border-slate-100 flex flex-col sm:flex-row gap-3">
                 <input
                   type="number"
@@ -967,7 +1010,7 @@ export default function PointsPage() {
                           {TX_STYLES[tx.type].label}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-700 truncate">{tx.storeItem?.name || tx.reason || '—'}</p>
+                          <p className="text-xs font-bold text-slate-700 truncate">{tx.reason || '—'}</p>
                           <p className="text-[10px] font-bold text-slate-400">{fmtDate(tx.createdAt)}</p>
                         </div>
                         <div className="text-right shrink-0">
