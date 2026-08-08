@@ -37,11 +37,10 @@ export function isDeliverableEmail(address?: string | null): address is string {
 }
 
 /**
- * Mailboxes that receive the internal/operational notifications (new order, new
- * subscription, status changes). Those messages contain another person's name,
- * phone, address and price, so the recipient list comes from ADMIN_EMAIL — a
- * value only the operator controls — and never from user rows in the database.
- * Comma-separated for several recipients.
+ * Extra mailbox(es) that receive the internal/operational notifications (new
+ * order, new subscription, status changes), on top of the users holding the
+ * ADMIN role. Use it for a shared business inbox that has no user account.
+ * Comma-separated for several recipients; leave unset to notify ADMIN users only.
  */
 export const adminNotificationEmails: string[] = Array.from(
   new Set(
