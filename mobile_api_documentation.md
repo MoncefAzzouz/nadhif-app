@@ -630,3 +630,148 @@ This file documents all the backend API endpoints for the mobile application.
       "url": "/uploads/cb9c40fd-1647-4f4d-adfe-fb64c8612140.png"
     }
     ```
+
+---
+
+## ── 9. Loyalty Points & Point Store ──
+
+Every client account carries a `points` balance. Points are granted by an admin
+when an order is marked **COMPLETED**, and can be spent on the rewards published
+in the point store. Spending a reward creates a **normal order** (status
+`PENDING`) that the team fulfils like any other — its `totalPrice` is `0` and the
+cost is carried by `pointsSpent`, so the app must display points, not dinars, for
+those orders.
+
+Order objects returned anywhere in the API now include these extra fields:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `paidWithPoints` | bool | `true` when the order came from the point store — show "X points" instead of the price |
+| `pointsSpent` | int | Points debited for this order |
+| `pointsAwarded` | int | Points the admin granted when completing it (`0` = none yet) |
+| `pointsRefunded` | bool | `true` when a cancelled point order was refunded |
+| `pointStoreItemId` | string? | The redeemed reward |
+
+### 9.1 Get My Balance & History
+*   **Method**: `GET`
+*   **Path**: `/api/points/me`
+*   **Auth Required**: Yes
+*   **Response (200 OK)**: (`transactions` newest first, max 100)
+    ```json
+    {
+      "points": 550,
+      "transactions": [
+        {
+          "id": "tx-uuid-1",
+          "amount": -300,
+          "balanceAfter": 250,
+          "type": "SPENT",
+          "reason": "Free deep clean",
+          "orderId": "order-uuid-9999",
+          "storeItemId": "item-uuid-1",
+          "createdAt": "2026-08-08T10:04:00.000Z",
+          "storeItem": { "id": "item-uuid-1", "name": "Free deep clean", "nameAr": "", "nameFr": "" },
+          "order": { "id": "order-uuid-9999", "scheduledDate": "2026-09-15T09:00:00.000Z", "status": "PENDING" }
+        },
+        {
+          "id": "tx-uuid-2",
+          "amount": 50,
+          "balanceAfter": 550,
+          "type": "EARNED",
+          "reason": "Order completed",
+          "orderId": "order-uuid-8888",
+          "storeItemId": null,
+          "createdAt": "2026-08-07T16:20:00.000Z"
+        }
+      ]
+    }
+    ```
+    `type` is one of `EARNED` (order completed), `SPENT` (reward redeemed),
+    `REFUNDED` (point order cancelled), `ADJUSTED` (manual admin correction).
+    `amount` is signed; `balanceAfter` is the balance right after that movement.
+
+### 9.2 Get the Point Store
+*   **Method**: `GET`
+*   **Path**: `/api/points/store`
+*   **Auth Required**: Yes
+*   **Notes**: only active rewards, cheapest first. Use `picture` when set,
+    otherwise fall back to `service.picture` / `category.picture`.
+*   **Response (200 OK)**:
+    ```json
+    [
+      {
+        "id": "item-uuid-1",
+        "name": "Free deep clean",
+        "nameAr": "تنظيف عميق مجاني",
+        "nameFr": "Nettoyage profond offert",
+        "description": "",
+        "descriptionAr": "",
+        "descriptionFr": "",
+        "picture": "/uploads/reward.png",
+        "pointCost": 300,
+        "isActive": true,
+        "serviceId": "service-uuid-1",
+        "houseConfigId": "config-uuid-1",
+        "categoryId": null,
+        "categoryServiceId": null,
+        "service": { "id": "service-uuid-1", "name": "Grand Nettoyage", "nameAr": "", "nameFr": "", "picture": "/uploads/s1.jpg" },
+        "houseConfig": { "id": "config-uuid-1", "type": "F3", "typeAr": "", "typeFr": "", "workers": 2, "durationHours": 4 },
+        "category": null,
+        "categoryService": null
+      }
+    ]
+    ```
+
+### 9.3 Redeem a Reward (spend points)
+*   **Method**: `POST`
+*   **Path**: `/api/points/redeem`
+*   **Auth Required**: Yes
+*   **Request Body**:
+    ```json
+    {
+      "storeItemId": "item-uuid-1",
+      "scheduledDate": "2026-09-15T09:00:00",
+      "address": "123 Rue de la Liberté, Alger",
+      "latitude": 36.7538,
+      "longitude": 3.0588,
+      "sizeM2": 120,
+      "clientNote": "Sonner deux fois",
+      "housePictures": ["/uploads/img1.jpg"]
+    }
+    ```
+    `storeItemId`, `scheduledDate` and `address` are mandatory; the rest is
+    optional. The service/category comes from the reward, so the app does not
+    send it. Blackout days (`/api/pages/locked-days`) apply exactly like a normal
+    order.
+*   **Response (201 Created)**: the created order plus the customer's new balance.
+    ```json
+    {
+      "order": {
+        "id": "order-uuid-9999",
+        "status": "PENDING",
+        "totalPrice": 0,
+        "paidWithPoints": true,
+        "pointsSpent": 300,
+        "pointStoreItemId": "item-uuid-1",
+        "scheduledDate": "2026-09-15T09:00:00.000Z",
+        "address": "123 Rue de la Liberté, Alger"
+      },
+      "points": 250
+    }
+    ```
+*   **Errors**:
+    - `400 { "error": "Insufficient points" }` — balance too low (no order is created).
+    - `400 { "error": "Missing required fields: storeItemId, scheduledDate, address" }`
+    - `400 { "error": "Cette date est verrouillée..." }` — blackout day.
+    - `404 { "error": "This reward is not available" }` — unknown or disabled reward.
+
+### 9.4 Behaviour the app should implement
+*   Show the balance from `/api/points/me` on the profile/store screen; refresh it
+    after every redemption (the response already returns the new balance).
+*   Cancelling a point-paid order (`PATCH /api/orders/:id/status` with
+    `CANCELLED`, allowed while `PENDING` or `CALLED_NOT_PAID`) automatically
+    gives the points back — refresh the balance afterwards.
+*   In the orders list and details, when `paidWithPoints` is `true`, render
+    `pointsSpent` + "points" where the price normally goes.
+*   A push notification of type `points_adjusted` is sent when an admin changes a
+    balance by hand; `data.amount` carries the signed movement.

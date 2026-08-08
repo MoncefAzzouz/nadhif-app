@@ -4,6 +4,7 @@ import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
 import { ProductOrigin, OrderStatus } from '@prisma/client';
 import { sendPushToUser } from '../lib/firebaseAdmin';
 import { handleOrderCreated, handleOrderStatusChanged } from '../lib/notificationsHelper';
+import { awardPointsForCompletedOrder, refundPointsForCancelledOrder, PointsError } from '../lib/points';
 
 const router = Router();
 
@@ -485,7 +486,8 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
   const userId = req.user?.userId;
   const role = req.user?.role;
   const id = req.params.id as string;
-  const { status } = req.body;
+  // `pointsAwarded` is the loyalty amount the admin types when completing an order.
+  const { status, pointsAwarded } = req.body;
 
   if (!userId || !status) {
     res.status(400).json({ error: 'Missing required status field' });
@@ -507,6 +509,33 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
       if (newStatus === OrderStatus.PENDING || newStatus === OrderStatus.CALLED_NOT_PAID || newStatus === OrderStatus.CANCELLED) {
         dataToUpdate.cleanerId = null;
       }
+
+      // Loyalty points are settled before the status is written, so a rejected
+      // award (already granted, bad number) leaves the order untouched.
+      const pointsToAward = pointsAwarded === undefined || pointsAwarded === null || pointsAwarded === ''
+        ? 0
+        : Number(pointsAwarded);
+
+      if (pointsToAward > 0 && newStatus !== OrderStatus.COMPLETED) {
+        res.status(400).json({ error: 'Points can only be granted when completing an order' });
+        return;
+      }
+
+      try {
+        if (newStatus === OrderStatus.COMPLETED) {
+          await awardPointsForCompletedOrder(id, pointsToAward, userId);
+        }
+        if (newStatus === OrderStatus.CANCELLED) {
+          await refundPointsForCancelledOrder(id, userId);
+        }
+      } catch (pointsErr) {
+        if (pointsErr instanceof PointsError) {
+          res.status(pointsErr.status).json({ error: pointsErr.message });
+          return;
+        }
+        throw pointsErr;
+      }
+
       const updated = await prisma.order.update({
         where: { id },
         data: dataToUpdate,
@@ -532,6 +561,9 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
         res.status(400).json({ error: 'Orders can only be cancelled while pending or called but unpaid' });
         return;
       }
+
+      // A customer cancelling a point-paid order gets the points back.
+      await refundPointsForCancelledOrder(id, null);
 
       const updated = await prisma.order.update({
         where: { id },
@@ -581,6 +613,11 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
         res.status(400).json({ error: "Cette date est verrouillée par l'administrateur. Veuillez choisir un autre jour." });
         return;
       }
+    }
+
+    // Cancelling from the edit form refunds a point-paid order too.
+    if (status === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
+      await refundPointsForCancelledOrder(id, req.user?.userId ?? null);
     }
 
     const updated = await prisma.order.update({
