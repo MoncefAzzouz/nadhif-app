@@ -155,6 +155,13 @@ export interface ApiOrder {
   sizeM2?: number;
   clientNote?: string;
   housePictures?: string[];
+  // Loyalty points: set when the order was redeemed from the point store.
+  paidWithPoints?: boolean;
+  pointsSpent?: number;
+  pointStoreItemId?: string | null;
+  pointsAwarded?: number;
+  pointsRefunded?: boolean;
+  pointStoreItem?: ApiPointStoreItem | null;
   createdAt: string;
   updatedAt: string;
   user?: { id: string; email: string; fullName: string; phone: string };
@@ -186,10 +193,11 @@ export const ordersApi = {
 
   getOne: (id: string) => apiFetch<ApiOrder>(`/api/orders/${id}`),
 
-  updateStatus: (id: string, status: ApiOrder['status']) =>
+  // `pointsAwarded` is only accepted together with the COMPLETED status.
+  updateStatus: (id: string, status: ApiOrder['status'], pointsAwarded?: number) =>
     apiFetch<ApiOrder>(`/api/orders/${id}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(pointsAwarded ? { status, pointsAwarded } : { status }),
     }),
 
   update: (id: string, data: Partial<ApiOrder>) =>
@@ -636,6 +644,99 @@ export const homepageCmsApi = {
     method: 'POST',
     body: JSON.stringify(data)
   })
+};
+
+// ─── Loyalty Points ──────────────────────────────────────────────────────────
+
+export interface ApiPointStoreItem {
+  id: string;
+  name: string;
+  nameAr: string;
+  nameFr: string;
+  description: string;
+  descriptionAr: string;
+  descriptionFr: string;
+  picture: string;
+  pointCost: number;
+  serviceId: string | null;
+  houseConfigId: string | null;
+  categoryId: string | null;
+  categoryServiceId: string | null;
+  isActive: boolean;
+  createdAt: string;
+  service?: { id: string; name: string; nameAr: string; nameFr: string; picture: string } | null;
+  houseConfig?: { id: string; type: string; typeAr: string; typeFr: string; workers: number; durationHours: number } | null;
+  category?: { id: string; name: string; nameAr: string; nameFr: string; picture: string } | null;
+  categoryService?: { id: string; name: string; nameAr: string; nameFr: string; workers: number; durationHours: number } | null;
+  _count?: { orders: number };
+}
+
+export type PointTransactionType = 'EARNED' | 'SPENT' | 'REFUNDED' | 'ADJUSTED';
+
+export interface ApiPointTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  balanceAfter: number;
+  type: PointTransactionType;
+  reason: string;
+  orderId: string | null;
+  storeItemId: string | null;
+  adminId: string | null;
+  createdAt: string;
+  user?: { id: string; fullName: string; phone: string };
+  storeItem?: { id: string; name: string } | null;
+  order?: { id: string; status: ApiOrder['status']; scheduledDate: string; totalPrice?: number } | null;
+}
+
+export interface ApiPointClient {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  points: number;
+  createdAt: string;
+  totalEarned: number;
+  totalSpent: number;
+}
+
+export interface PointStoreItemPayload {
+  name: string;
+  nameAr?: string;
+  nameFr?: string;
+  description?: string;
+  descriptionAr?: string;
+  descriptionFr?: string;
+  picture?: string;
+  pointCost: number;
+  serviceId?: string | null;
+  houseConfigId?: string | null;
+  categoryId?: string | null;
+  categoryServiceId?: string | null;
+  isActive?: boolean;
+}
+
+export const pointsApi = {
+  store: {
+    getAll: () => apiFetch<ApiPointStoreItem[]>('/api/points/store/all'),
+    create: (data: PointStoreItemPayload) =>
+      apiFetch<ApiPointStoreItem>('/api/points/store', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: PointStoreItemPayload) =>
+      apiFetch<ApiPointStoreItem>(`/api/points/store/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      apiFetch<{ success: boolean; deactivated: boolean }>(`/api/points/store/${id}`, { method: 'DELETE' }),
+  },
+  clients: {
+    getAll: () => apiFetch<ApiPointClient[]>('/api/points/clients'),
+    getOne: (userId: string) =>
+      apiFetch<{ user: ApiPointClient; transactions: ApiPointTransaction[] }>(`/api/points/clients/${userId}`),
+    adjust: (userId: string, amount: number, reason?: string) =>
+      apiFetch<{ points: number; transactionId: string }>(`/api/points/clients/${userId}/adjust`, {
+        method: 'POST',
+        body: JSON.stringify({ amount, reason }),
+      }),
+  },
+  transactions: (limit = 200) => apiFetch<ApiPointTransaction[]>(`/api/points/transactions?limit=${limit}`),
 };
 
 // ─── Image Uploads ───────────────────────────────────────────────────────────

@@ -29,7 +29,8 @@ import {
   Code,
   Copy,
   Check,
-  Users
+  Users,
+  Gift
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { ordersApi, servicesApi, cleanersApi, categoriesApi, lockedDaysApi, skillsApi, subscriptionsApi, uploadImage, imgUrl, promosApi, type ApiOrder, type ApiService, type ApiCleaner, type ApiCategory, type ApiCategoryService, type ApiSkill, type ApiSubscription, type ApiPromo } from '../../lib/api';
@@ -94,6 +95,11 @@ export default function CommandsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
+
+  // Completion / loyalty points modal
+  const [orderToComplete, setOrderToComplete] = useState<ApiOrder | null>(null);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [pointsToAward, setPointsToAward] = useState('');
 
   // Assign Cleaner Modal States
   const [orderToConfirm, setOrderToConfirm] = useState<ApiOrder | null>(null);
@@ -232,19 +238,41 @@ export default function CommandsPage() {
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   // ─── Update status via API ────────────────────────────────────────────────
-  const handleUpdateStatus = async (id: string, newStatus: ApiOrder['status']) => {
+  // `pointsAwarded` comes from the completion modal and is only sent with COMPLETED.
+  const handleUpdateStatus = async (id: string, newStatus: ApiOrder['status'], pointsAwarded?: number) => {
     setUpdatingId(id);
     try {
-      const updated = await ordersApi.updateStatus(id, newStatus);
+      const updated = await ordersApi.updateStatus(id, newStatus, pointsAwarded);
       setOrders(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
       if (selectedOrder?.id === id) {
-        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+        setSelectedOrder(prev => prev ? { ...prev, ...updated } : null);
       }
     } catch (err: any) {
       alert(`Status update failed: ${err.message}`);
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  // Completing an order opens the loyalty prompt first: the admin types how many
+  // points the client earned (or leaves it empty to award none).
+  const openCompleteModal = (order: ApiOrder) => {
+    setOrderToComplete(order);
+    setPointsToAward('');
+    setIsCompleteModalOpen(true);
+  };
+
+  const confirmCompletion = async () => {
+    if (!orderToComplete) return;
+    const trimmed = pointsToAward.trim();
+    const points = trimmed === '' ? 0 : Number(trimmed);
+    if (trimmed !== '' && (!Number.isInteger(points) || points < 0)) {
+      alert('Points must be a whole number (or leave the field empty to award none).');
+      return;
+    }
+    await handleUpdateStatus(orderToComplete.id, 'COMPLETED', points > 0 ? points : undefined);
+    setIsCompleteModalOpen(false);
+    setOrderToComplete(null);
   };
 
   // ─── Cleaner Availability Calculation ──────────────────────────────────────
@@ -959,9 +987,16 @@ export default function CommandsPage() {
                           </span>
                         </td>
 
-                        {/* Total */}
-                        <td className="py-5 text-sm font-black text-emerald-500">
-                          {order.totalPrice.toLocaleString('fr-DZ')} DA
+                        {/* Total — point-store orders cost points, not dinars */}
+                        <td className="py-5 text-sm font-black">
+                          {order.paidWithPoints ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-lg text-[10px] font-black uppercase tracking-wider whitespace-nowrap">
+                              <Gift size={11} />
+                              {(order.pointsSpent ?? 0).toLocaleString('fr-DZ')} PTS
+                            </span>
+                          ) : (
+                            <span className="text-emerald-500">{order.totalPrice.toLocaleString('fr-DZ')} DA</span>
+                          )}
                         </td>
 
                         {/* Promo */}
@@ -991,6 +1026,8 @@ export default function CommandsPage() {
                                   setOrderToConfirm(order);
                                   setSelectedCleanerIds(order.cleanerId ? order.cleanerId.split(',') : []);
                                   setIsAssignModalOpen(true);
+                                } else if (val === 'COMPLETED') {
+                                  openCompleteModal(order);
                                 } else {
                                   handleUpdateStatus(order.id, val);
                                 }
@@ -1214,9 +1251,30 @@ export default function CommandsPage() {
                       </div>
                     )}
                     <div className="flex justify-between py-2 border-t border-slate-200 pt-3">
-                      <span className="text-slate-600 font-bold">Total Bill:</span>
-                      <span className="text-emerald-500 font-black text-base">{selectedOrder.totalPrice.toLocaleString('fr-DZ')} DA</span>
+                      <span className="text-slate-600 font-bold">
+                        {selectedOrder.paidWithPoints ? 'Paid with points:' : 'Total Bill:'}
+                      </span>
+                      {selectedOrder.paidWithPoints ? (
+                        <span className="text-amber-600 font-black text-base flex items-center gap-1.5">
+                          <Gift size={14} />
+                          {(selectedOrder.pointsSpent ?? 0).toLocaleString('fr-DZ')} points
+                        </span>
+                      ) : (
+                        <span className="text-emerald-500 font-black text-base">{selectedOrder.totalPrice.toLocaleString('fr-DZ')} DA</span>
+                      )}
                     </div>
+                    {selectedOrder.paidWithPoints && (
+                      <div className="flex justify-between py-1 text-[11px] font-bold">
+                        <span className="text-slate-400">Reward redeemed:</span>
+                        <span className="text-slate-700">{selectedOrder.pointStoreItem?.name || '—'}</span>
+                      </div>
+                    )}
+                    {(selectedOrder.pointsAwarded ?? 0) > 0 && (
+                      <div className="flex justify-between py-1 text-[11px] font-bold">
+                        <span className="text-slate-400">Points granted on completion:</span>
+                        <span className="text-amber-600">+{selectedOrder.pointsAwarded}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1274,6 +1332,8 @@ export default function CommandsPage() {
                             setOrderToConfirm(selectedOrder);
                             setSelectedCleanerIds(selectedOrder.cleanerId ? selectedOrder.cleanerId.split(',') : []);
                             setIsAssignModalOpen(true);
+                          } else if (s === 'COMPLETED') {
+                            openCompleteModal(selectedOrder);
                           } else {
                             handleUpdateStatus(selectedOrder.id, s);
                           }
@@ -1302,6 +1362,109 @@ export default function CommandsPage() {
                   className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                 >
                   Close Command File
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Complete Order + Loyalty Points Modal ─────────────────────────── */}
+      <AnimatePresence>
+        {isCompleteModalOpen && orderToComplete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => updatingId !== orderToComplete.id && setIsCompleteModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-md bg-white rounded-[3rem] p-10 shadow-2xl border border-slate-100 relative z-10 space-y-7"
+            >
+              <div className="text-center space-y-4">
+                <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 mx-auto">
+                  <Gift size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-slate-800">Complete & Reward</h2>
+                  <p className="text-sm text-slate-400 font-medium">
+                    Order <span className="font-black text-slate-600">{shortId(orderToComplete.id)}</span> for{' '}
+                    <span className="font-bold text-slate-600">{orderToComplete.user?.fullName ?? 'the client'}</span>.
+                    How many loyalty points did they earn?
+                  </p>
+                </div>
+              </div>
+
+              {(orderToComplete.pointsAwarded ?? 0) > 0 ? (
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">
+                    {orderToComplete.pointsAwarded} points already granted for this order
+                  </p>
+                  <p className="text-[10px] font-bold text-amber-600/70 mt-1">
+                    Points can only be granted once. Use the Points page to adjust a balance.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <label className="block text-[9px] font-black uppercase text-slate-400 tracking-widest px-1">
+                    Points to grant
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    autoFocus
+                    value={pointsToAward}
+                    onChange={e => setPointsToAward(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') confirmCompletion(); }}
+                    placeholder="0"
+                    className="w-full px-5 py-4 bg-slate-50 border border-transparent focus:border-amber-200 rounded-2xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:bg-white transition-all font-black text-2xl text-center text-slate-800"
+                  />
+                  <div className="flex gap-2 justify-center">
+                    {[50, 100, 200, 500].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setPointsToAward(String(preset))}
+                        className="px-3 py-2 rounded-xl bg-slate-50 hover:bg-amber-50 hover:text-amber-600 text-slate-500 text-[10px] font-black transition-all cursor-pointer border border-slate-100"
+                      >
+                        +{preset}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 text-center leading-relaxed">
+                    Leave empty to complete the order without granting points.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setIsCompleteModalOpen(false)}
+                  disabled={updatingId === orderToComplete.id}
+                  className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmCompletion}
+                  disabled={updatingId === orderToComplete.id}
+                  className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-wider text-[10px] transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {updatingId === orderToComplete.id ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={14} />
+                      Complete Order
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>

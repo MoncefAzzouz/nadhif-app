@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar, Zap, CalendarCheck } from 'lucide-react';
+import { Layers, LayoutDashboard, ShoppingBag, Settings, LogOut, Menu, X, Sparkles, User, Bell, ClipboardList, Ticket, Sliders, BookOpen, Users, UserCheck, Calendar, Zap, CalendarCheck, Gift } from 'lucide-react';
 import { getToken, getUser, clearAuth, type ApiUser, ordersApi, adminAlertsApi, type ApiAdminAlert, subscriptionsApi } from '../lib/api';
 
 interface NavItem {
@@ -27,6 +27,7 @@ const navItems: NavItem[] = [
   { name: 'Cleaners', href: '/admin/cleaners', icon: UserCheck, disabled: false },
   { name: 'Compétences', href: '/admin/skills', icon: Sparkles, disabled: false },
   { name: 'Promo Codes', href: '/admin/promos', icon: Ticket, disabled: false },
+  { name: 'Points', href: '/admin/points', icon: Gift, disabled: false },
   { name: 'Notifications', href: '/admin/notifications', icon: Bell, disabled: false },
   { name: 'Slides', href: '/admin/slides', icon: Sliders, disabled: false },
   { name: 'Pages Manager', href: '/admin/pages', icon: BookOpen, disabled: false },
