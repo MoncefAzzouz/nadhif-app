@@ -24,10 +24,10 @@ export interface PointMovement {
   /** Signed: positive credits the customer, negative debits them. */
   amount: number;
   type: PointTransactionType;
+  /** Human-readable label: the service bought, or why an admin adjusted. */
   reason?: string;
   orderId?: string | null;
-  storeItemId?: string | null;
-  /** Admin who triggered it; null for customer-initiated redemptions. */
+  /** Admin who triggered it; null for customer-initiated purchases. */
   adminId?: string | null;
 }
 
@@ -44,7 +44,7 @@ export async function applyPointMovement(
   movement: PointMovement,
   client?: Prisma.TransactionClient,
 ): Promise<PointMovementResult> {
-  const { userId, amount, type, reason = '', orderId = null, storeItemId = null, adminId = null } = movement;
+  const { userId, amount, type, reason = '', orderId = null, adminId = null } = movement;
 
   if (!Number.isInteger(amount)) throw new PointsError('Points must be a whole number');
   if (amount === 0) throw new PointsError('Points movement cannot be zero');
@@ -69,7 +69,7 @@ export async function applyPointMovement(
     const balanceAfter = fresh?.points ?? 0;
 
     const transaction = await tx.pointTransaction.create({
-      data: { userId, amount, balanceAfter, type, reason, orderId, storeItemId, adminId },
+      data: { userId, amount, balanceAfter, type, reason, orderId, adminId },
     });
 
     return { balanceAfter, transactionId: transaction.id };

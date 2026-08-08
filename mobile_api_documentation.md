@@ -636,21 +636,23 @@ This file documents all the backend API endpoints for the mobile application.
 ## ── 9. Loyalty Points & Point Store ──
 
 Every client account carries a `points` balance. Points are granted by an admin
-when an order is marked **COMPLETED**, and can be spent on the rewards published
-in the point store. Spending a reward creates a **normal order** (status
-`PENDING`) that the team fulfils like any other — its `totalPrice` is `0` and the
-cost is carried by `pointsSpent`, so the app must display points, not dinars, for
-those orders.
+when an order is marked **COMPLETED**, and are spent in the point store.
+
+**The point store is the normal catalog priced in points.** The admin switches a
+service or a category into the store and gives every priced step a cost in
+points; the client then goes through the exact same booking steps as a paid
+order, except each step costs points instead of dinars. Buying produces a normal
+order (status `PENDING`) with `totalPrice: 0` and the cost carried by
+`pointsSpent` — so the app must display points, not dinars, for those orders.
 
 Order objects returned anywhere in the API now include these extra fields:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `paidWithPoints` | bool | `true` when the order came from the point store — show "X points" instead of the price |
+| `paidWithPoints` | bool | `true` when the order was bought with points — show "X points" instead of the price |
 | `pointsSpent` | int | Points debited for this order |
 | `pointsAwarded` | int | Points the admin granted when completing it (`0` = none yet) |
 | `pointsRefunded` | bool | `true` when a cancelled point order was refunded |
-| `pointStoreItemId` | string? | The redeemed reward |
 
 ### 9.1 Get My Balance & History
 *   **Method**: `GET`
@@ -666,11 +668,9 @@ Order objects returned anywhere in the API now include these extra fields:
           "amount": -300,
           "balanceAfter": 250,
           "type": "SPENT",
-          "reason": "Free deep clean",
+          "reason": "Grand Service — F3",
           "orderId": "order-uuid-9999",
-          "storeItemId": "item-uuid-1",
           "createdAt": "2026-08-08T10:04:00.000Z",
-          "storeItem": { "id": "item-uuid-1", "name": "Free deep clean", "nameAr": "", "nameFr": "" },
           "order": { "id": "order-uuid-9999", "scheduledDate": "2026-09-15T09:00:00.000Z", "status": "PENDING" }
         },
         {
@@ -680,56 +680,122 @@ Order objects returned anywhere in the API now include these extra fields:
           "type": "EARNED",
           "reason": "Order completed",
           "orderId": "order-uuid-8888",
-          "storeItemId": null,
           "createdAt": "2026-08-07T16:20:00.000Z"
         }
       ]
     }
     ```
-    `type` is one of `EARNED` (order completed), `SPENT` (reward redeemed),
+    `type` is one of `EARNED` (order completed), `SPENT` (bought with points),
     `REFUNDED` (point order cancelled), `ADJUSTED` (manual admin correction).
     `amount` is signed; `balanceAfter` is the balance right after that movement.
 
-### 9.2 Get the Point Store
+### 9.2 Get the Point Store (catalog priced in points)
 *   **Method**: `GET`
 *   **Path**: `/api/points/store`
 *   **Auth Required**: Yes
-*   **Notes**: only active rewards, cheapest first. Use `picture` when set,
-    otherwise fall back to `service.picture` / `category.picture`.
+*   **Notes**: Returns the same services and categories as `/api/services` and
+    `/api/categories`, but only those the admin published for points, and with
+    `pointCost` fields replacing the prices. Steps costing `0` points are removed,
+    and a service/category with no purchasable step is not returned at all. Render
+    it with the normal booking flow — only the currency label changes.
 *   **Response (200 OK)**:
     ```json
-    [
-      {
-        "id": "item-uuid-1",
-        "name": "Free deep clean",
-        "nameAr": "تنظيف عميق مجاني",
-        "nameFr": "Nettoyage profond offert",
-        "description": "",
-        "descriptionAr": "",
-        "descriptionFr": "",
-        "picture": "/uploads/reward.png",
-        "pointCost": 300,
-        "isActive": true,
-        "serviceId": "service-uuid-1",
-        "houseConfigId": "config-uuid-1",
-        "categoryId": null,
-        "categoryServiceId": null,
-        "service": { "id": "service-uuid-1", "name": "Grand Nettoyage", "nameAr": "", "nameFr": "", "picture": "/uploads/s1.jpg" },
-        "houseConfig": { "id": "config-uuid-1", "type": "F3", "typeAr": "", "typeFr": "", "workers": 2, "durationHours": 4 },
-        "category": null,
-        "categoryService": null
-      }
-    ]
+    {
+      "services": [
+        {
+          "id": "service-uuid-1",
+          "name": "Grand Service",
+          "nameAr": "الخدمة الكبرى",
+          "nameFr": "Grand Service",
+          "description": "...",
+          "picture": "/uploads/s1.jpg",
+          "durationHours": 4,
+          "details": null,
+          "extraWorkerPointCost": 40,
+          "rapidExtraWorkerPointCost": 60,
+          "materialPointCost": 30,
+          "materialsMandatory": false,
+          "localProductPointCost": 20,
+          "importedProductPointCost": 50,
+          "productsMandatory": false,
+          "houseConfigs": [
+            {
+              "id": "config-uuid-1",
+              "type": "F3",
+              "typeAr": "",
+              "typeFr": "",
+              "workers": 2,
+              "durationHours": 4,
+              "pointCost": 300,
+              "rapidPointCost": 400
+            }
+          ]
+        }
+      ],
+      "categories": [
+        {
+          "id": "category-uuid-1",
+          "name": "Carpet Cleaning",
+          "picture": "/uploads/c1.jpg",
+          "materialPointCost": 0,
+          "materialsMandatory": false,
+          "localProductPointCost": 0,
+          "importedProductPointCost": 0,
+          "productsMandatory": false,
+          "categoryServices": [
+            {
+              "id": "option-uuid-1",
+              "name": "Living room carpet",
+              "workers": 1,
+              "durationHours": 2,
+              "pointCost": 150,
+              "rapidPointCost": 220
+            }
+          ]
+        }
+      ]
+    }
     ```
 
-### 9.3 Redeem a Reward (spend points)
+### 9.3 Quote a Booking in Points (optional, before confirming)
+*   **Method**: `POST`
+*   **Path**: `/api/points/quote`
+*   **Auth Required**: Yes
+*   **Request Body**: the booking selection (same fields as the redeem call below,
+    without the date/address).
+    ```json
+    {
+      "serviceId": "service-uuid-1",
+      "houseConfigId": "config-uuid-1",
+      "extraWorkers": 1,
+      "useMaterials": true,
+      "productOrigin": "LOCAL",
+      "isRapid": false
+    }
+    ```
+*   **Response (200 OK)**:
+    ```json
+    { "pointCost": 390, "points": 550, "affordable": true, "label": "Grand Service — F3" }
+    ```
+    Use it to show the running total and to disable the confirm button when
+    `affordable` is `false`.
+
+### 9.4 Buy with Points
 *   **Method**: `POST`
 *   **Path**: `/api/points/redeem`
 *   **Auth Required**: Yes
-*   **Request Body**:
+*   **Request Body**: identical to `POST /api/orders` except there is no
+    `promoCode` — the same service/category selection, options and scheduling.
     ```json
     {
-      "storeItemId": "item-uuid-1",
+      "serviceId": "service-uuid-1",
+      "houseConfigId": "config-uuid-1",
+      "categoryId": null,
+      "categoryServiceId": null,
+      "extraWorkers": 1,
+      "useMaterials": true,
+      "productOrigin": "LOCAL",
+      "isRapid": false,
       "scheduledDate": "2026-09-15T09:00:00",
       "address": "123 Rue de la Liberté, Alger",
       "latitude": 36.7538,
@@ -739,10 +805,9 @@ Order objects returned anywhere in the API now include these extra fields:
       "housePictures": ["/uploads/img1.jpg"]
     }
     ```
-    `storeItemId`, `scheduledDate` and `address` are mandatory; the rest is
-    optional. The service/category comes from the reward, so the app does not
-    send it. Blackout days (`/api/pages/locked-days`) apply exactly like a normal
-    order.
+    The total is computed server-side exactly like the DZD total: base house
+    type/option + extra workers + materials + products, using the point costs.
+    Blackout days (`/api/pages/locked-days`) apply as usual.
 *   **Response (201 Created)**: the created order plus the customer's new balance.
     ```json
     {
@@ -751,23 +816,26 @@ Order objects returned anywhere in the API now include these extra fields:
         "status": "PENDING",
         "totalPrice": 0,
         "paidWithPoints": true,
-        "pointsSpent": 300,
-        "pointStoreItemId": "item-uuid-1",
+        "pointsSpent": 390,
         "scheduledDate": "2026-09-15T09:00:00.000Z",
         "address": "123 Rue de la Liberté, Alger"
       },
-      "points": 250
+      "points": 160
     }
     ```
 *   **Errors**:
     - `400 { "error": "Insufficient points" }` — balance too low (no order is created).
-    - `400 { "error": "Missing required fields: storeItemId, scheduledDate, address" }`
+    - `400 { "error": "This service cannot be bought with points" }` — not published for points.
+    - `400 { "error": "This option cannot be bought with points" }` — that step costs 0 points.
+    - `400 { "error": "Product origin selection is mandatory for this service" }`
     - `400 { "error": "Cette date est verrouillée..." }` — blackout day.
-    - `404 { "error": "This reward is not available" }` — unknown or disabled reward.
 
-### 9.4 Behaviour the app should implement
+### 9.5 Behaviour the app should implement
 *   Show the balance from `/api/points/me` on the profile/store screen; refresh it
-    after every redemption (the response already returns the new balance).
+    after every purchase (the redeem response already returns the new balance).
+*   In the point store, reuse the normal booking screens and replace every price
+    label with its `pointCost` (use `rapidPointCost` when the client picks the
+    express option).
 *   Cancelling a point-paid order (`PATCH /api/orders/:id/status` with
     `CANCELLED`, allowed while `PENDING` or `CALLED_NOT_PAID`) automatically
     gives the points back — refresh the balance afterwards.

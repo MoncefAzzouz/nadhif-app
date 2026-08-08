@@ -87,14 +87,24 @@ model Service {
   extraWorkerPrice      Float
   rapidExtraWorkerPrice Float     @default(0)
   durationHours         Int
-  
+
   materialPrice         Float
   materialsMandatory    Boolean
-  
+
   localProductPrice     Float
   importedProductPrice  Float
   productsMandatory     Boolean
-  
+
+  // ─── Point store ────────────────────────────────────────────────────────────
+  // When enabled, this service appears in the app's point store and every priced
+  // step below is charged in points instead of dinars.
+  pointStoreEnabled          Boolean @default(false)
+  extraWorkerPointCost       Int     @default(0)
+  rapidExtraWorkerPointCost  Int     @default(0)
+  materialPointCost          Int     @default(0)
+  localProductPointCost      Int     @default(0)
+  importedProductPointCost   Int     @default(0)
+
   isActive              Boolean   @default(true)
   createdAt             DateTime  @default(now())
 
@@ -104,7 +114,6 @@ model Service {
   houseConfigs          HouseConfig[]
   orders                Order[]
   skills                Skill[]
-  pointStoreItems       PointStoreItem[]
 }
 
 model HouseConfig {
@@ -118,9 +127,13 @@ model HouseConfig {
   rapidBasePrice Float   @default(0)
   durationHours Int       @default(3)
 
+  // Point price of this house type. 0 means it cannot be bought with points,
+  // even when the parent service is in the point store.
+  pointCost      Int      @default(0)
+  rapidPointCost Int      @default(0)
+
   service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   orders        Order[]
-  pointStoreItems PointStoreItem[]
 }
 
 model Category {
@@ -139,7 +152,13 @@ model Category {
   localProductPrice     Float               @default(0)
   importedProductPrice  Float               @default(0)
   productsMandatory     Boolean             @default(false)
-  
+
+  // ─── Point store ────────────────────────────────────────────────────────────
+  pointStoreEnabled        Boolean          @default(false)
+  materialPointCost        Int              @default(0)
+  localProductPointCost    Int              @default(0)
+  importedProductPointCost Int              @default(0)
+
   isActive              Boolean             @default(true)
   createdAt             DateTime            @default(now())
 
@@ -149,7 +168,6 @@ model Category {
   categoryServices      CategoryService[]
   orders                Order[]
   skills                Skill[]
-  pointStoreItems       PointStoreItem[]
 }
 
 model CategoryService {
@@ -163,9 +181,12 @@ model CategoryService {
   rapidBasePrice Float   @default(0)
   durationHours Int       @default(3)
 
+  // Point price of this option. 0 means it cannot be bought with points.
+  pointCost      Int      @default(0)
+  rapidPointCost Int      @default(0)
+
   category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orders        Order[]
-  pointStoreItems PointStoreItem[]
 }
 
 model Promo {
@@ -207,11 +228,10 @@ model Order {
   housePictures     String[]    @default([])
 
   // ─── Loyalty points ─────────────────────────────────────────────────────────
-  // Set when the order was redeemed from the point store instead of paid in DZD.
+  // Set when the order was bought from the point store instead of paid in DZD.
   // The admin UI shows `pointsSpent` in place of `totalPrice` for these orders.
   paidWithPoints    Boolean     @default(false)
   pointsSpent       Int         @default(0)
-  pointStoreItemId  String?
   // Points granted to the customer when the admin marked the order COMPLETED.
   // Non-zero means the award already happened — it can never be granted twice.
   pointsAwarded     Int         @default(0)
@@ -228,11 +248,9 @@ model Order {
   category          Category?   @relation(fields: [categoryId], references: [id])
   categoryService   CategoryService? @relation(fields: [categoryServiceId], references: [id])
   promo             Promo?      @relation(fields: [promoId], references: [id])
-  pointStoreItem    PointStoreItem?  @relation(fields: [pointStoreItemId], references: [id])
   pointTransactions PointTransaction[]
 
   @@index([userId])
-  @@index([pointStoreItemId])
 }
 
 // ─── LOYALTY POINTS ───────────────────────────────────────────────────────────
@@ -242,43 +260,6 @@ enum PointTransactionType {
   SPENT      // redeemed against a point store item
   REFUNDED   // given back because a point-paid order was cancelled
   ADJUSTED   // manual correction by an admin
-}
-
-// What a customer can buy with points. Each item points at a real service (with
-// its house config) or a category service, so redeeming it creates a normal
-// order the team fulfils exactly like a paid one.
-model PointStoreItem {
-  id                String   @id @default(uuid())
-  name              String
-  nameAr            String   @default("")
-  nameFr            String   @default("")
-  description       String   @default("")
-  descriptionAr     String   @default("")
-  descriptionFr     String   @default("")
-  picture           String   @default("")
-  pointCost         Int
-
-  serviceId         String?
-  houseConfigId     String?
-  categoryId        String?
-  categoryServiceId String?
-
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  service           Service?         @relation(fields: [serviceId], references: [id])
-  houseConfig       HouseConfig?     @relation(fields: [houseConfigId], references: [id])
-  category          Category?        @relation(fields: [categoryId], references: [id])
-  categoryService   CategoryService? @relation(fields: [categoryServiceId], references: [id])
-  orders            Order[]
-  transactions      PointTransaction[]
-
-  @@index([serviceId])
-  @@index([houseConfigId])
-  @@index([categoryId])
-  @@index([categoryServiceId])
-  @@index([isActive])
 }
 
 // Immutable ledger: one row per point movement, newest first in the UI.
@@ -291,20 +272,18 @@ model PointTransaction {
   // even if an older row is ever corrected.
   balanceAfter Int
   type         PointTransactionType
+  // Human-readable label, e.g. the service bought or why an admin adjusted.
   reason       String               @default("")
   orderId      String?
-  storeItemId  String?
-  // Admin who triggered it (null for customer-initiated redemptions).
+  // Admin who triggered it (null for customer-initiated purchases).
   adminId      String?
   createdAt    DateTime             @default(now())
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   order        Order?          @relation(fields: [orderId], references: [id])
-  storeItem    PointStoreItem? @relation(fields: [storeItemId], references: [id])
 
   @@index([userId])
   @@index([orderId])
-  @@index([storeItemId])
   @@index([createdAt])
 }
 

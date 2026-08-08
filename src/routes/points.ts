@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
 import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
-import { OrderStatus, PointTransactionType } from '@prisma/client';
+import { OrderStatus, ProductOrigin, PointTransactionType } from '@prisma/client';
 import { applyPointMovement, PointsError } from '../lib/points';
 import { handleOrderCreated } from '../lib/notificationsHelper';
 import { sendPushToUser } from '../lib/firebaseAdmin';
@@ -29,18 +29,18 @@ function fail(res: Response, err: unknown) {
   res.status(500).json({ error: 'Server error' });
 }
 
-// What a store item exposes to the app: enough to render a card and to know
-// which service the redeemed order will be for.
-const storeItemInclude = {
-  service: { select: { id: true, name: true, nameAr: true, nameFr: true, picture: true } },
-  houseConfig: { select: { id: true, type: true, typeAr: true, typeFr: true, workers: true, durationHours: true } },
-  category: { select: { id: true, name: true, nameAr: true, nameFr: true, picture: true } },
-  categoryService: { select: { id: true, name: true, nameAr: true, nameFr: true, workers: true, durationHours: true } },
-} as const;
+/** Whole, non-negative point value. Anything else is a client mistake. */
+function readPoints(value: unknown, label: string): number {
+  const num = Number(value ?? 0);
+  if (!Number.isInteger(num) || num < 0) {
+    throw new PointsError(`${label} must be a whole number of points (0 or more)`);
+  }
+  return num;
+}
 
 // ─── MOBILE: the signed-in customer ──────────────────────────────────────────
 
-// GET /api/points/me — balance + full history of the logged-in customer.
+// GET /api/points/me — balance + history of the logged-in customer.
 router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
@@ -62,10 +62,7 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: {
-        storeItem: { select: { id: true, name: true, nameAr: true, nameFr: true } },
-        order: { select: { id: true, scheduledDate: true, status: true } },
-      },
+      include: { order: { select: { id: true, scheduledDate: true, status: true } } },
     });
 
     res.json({ points: user.points, transactions });
@@ -74,24 +71,198 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// GET /api/points/store — items the customer can redeem right now.
+// GET /api/points/store — the catalog the customer can buy with points.
+// Same services and categories as the paid catalog, but every priced step is
+// returned in points. Only steps with a cost above zero are included, and a
+// service/category with no affordable step at all is left out entirely.
 router.get('/store', async (_req: AuthenticatedRequest, res: Response) => {
   try {
-    const items = await prisma.pointStoreItem.findMany({
-      where: { isActive: true },
-      orderBy: { pointCost: 'asc' },
-      include: storeItemInclude,
+    const [services, categories] = await Promise.all([
+      prisma.service.findMany({
+        where: { isActive: true, pointStoreEnabled: true },
+        include: { houseConfigs: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.category.findMany({
+        where: { isActive: true, pointStoreEnabled: true },
+        include: { categoryServices: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    res.json({
+      services: services
+        .map((service) => ({
+          id: service.id,
+          name: service.name,
+          nameAr: service.nameAr,
+          nameFr: service.nameFr,
+          description: service.description,
+          descriptionAr: service.descriptionAr,
+          descriptionFr: service.descriptionFr,
+          picture: service.picture,
+          durationHours: service.durationHours,
+          details: service.details,
+          extraWorkerPointCost: service.extraWorkerPointCost,
+          rapidExtraWorkerPointCost: service.rapidExtraWorkerPointCost,
+          materialPointCost: service.materialPointCost,
+          materialsMandatory: service.materialsMandatory,
+          localProductPointCost: service.localProductPointCost,
+          importedProductPointCost: service.importedProductPointCost,
+          productsMandatory: service.productsMandatory,
+          houseConfigs: service.houseConfigs
+            .filter((config) => config.pointCost > 0)
+            .map((config) => ({
+              id: config.id,
+              type: config.type,
+              typeAr: config.typeAr,
+              typeFr: config.typeFr,
+              workers: config.workers,
+              durationHours: config.durationHours,
+              pointCost: config.pointCost,
+              rapidPointCost: config.rapidPointCost,
+            })),
+        }))
+        .filter((service) => service.houseConfigs.length > 0),
+
+      categories: categories
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          nameAr: category.nameAr,
+          nameFr: category.nameFr,
+          description: category.description,
+          descriptionAr: category.descriptionAr,
+          descriptionFr: category.descriptionFr,
+          picture: category.picture,
+          details: category.details,
+          materialPointCost: category.materialPointCost,
+          materialsMandatory: category.materialsMandatory,
+          localProductPointCost: category.localProductPointCost,
+          importedProductPointCost: category.importedProductPointCost,
+          productsMandatory: category.productsMandatory,
+          categoryServices: category.categoryServices
+            .filter((option) => option.pointCost > 0)
+            .map((option) => ({
+              id: option.id,
+              name: option.name,
+              nameAr: option.nameAr,
+              nameFr: option.nameFr,
+              workers: option.workers,
+              durationHours: option.durationHours,
+              pointCost: option.pointCost,
+              rapidPointCost: option.rapidPointCost,
+            })),
+        }))
+        .filter((category) => category.categoryServices.length > 0),
     });
-    res.json(items);
   } catch (err) {
     fail(res, err);
   }
 });
 
-// POST /api/points/redeem — spend points on a store item.
-// Body: { storeItemId, scheduledDate, address, latitude?, longitude?, clientNote?, housePictures?, sizeM2? }
-// Creates a normal PENDING order flagged `paidWithPoints`, so the team fulfils
-// it exactly like a paid one and the admin list shows points instead of a price.
+/**
+ * Totals what a booking costs in points, mirroring the DZD calculation in
+ * `POST /api/orders` step for step: base + extra workers + materials + products.
+ */
+async function quotePoints(body: any) {
+  const {
+    serviceId, houseConfigId, categoryId, categoryServiceId,
+    extraWorkers, useMaterials, productOrigin, isRapid,
+  } = body;
+
+  const rapid = isRapid === true || isRapid === 'true';
+  const workersCount = extraWorkers ? parseInt(extraWorkers.toString()) : 0;
+  const origin = (productOrigin as ProductOrigin) || ProductOrigin.NONE;
+
+  let total = 0;
+  let materialsFlag = false;
+  let label = '';
+
+  if (serviceId && houseConfigId) {
+    const service = await prisma.service.findUnique({
+      where: { id: serviceId },
+      include: { houseConfigs: true },
+    });
+    if (!service) throw new PointsError('Service not found', 404);
+    if (!service.isActive || !service.pointStoreEnabled) {
+      throw new PointsError('This service cannot be bought with points', 400);
+    }
+
+    const config = service.houseConfigs.find((hc) => hc.id === houseConfigId);
+    if (!config) throw new PointsError('House config not found for this service', 404);
+
+    const base = rapid ? config.rapidPointCost : config.pointCost;
+    if (base <= 0) throw new PointsError('This option cannot be bought with points', 400);
+
+    materialsFlag = useMaterials === true || service.materialsMandatory;
+    if (service.productsMandatory && origin === ProductOrigin.NONE) {
+      throw new PointsError('Product origin selection is mandatory for this service');
+    }
+
+    total = base
+      + workersCount * (rapid ? service.rapidExtraWorkerPointCost : service.extraWorkerPointCost)
+      + (materialsFlag ? service.materialPointCost : 0)
+      + (origin === ProductOrigin.LOCAL ? service.localProductPointCost : 0)
+      + (origin === ProductOrigin.IMPORTED ? service.importedProductPointCost : 0);
+
+    label = `${service.name} — ${config.type}`;
+  } else if (categoryId && categoryServiceId) {
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: { categoryServices: true },
+    });
+    if (!category) throw new PointsError('Category not found', 404);
+    if (!category.isActive || !category.pointStoreEnabled) {
+      throw new PointsError('This category cannot be bought with points', 400);
+    }
+
+    const option = category.categoryServices.find((cs) => cs.id === categoryServiceId);
+    if (!option) throw new PointsError('Category service not found', 404);
+
+    const base = rapid ? option.rapidPointCost : option.pointCost;
+    if (base <= 0) throw new PointsError('This option cannot be bought with points', 400);
+
+    materialsFlag = useMaterials === true || category.materialsMandatory;
+    if (category.productsMandatory && origin === ProductOrigin.NONE) {
+      throw new PointsError('Product origin selection is mandatory for this category');
+    }
+
+    total = base
+      + (materialsFlag ? category.materialPointCost : 0)
+      + (origin === ProductOrigin.LOCAL ? category.localProductPointCost : 0)
+      + (origin === ProductOrigin.IMPORTED ? category.importedProductPointCost : 0);
+
+    label = `${category.name} — ${option.name}`;
+  } else {
+    throw new PointsError('Pick a service with its house type, or a category with its option');
+  }
+
+  return { total, materialsFlag, origin, workersCount, rapid, label };
+}
+
+// POST /api/points/quote — what would this booking cost in points?
+// Lets the app show the total before the customer confirms.
+router.post('/quote', async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.userId;
+  try {
+    const quote = await quotePoints(req.body);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { points: true } });
+    const balance = user?.points ?? 0;
+    res.json({
+      pointCost: quote.total,
+      points: balance,
+      affordable: balance >= quote.total,
+      label: quote.label,
+    });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// POST /api/points/redeem — buy a booking with points.
+// Body is the same as POST /api/orders (minus promoCode), because the customer
+// goes through the very same steps; only the currency changes.
 router.post('/redeem', async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
@@ -99,21 +270,20 @@ router.post('/redeem', async (req: AuthenticatedRequest, res: Response) => {
     return;
   }
 
-  const { storeItemId, scheduledDate, address, latitude, longitude, clientNote, housePictures, sizeM2 } = req.body;
+  const {
+    serviceId, houseConfigId, categoryId, categoryServiceId,
+    scheduledDate, address, latitude, longitude, sizeM2, clientNote, housePictures, isRapid,
+  } = req.body;
 
-  if (!storeItemId || !scheduledDate || !address) {
-    res.status(400).json({ error: 'Missing required fields: storeItemId, scheduledDate, address' });
+  if (!scheduledDate || !address) {
+    res.status(400).json({ error: 'Missing required fields: scheduledDate, address' });
     return;
   }
 
   try {
-    const item = await prisma.pointStoreItem.findUnique({ where: { id: storeItemId } });
-    if (!item || !item.isActive) {
-      res.status(404).json({ error: 'This reward is not available' });
-      return;
-    }
+    const quote = await quotePoints(req.body);
 
-    // Same locked-day rule as a normal order.
+    // Same blackout-day rule as a normal order.
     const scheduled = parseLocalDate(scheduledDate);
     const offset = scheduled.getTimezoneOffset();
     const localDate = new Date(scheduled.getTime() - offset * 60 * 1000);
@@ -125,22 +295,25 @@ router.post('/redeem', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // The debit and the order are written together: if the balance is too low
-    // the whole thing rolls back and no order is left behind.
+    // The debit and the order commit together: if the balance is too low the
+    // whole thing rolls back and no order is left behind.
     const { order, balanceAfter } = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
           userId,
-          serviceId: item.serviceId,
-          houseConfigId: item.houseConfigId,
-          categoryId: item.categoryId,
-          categoryServiceId: item.categoryServiceId,
+          serviceId: serviceId || null,
+          houseConfigId: houseConfigId || null,
+          categoryId: categoryId || null,
+          categoryServiceId: categoryServiceId || null,
+          extraWorkers: quote.workersCount,
+          useMaterials: quote.materialsFlag,
+          productOrigin: quote.origin,
           totalPrice: 0,
           paidWithPoints: true,
-          pointsSpent: item.pointCost,
-          pointStoreItemId: item.id,
+          pointsSpent: quote.total,
           scheduledDate: scheduled,
           address,
+          isRapid: quote.rapid,
           latitude: latitude ? parseFloat(latitude.toString()) : null,
           longitude: longitude ? parseFloat(longitude.toString()) : null,
           sizeM2: sizeM2 ? parseFloat(sizeM2.toString()) : null,
@@ -148,17 +321,16 @@ router.post('/redeem', async (req: AuthenticatedRequest, res: Response) => {
           housePictures: Array.isArray(housePictures) ? housePictures : [],
           status: OrderStatus.PENDING,
         },
-        include: { service: true, houseConfig: true, category: true, categoryService: true, pointStoreItem: true },
+        include: { service: true, houseConfig: true, category: true, categoryService: true },
       });
 
       const movement = await applyPointMovement(
         {
           userId,
-          amount: -item.pointCost,
+          amount: -quote.total,
           type: PointTransactionType.SPENT,
-          reason: item.name,
+          reason: quote.label,
           orderId: created.id,
-          storeItemId: item.id,
         },
         tx,
       );
@@ -174,98 +346,148 @@ router.post('/redeem', async (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// ─── ADMIN: point store management ───────────────────────────────────────────
+// ─── ADMIN: point pricing of the catalog ─────────────────────────────────────
 
-// GET /api/points/store/all — every item, including the disabled ones.
+// GET /api/points/store/all — the whole catalog with its point costs, including
+// the services and categories that are not in the store yet.
 router.get('/store/all', requireAdmin as any, async (_req: AuthenticatedRequest, res: Response) => {
   try {
-    const items = await prisma.pointStoreItem.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { ...storeItemInclude, _count: { select: { orders: true } } },
-    });
-    res.json(items);
+    const [services, categories] = await Promise.all([
+      prisma.service.findMany({
+        include: { houseConfigs: { orderBy: { basePrice: 'asc' } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.category.findMany({
+        include: { categoryServices: { orderBy: { basePrice: 'asc' } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+    res.json({ services, categories });
   } catch (err) {
     fail(res, err);
   }
 });
 
-function readStoreItemBody(body: any) {
-  const pointCost = Number(body.pointCost);
-  if (!body.name || !String(body.name).trim()) throw new PointsError('Name is required');
-  if (!Number.isInteger(pointCost) || pointCost <= 0) throw new PointsError('Point cost must be a whole number above zero');
-
-  const serviceId = body.serviceId || null;
-  const houseConfigId = body.houseConfigId || null;
-  const categoryId = body.categoryId || null;
-  const categoryServiceId = body.categoryServiceId || null;
-
-  // An item must resolve to something the team can actually perform.
-  const isService = Boolean(serviceId && houseConfigId);
-  const isCategory = Boolean(categoryId && categoryServiceId);
-  if (!isService && !isCategory) {
-    throw new PointsError('Pick a service with its house type, or a category with its service');
-  }
-  if (isService && isCategory) {
-    throw new PointsError('Pick either a service or a category, not both');
-  }
-
-  return {
-    name: String(body.name).trim(),
-    nameAr: body.nameAr ?? '',
-    nameFr: body.nameFr ?? '',
-    description: body.description ?? '',
-    descriptionAr: body.descriptionAr ?? '',
-    descriptionFr: body.descriptionFr ?? '',
-    picture: body.picture ?? '',
-    pointCost,
-    serviceId: isService ? serviceId : null,
-    houseConfigId: isService ? houseConfigId : null,
-    categoryId: isCategory ? categoryId : null,
-    categoryServiceId: isCategory ? categoryServiceId : null,
-    isActive: body.isActive === undefined ? true : Boolean(body.isActive),
-  };
-}
-
-// POST /api/points/store — create an item.
-router.post('/store', requireAdmin as any, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const item = await prisma.pointStoreItem.create({
-      data: readStoreItemBody(req.body),
-      include: storeItemInclude,
-    });
-    res.status(201).json(item);
-  } catch (err) {
-    fail(res, err);
-  }
-});
-
-// PUT /api/points/store/:id — update an item.
-router.put('/store/:id', requireAdmin as any, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const item = await prisma.pointStoreItem.update({
-      where: { id: req.params.id as string },
-      data: readStoreItemBody(req.body),
-      include: storeItemInclude,
-    });
-    res.json(item);
-  } catch (err) {
-    fail(res, err);
-  }
-});
-
-// DELETE /api/points/store/:id — remove an item. Items already redeemed are
-// disabled instead of deleted so past orders keep pointing at something.
-router.delete('/store/:id', requireAdmin as any, async (req: AuthenticatedRequest, res: Response) => {
+// PUT /api/points/store/services/:id — toggle a service into the point store and
+// set the point cost of each of its steps. Prices in DZD are never touched here.
+router.put('/store/services/:id', requireAdmin as any, async (req: AuthenticatedRequest, res: Response) => {
   const id = req.params.id as string;
+  const { pointStoreEnabled, houseConfigs } = req.body;
+
   try {
-    const usage = await prisma.order.count({ where: { pointStoreItemId: id } });
-    if (usage > 0) {
-      const item = await prisma.pointStoreItem.update({ where: { id }, data: { isActive: false } });
-      res.json({ success: true, deactivated: true, item });
+    const service = await prisma.service.findUnique({ where: { id }, include: { houseConfigs: true } });
+    if (!service) {
+      res.status(404).json({ error: 'Service not found' });
       return;
     }
-    await prisma.pointStoreItem.delete({ where: { id } });
-    res.json({ success: true, deactivated: false });
+
+    const configUpdates: { id: string; pointCost: number; rapidPointCost: number }[] = [];
+    if (Array.isArray(houseConfigs)) {
+      for (const row of houseConfigs) {
+        if (!service.houseConfigs.some((hc) => hc.id === row.id)) {
+          throw new PointsError('A house type does not belong to this service');
+        }
+        configUpdates.push({
+          id: row.id,
+          pointCost: readPoints(row.pointCost, 'House type point cost'),
+          rapidPointCost: readPoints(row.rapidPointCost, 'Rapid point cost'),
+        });
+      }
+    }
+
+    const data = {
+      ...(pointStoreEnabled !== undefined && { pointStoreEnabled: Boolean(pointStoreEnabled) }),
+      ...(req.body.extraWorkerPointCost !== undefined && {
+        extraWorkerPointCost: readPoints(req.body.extraWorkerPointCost, 'Extra worker point cost'),
+      }),
+      ...(req.body.rapidExtraWorkerPointCost !== undefined && {
+        rapidExtraWorkerPointCost: readPoints(req.body.rapidExtraWorkerPointCost, 'Rapid extra worker point cost'),
+      }),
+      ...(req.body.materialPointCost !== undefined && {
+        materialPointCost: readPoints(req.body.materialPointCost, 'Materials point cost'),
+      }),
+      ...(req.body.localProductPointCost !== undefined && {
+        localProductPointCost: readPoints(req.body.localProductPointCost, 'Local products point cost'),
+      }),
+      ...(req.body.importedProductPointCost !== undefined && {
+        importedProductPointCost: readPoints(req.body.importedProductPointCost, 'Imported products point cost'),
+      }),
+    };
+
+    const updated = await prisma.$transaction(async (tx) => {
+      for (const row of configUpdates) {
+        await tx.houseConfig.update({
+          where: { id: row.id },
+          data: { pointCost: row.pointCost, rapidPointCost: row.rapidPointCost },
+        });
+      }
+      return tx.service.update({
+        where: { id },
+        data,
+        include: { houseConfigs: { orderBy: { basePrice: 'asc' } } },
+      });
+    });
+
+    res.json(updated);
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// PUT /api/points/store/categories/:id — same for a category and its options.
+router.put('/store/categories/:id', requireAdmin as any, async (req: AuthenticatedRequest, res: Response) => {
+  const id = req.params.id as string;
+  const { pointStoreEnabled, categoryServices } = req.body;
+
+  try {
+    const category = await prisma.category.findUnique({ where: { id }, include: { categoryServices: true } });
+    if (!category) {
+      res.status(404).json({ error: 'Category not found' });
+      return;
+    }
+
+    const optionUpdates: { id: string; pointCost: number; rapidPointCost: number }[] = [];
+    if (Array.isArray(categoryServices)) {
+      for (const row of categoryServices) {
+        if (!category.categoryServices.some((cs) => cs.id === row.id)) {
+          throw new PointsError('An option does not belong to this category');
+        }
+        optionUpdates.push({
+          id: row.id,
+          pointCost: readPoints(row.pointCost, 'Option point cost'),
+          rapidPointCost: readPoints(row.rapidPointCost, 'Rapid point cost'),
+        });
+      }
+    }
+
+    const data = {
+      ...(pointStoreEnabled !== undefined && { pointStoreEnabled: Boolean(pointStoreEnabled) }),
+      ...(req.body.materialPointCost !== undefined && {
+        materialPointCost: readPoints(req.body.materialPointCost, 'Materials point cost'),
+      }),
+      ...(req.body.localProductPointCost !== undefined && {
+        localProductPointCost: readPoints(req.body.localProductPointCost, 'Local products point cost'),
+      }),
+      ...(req.body.importedProductPointCost !== undefined && {
+        importedProductPointCost: readPoints(req.body.importedProductPointCost, 'Imported products point cost'),
+      }),
+    };
+
+    const updated = await prisma.$transaction(async (tx) => {
+      for (const row of optionUpdates) {
+        await tx.categoryService.update({
+          where: { id: row.id },
+          data: { pointCost: row.pointCost, rapidPointCost: row.rapidPointCost },
+        });
+      }
+      return tx.category.update({
+        where: { id },
+        data,
+        include: { categoryServices: { orderBy: { basePrice: 'asc' } } },
+      });
+    });
+
+    res.json(updated);
   } catch (err) {
     fail(res, err);
   }
@@ -282,7 +504,6 @@ router.get('/clients', requireAdmin as any, async (_req: AuthenticatedRequest, r
       orderBy: { points: 'desc' },
     });
 
-    // Lifetime earned/spent per customer, in one grouped query.
     const earned = await prisma.pointTransaction.groupBy({
       by: ['userId'],
       where: { amount: { gt: 0 } },
@@ -318,7 +539,6 @@ router.get('/transactions', requireAdmin as any, async (req: AuthenticatedReques
       take,
       include: {
         user: { select: { id: true, fullName: true, phone: true } },
-        storeItem: { select: { id: true, name: true } },
         order: { select: { id: true, status: true, scheduledDate: true } },
       },
     });
@@ -344,10 +564,7 @@ router.get('/clients/:userId', requireAdmin as any, async (req: AuthenticatedReq
     const transactions = await prisma.pointTransaction.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      include: {
-        storeItem: { select: { id: true, name: true } },
-        order: { select: { id: true, status: true, scheduledDate: true, totalPrice: true } },
-      },
+      include: { order: { select: { id: true, status: true, scheduledDate: true, totalPrice: true } } },
     });
 
     res.json({ user, transactions });
@@ -372,7 +589,6 @@ router.post('/clients/:userId/adjust', requireAdmin as any, async (req: Authenti
       adminId: req.user?.userId ?? null,
     });
 
-    // Tell the customer their balance moved.
     void sendPushToUser(userId, {
       title: amount > 0 ? 'Points added' : 'Points updated',
       body: amount > 0
