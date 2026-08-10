@@ -43,10 +43,28 @@ async function getAdminEmails(): Promise<string[]> {
   return Array.from(recipients.values());
 }
 
-/** Sends one internal notification to each configured admin mailbox. */
-async function sendToAdmins(subject: string, html: string) {
+/**
+ * Sends the internal (admin) copy of an event.
+ *
+ * Every event produces two different emails: a customer-facing one and this
+ * internal one, which exposes the client's phone/address and carries the
+ * "Panel Admin" button. `customerEmail` is the address that already received the
+ * customer copy, and it is removed from the recipients here — otherwise a client
+ * whose address is also an admin mailbox (the owner booking with the same Gmail
+ * as ADMIN_EMAIL, or a client account holding the ADMIN role) would receive the
+ * internal version of their own order and see an admin panel link.
+ */
+async function sendToAdmins(subject: string, html: string, customerEmail?: string | null) {
   const recipients = await getAdminEmails();
+  const skip = customerEmail?.trim().toLowerCase();
+
   for (const email of recipients) {
+    if (skip && email.toLowerCase() === skip) {
+      console.log(
+        `✉️ Admin copy of "${subject}" withheld from ${email}: that address is the customer of this order.`,
+      );
+      continue;
+    }
     await sendEmail({ to: email, subject, html });
   }
 }
@@ -138,7 +156,7 @@ export async function handleOrderCreated(orderId: string) {
         <p><a href="${adminPortalUrl}/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Voir dans le Panel Admin</a></p>
       </div>
     `;
-    await sendToAdmins(adminSubject, adminHtml);
+    await sendToAdmins(adminSubject, adminHtml, userEmail);
 
     // Log admin in-app notification alert
     await createAdminAlert(
@@ -216,7 +234,7 @@ export async function handleSubscriptionCreated(subscriptionId: string) {
         <p><a href="${adminPortalUrl}/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer dans le Panel Admin</a></p>
       </div>
     `;
-    await sendToAdmins(adminSubject, adminHtml);
+    await sendToAdmins(adminSubject, adminHtml, userEmail);
 
     // Log admin in-app notification alert
     await createAdminAlert(
@@ -283,7 +301,7 @@ export async function handleOrderStatusChanged(orderId: string, oldStatus: strin
         <p><a href="${adminPortalUrl}/admin/commands" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer la commande</a></p>
       </div>
     `;
-    await sendToAdmins(adminSubject, adminHtml);
+    await sendToAdmins(adminSubject, adminHtml, userEmail);
 
     // Log admin alert
     await createAdminAlert(
@@ -357,7 +375,7 @@ export async function handleSubscriptionStatusChanged(subscriptionId: string, ol
         <p><a href="${adminPortalUrl}/admin/subscriptions" style="background-color: #0ea5e9; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Gérer l'abonnement</a></p>
       </div>
     `;
-    await sendToAdmins(adminSubject, adminHtml);
+    await sendToAdmins(adminSubject, adminHtml, userEmail);
 
     // Log admin alert
     await createAdminAlert(
