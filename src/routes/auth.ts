@@ -3,7 +3,14 @@ import prisma from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import {
+  authenticateToken,
+  requireAccount,
+  isGuest,
+  GUEST_ROLE,
+  GUEST_USER_ID,
+  AuthenticatedRequest,
+} from '../middlewares/auth';
 import { sendEmail } from '../lib/email';
 
 const router = Router();
@@ -199,11 +206,50 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   }
 });
 
+// ─── Guest session ───────────────────────────────────────────────────────────
+// Lets the app open without signing up: the token it returns unlocks the
+// browse-only endpoints (catalogue, point store, availability) and is refused by
+// every route that would create or change something. Nothing is written to the
+// database, so a guest leaves no trace and no account to clean up.
+router.post('/guest', async (_req: Request, res: Response) => {
+  const token = jwt.sign(
+    { userId: GUEST_USER_ID, role: GUEST_ROLE },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '30d' },
+  );
+
+  res.json({
+    token,
+    user: {
+      id: GUEST_USER_ID,
+      email: '',
+      phone: '',
+      fullName: 'Guest',
+      role: GUEST_ROLE,
+      isGuest: true,
+    },
+  });
+});
+
 // Current authenticated user
 router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });
+    return;
+  }
+
+  // A guest has no row to read; hand back the same shape so the app can render
+  // its profile screen and decide to show the "sign up" call to action.
+  if (isGuest(req)) {
+    res.json({
+      id: GUEST_USER_ID,
+      email: '',
+      phone: '',
+      fullName: 'Guest',
+      role: GUEST_ROLE,
+      isGuest: true,
+    });
     return;
   }
 
@@ -221,7 +267,7 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Resp
 });
 
 // Update own profile (mobile client)
-router.put('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/me', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });
@@ -260,7 +306,7 @@ router.put('/me', authenticateToken, async (req: AuthenticatedRequest, res: Resp
 });
 
 // Delete self account (mobile client)
-router.delete('/delete-account', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/delete-account', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });

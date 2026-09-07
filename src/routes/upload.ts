@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { authenticateToken, requireAccount, AuthenticatedRequest } from '../middlewares/auth';
 
 const router = Router();
 
@@ -27,7 +27,7 @@ const upload = multer({
 });
 
 // POST /api/upload — multipart field "file"; returns { url: "/uploads/<name>" }
-router.post('/', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticateToken, requireAccount, (req: AuthenticatedRequest, res: Response) => {
   upload.single('file')(req as any, res as any, (err: any) => {
     if (err) {
       res.status(400).json({ error: err.message || 'Upload failed' });

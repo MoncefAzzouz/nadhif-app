@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
-import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { authenticateToken, requireAccount, AuthenticatedRequest } from '../middlewares/auth';
 import { sendPushToTokens } from '../lib/firebaseAdmin';
 
 const router = Router();
@@ -69,7 +69,7 @@ router.post('/broadcast', authenticateToken, async (req: AuthenticatedRequest, r
 });
 
 // Register (or refresh) the current device's FCM token for the logged-in user.
-router.post('/token', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/token', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   const { token, platform } = req.body as { token?: string; platform?: string };
 
@@ -98,7 +98,7 @@ router.post('/token', authenticateToken, async (req: AuthenticatedRequest, res: 
 });
 
 // Remove a device token (e.g. on logout).
-router.delete('/token', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/token', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   const { token } = req.body as { token?: string };
 

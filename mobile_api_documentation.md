@@ -843,3 +843,82 @@ Order objects returned anywhere in the API now include these extra fields:
     `pointsSpent` + "points" where the price normally goes.
 *   A push notification of type `points_adjusted` is sent when an admin changes a
     balance by hand; `data.amount` carries the signed movement.
+
+---
+
+## ── 10. Guest Mode (browse without an account) ──
+
+The app can open a **guest session**: the user sees the whole catalogue — services,
+categories, slides, subscription formulas, the point store, availability — but is
+stopped at the moment of committing: no order, no subscription, no redemption.
+
+Nothing is written to the database for a guest: the token is signed but has no
+user row behind it, so there is no account to clean up and no guest data to
+delete. `userId` inside the token is the literal string `guest`.
+
+### 10.1 Start a Guest Session
+*   **Method**: `POST`
+*   **Path**: `/api/auth/guest`
+*   **Auth Required**: No
+*   **Request Body**: none
+*   **Response (200 OK)**:
+    ```json
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "user": {
+        "id": "guest",
+        "email": "",
+        "phone": "",
+        "fullName": "Guest",
+        "role": "GUEST",
+        "isGuest": true
+      }
+    }
+    ```
+    Store the token exactly like a normal login token and send it as
+    `Authorization: Bearer <token>` on every call. It is valid for 30 days.
+    Use `user.isGuest` (or `role === "GUEST"`) to decide whether to show
+    "Sign up to book" instead of the confirm button.
+
+### 10.2 What a Guest May Call
+| Endpoint | Behaviour for a guest |
+| --- | --- |
+| `GET /api/services`, `/api/categories`, `/api/slides`, `/api/pages/*` | Public — unchanged |
+| `GET /api/subscriptions/property-types` | Full list |
+| `GET /api/subscriptions/service-tiers` | Full list |
+| `GET /api/points/store` | Full point store |
+| `POST /api/points/quote` | Returns `pointCost`, with `points: 0` and `affordable: false` |
+| `GET /api/orders/availability` | Works, so the date picker is usable |
+| `GET /api/auth/me` | `{ "id": "guest", "fullName": "Guest", "role": "GUEST", "isGuest": true }` |
+| `GET /api/points/me` | `{ "points": 0, "transactions": [], "isGuest": true }` |
+| `GET /api/orders` | `[]` |
+| `GET /api/subscriptions` | `[]` |
+| `GET /api/promos/:code` | Works (discount preview) |
+
+The list endpoints answer with an empty array rather than an error, so "My
+orders" and "My points" screens render their normal empty state.
+
+### 10.3 What a Guest May NOT Call
+These return **403** with a machine-readable code:
+
+```json
+{ "error": "Create an account or sign in to continue", "code": "GUEST_ACCOUNT_REQUIRED" }
+```
+
+| Endpoint | |
+| --- | --- |
+| `POST /api/orders` | placing an order — the last step |
+| `PATCH /api/orders/:id/status`, `PUT /api/orders/:id`, `DELETE /api/orders/:id` | |
+| `POST /api/subscriptions` | requesting a subscription |
+| `POST /api/points/redeem` | buying with points |
+| `PUT /api/auth/me`, `DELETE /api/auth/delete-account` | |
+| `POST /api/notifications/token`, `DELETE /api/notifications/token` | |
+| `POST /api/upload` | |
+| every `/api/admin/*` route | (403 as for any non-admin) |
+
+**Recommended handling**: let the guest walk the entire booking flow and only
+intercept the final confirm button — either check `isGuest` locally, or send the
+request and catch `code === "GUEST_ACCOUNT_REQUIRED"`, then push the sign-up
+screen. After a real signup/login (`/api/auth/register-phone`, `/verify-otp`,
+`/login`) replace the stored token and re-send the same booking payload; nothing
+else in the flow changes.

@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
-import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { authenticateToken, requireAccount, isGuest, AuthenticatedRequest } from '../middlewares/auth';
 import { OrderStatus, ProductOrigin, PointTransactionType } from '@prisma/client';
 import { applyPointMovement, PointsError } from '../lib/points';
 import { handleOrderCreated } from '../lib/notificationsHelper';
@@ -45,6 +45,12 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });
+    return;
+  }
+
+  // A guest earns nothing and owns no history, but the screen still has to draw.
+  if (isGuest(req)) {
+    res.json({ points: 0, transactions: [], isGuest: true });
     return;
   }
 
@@ -247,7 +253,9 @@ router.post('/quote', async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   try {
     const quote = await quotePoints(req.body);
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { points: true } });
+    const user = isGuest(req)
+      ? null
+      : await prisma.user.findUnique({ where: { id: userId }, select: { points: true } });
     const balance = user?.points ?? 0;
     res.json({
       pointCost: quote.total,
@@ -263,7 +271,7 @@ router.post('/quote', async (req: AuthenticatedRequest, res: Response) => {
 // POST /api/points/redeem — buy a booking with points.
 // Body is the same as POST /api/orders (minus promoCode), because the customer
 // goes through the very same steps; only the currency changes.
-router.post('/redeem', async (req: AuthenticatedRequest, res: Response) => {
+router.post('/redeem', requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });

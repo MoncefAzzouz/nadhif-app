@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
-import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { authenticateToken, requireAccount, isGuest, AuthenticatedRequest } from '../middlewares/auth';
 import { SubscriptionStatus } from '@prisma/client';
 import { sendPushToUser } from '../lib/firebaseAdmin';
 import { handleSubscriptionCreated, handleSubscriptionStatusChanged } from '../lib/notificationsHelper';
@@ -194,7 +194,7 @@ router.delete('/service-tiers/:id', authenticateToken, async (req: Authenticated
 });
 
 // ─── CREATE SUBSCRIPTION (Mobile client or Admin) ────────────────────────────
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   const role = req.user?.role;
 
@@ -265,6 +265,11 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
 
 // ─── GET ALL SUBSCRIPTIONS ───────────────────────────────────────────────────
 router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  // A guest owns no subscriptions — empty list instead of an error.
+  if (isGuest(req)) {
+    res.json([]);
+    return;
+  }
   const userId = req.user?.userId;
   const role = req.user?.role;
 

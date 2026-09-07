@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import prisma from '../lib/prisma';
-import { authenticateToken, AuthenticatedRequest } from '../middlewares/auth';
+import { authenticateToken, requireAccount, isGuest, AuthenticatedRequest } from '../middlewares/auth';
 import { ProductOrigin, OrderStatus } from '@prisma/client';
 import { sendPushToUser } from '../lib/firebaseAdmin';
 import { handleOrderCreated, handleOrderStatusChanged } from '../lib/notificationsHelper';
@@ -38,7 +38,7 @@ function notifyOrderStatus(userId: string, orderId: string, status: string) {
 }
 
 // Create new order
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });
@@ -234,6 +234,13 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Respo
 router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   const role = req.user?.role;
+
+  // A guest owns no orders — return an empty history rather than an error so
+  // the app can render its empty state.
+  if (isGuest(req)) {
+    res.json([]);
+    return;
+  }
 
   if (!userId) {
     res.status(401).json({ error: 'User unauthorized' });
@@ -482,7 +489,7 @@ router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
 });
 
 // Update order status (ADMIN can update anything, CUSTOMER can cancel if PENDING)
-router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.patch('/:id/status', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.userId;
   const role = req.user?.role;
   const id = req.params.id as string;
@@ -583,7 +590,7 @@ router.patch('/:id/status', authenticateToken, async (req: AuthenticatedRequest,
 });
 
 // Update an order (ADMIN only)
-router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const role = req.user?.role;
   const id = req.params.id as string;
 
@@ -667,7 +674,7 @@ router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Res
 });
 
 // Delete an order (ADMIN only)
-router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', authenticateToken, requireAccount, async (req: AuthenticatedRequest, res: Response) => {
   const role = req.user?.role;
   const id = req.params.id as string;
 
