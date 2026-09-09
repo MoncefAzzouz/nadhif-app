@@ -181,5 +181,19 @@
   "failedPickImage": "فشل اختيار الصورة",
   "onConfirmation": "عند التأكيد",
   "photos": "الصور",
-  "noCleanersAvailable": "لا يوجد أي عامل تنظيف متاح في هذا اليوم. يرجى اختيار تاريخ آخر."
+  "noCleanersAvailable": "لا يوجد أي عامل تنظيف متاح في هذا اليوم. يرجى اختيار تاريخ آخر.",
+  "authConnectTitle": "تسجيل الدخول إلى حسابك",
+  "authCreateTitle": "إنشاء حسابك",
+  "authConnectSubtitle": "استخدم بريدك الإلكتروني وكلمة المرور للاستمرار.",
+  "authCreateSubtitle": "استخدم بريدك الإلكتروني وكلمة المرور لإنشاء حساب عميل.",
+  "authFullNameLabel": "الاسم الكامل",
+  "authEmailLabel": "البريد الإلكتروني",
+  "authPhoneLabel": "رقم الهاتف",
+  "authPasswordLabel": "كلمة المرور",
+  "authForgotPassword": "نسيت كلمة المرور؟",
+  "authContinueButton": "استمرار",
+  "authCreateAccountButton": "إنشاء حساب",
+  "authToggleToSignIn": "لديك حساب بالفعل؟ سجّل الدخول",
+  "authToggleToSignUp": "عميل جديد؟ أنشئ حسابًا",
+  "authContinueAsGuest": "استمر في التصفح كزائر"
 }

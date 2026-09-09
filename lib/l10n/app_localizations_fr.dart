@@ -586,4 +586,48 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get noCleanersAvailable =>
       'Aucun agent disponible à cette date. Veuillez choisir un autre jour.';
+
+  @override
+  String get authConnectTitle => 'Connectez-vous à votre compte';
+
+  @override
+  String get authCreateTitle => 'Créez votre compte';
+
+  @override
+  String get authConnectSubtitle =>
+      'Utilisez votre e-mail et votre mot de passe pour continuer.';
+
+  @override
+  String get authCreateSubtitle =>
+      'Utilisez votre e-mail et votre mot de passe pour créer un compte client.';
+
+  @override
+  String get authFullNameLabel => 'Nom complet';
+
+  @override
+  String get authEmailLabel => 'E-mail';
+
+  @override
+  String get authPhoneLabel => 'Numéro de téléphone';
+
+  @override
+  String get authPasswordLabel => 'Mot de passe';
+
+  @override
+  String get authForgotPassword => 'Mot de passe oublié ?';
+
+  @override
+  String get authContinueButton => 'Continuer';
+
+  @override
+  String get authCreateAccountButton => 'Créer un compte';
+
+  @override
+  String get authToggleToSignIn => 'Vous avez déjà un compte ? Connectez-vous';
+
+  @override
+  String get authToggleToSignUp => 'Nouveau client ? Créez un compte';
+
+  @override
+  String get authContinueAsGuest => 'Continuer à naviguer en tant qu\'invité';
 }

@@ -863,14 +863,18 @@ class _ServiceGridTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            service.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: ColorApp.textBlack,
-              height: 1,
+          Flexible(
+            child: Text(
+              service.name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: ColorApp.textBlack,
+                height: 1,
+              ),
             ),
           ),
         ],

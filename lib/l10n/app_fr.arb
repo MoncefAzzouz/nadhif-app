@@ -181,5 +181,19 @@
   "failedPickImage": "Échec du chargement de l'image",
   "onConfirmation": "À la confirmation",
   "photos": "Photos",
-  "noCleanersAvailable": "Aucun agent disponible à cette date. Veuillez choisir un autre jour."
+  "noCleanersAvailable": "Aucun agent disponible à cette date. Veuillez choisir un autre jour.",
+  "authConnectTitle": "Connectez-vous à votre compte",
+  "authCreateTitle": "Créez votre compte",
+  "authConnectSubtitle": "Utilisez votre e-mail et votre mot de passe pour continuer.",
+  "authCreateSubtitle": "Utilisez votre e-mail et votre mot de passe pour créer un compte client.",
+  "authFullNameLabel": "Nom complet",
+  "authEmailLabel": "E-mail",
+  "authPhoneLabel": "Numéro de téléphone",
+  "authPasswordLabel": "Mot de passe",
+  "authForgotPassword": "Mot de passe oublié ?",
+  "authContinueButton": "Continuer",
+  "authCreateAccountButton": "Créer un compte",
+  "authToggleToSignIn": "Vous avez déjà un compte ? Connectez-vous",
+  "authToggleToSignUp": "Nouveau client ? Créez un compte",
+  "authContinueAsGuest": "Continuer à naviguer en tant qu'invité"
 }

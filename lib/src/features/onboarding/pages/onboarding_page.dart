@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
-import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
-import 'package:cleanapp/src/features/home/pages/home_page.dart';
+import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -33,15 +31,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
   }
 
-  /// Lets the user in as a guest (browse everything, no account needed) and
-  /// heads to Home. Signing in for real only comes up later, at the moment an
-  /// account-based action is attempted (see `requireAccount`).
-  Future<void> _navigateToLogin() async {
-    await context.read<AuthCubit>().continueAsGuest();
-    if (!mounted) return;
+  void _navigateToLogin() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
+      MaterialPageRoute(builder: (context) => const PhoneNumberPage()),
     );
   }
 
@@ -103,21 +96,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Page Indicators (Dots) in the middle
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(
-                      _images.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        height: 8,
-                        width: _currentPage == index ? 24 : 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? ColorApp.primary
-                              : ColorApp.primary.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(4),
+                  // Page Indicators (Dots) in the middle — forced LTR so the
+                  // active dot always travels left-to-right as you advance,
+                  // regardless of the app's current (possibly RTL) locale.
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        _images.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          height: 8,
+                          width: _currentPage == index ? 24 : 8,
+                          decoration: BoxDecoration(
+                            color: _currentPage == index
+                                ? ColorApp.primary
+                                : ColorApp.primary.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
                     ),
@@ -143,23 +141,30 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             ),
                           ],
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _currentPage == _images.length - 1
-                                  ? "Start"
-                                  : "Next",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w900,
+                        // Force LTR so "Next" always stays text-then-arrow,
+                        // regardless of the app's current (possibly RTL)
+                        // locale — Row would otherwise mirror the child
+                        // order under RTL and put the arrow first.
+                        child: Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _currentPage == _images.length - 1
+                                    ? "Start"
+                                    : "Next",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.arrow_forward_rounded,
-                                color: Colors.white, size: 18),
-                          ],
+                              const SizedBox(width: 6),
+                              const Icon(Icons.arrow_forward_rounded,
+                                  color: Colors.white, size: 18),
+                            ],
+                          ),
                         ),
                       ),
                     ),

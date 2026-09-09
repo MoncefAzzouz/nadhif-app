@@ -581,4 +581,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noCleanersAvailable =>
       'No cleaner available on this day. Please choose another date.';
+
+  @override
+  String get authConnectTitle => 'Connect to your account';
+
+  @override
+  String get authCreateTitle => 'Create your account';
+
+  @override
+  String get authConnectSubtitle => 'Use your email and password to continue.';
+
+  @override
+  String get authCreateSubtitle =>
+      'Use your email and password to create a customer account.';
+
+  @override
+  String get authFullNameLabel => 'Full Name';
+
+  @override
+  String get authEmailLabel => 'Email';
+
+  @override
+  String get authPhoneLabel => 'Phone Number';
+
+  @override
+  String get authPasswordLabel => 'Password';
+
+  @override
+  String get authForgotPassword => 'Forgot password?';
+
+  @override
+  String get authContinueButton => 'Continue';
+
+  @override
+  String get authCreateAccountButton => 'Create Account';
+
+  @override
+  String get authToggleToSignIn => 'Already have an account? Sign in';
+
+  @override
+  String get authToggleToSignUp => 'New customer? Create an account';
+
+  @override
+  String get authContinueAsGuest => 'Continue browsing as guest';
 }

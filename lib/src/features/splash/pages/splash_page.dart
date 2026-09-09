@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:video_player/video_player.dart';
@@ -113,8 +111,7 @@ class _SplashPageState extends State<SplashPage>
       body: Stack(
         children: [
           // Scene 3 & 4: Logo video reveal & Pulse
-          // Screen-blended so the video's black background disappears and
-          // only the bright logo composites over the animated background.
+          // The video contains the app's blue background and white logo.
           if (_logoVideoController.value.isInitialized)
             AnimatedBuilder(
               animation: _pulseAnimation,
@@ -124,17 +121,13 @@ class _SplashPageState extends State<SplashPage>
                   child: child,
                 );
               },
-              child: BackdropFilter(
-                filter: ImageFilter.blur(),
-                blendMode: BlendMode.screen,
-                child: SizedBox.expand(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _logoVideoController.value.size.width,
-                      height: _logoVideoController.value.size.height,
-                      child: VideoPlayer(_logoVideoController),
-                    ),
+              child: SizedBox.expand(
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: _logoVideoController.value.size.width,
+                    height: _logoVideoController.value.size.height,
+                    child: VideoPlayer(_logoVideoController),
                   ),
                 ),
               ),

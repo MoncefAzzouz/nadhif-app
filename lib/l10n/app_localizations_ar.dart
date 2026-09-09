@@ -578,4 +578,48 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get noCleanersAvailable =>
       'لا يوجد أي عامل تنظيف متاح في هذا اليوم. يرجى اختيار تاريخ آخر.';
+
+  @override
+  String get authConnectTitle => 'تسجيل الدخول إلى حسابك';
+
+  @override
+  String get authCreateTitle => 'إنشاء حسابك';
+
+  @override
+  String get authConnectSubtitle =>
+      'استخدم بريدك الإلكتروني وكلمة المرور للاستمرار.';
+
+  @override
+  String get authCreateSubtitle =>
+      'استخدم بريدك الإلكتروني وكلمة المرور لإنشاء حساب عميل.';
+
+  @override
+  String get authFullNameLabel => 'الاسم الكامل';
+
+  @override
+  String get authEmailLabel => 'البريد الإلكتروني';
+
+  @override
+  String get authPhoneLabel => 'رقم الهاتف';
+
+  @override
+  String get authPasswordLabel => 'كلمة المرور';
+
+  @override
+  String get authForgotPassword => 'نسيت كلمة المرور؟';
+
+  @override
+  String get authContinueButton => 'استمرار';
+
+  @override
+  String get authCreateAccountButton => 'إنشاء حساب';
+
+  @override
+  String get authToggleToSignIn => 'لديك حساب بالفعل؟ سجّل الدخول';
+
+  @override
+  String get authToggleToSignUp => 'عميل جديد؟ أنشئ حسابًا';
+
+  @override
+  String get authContinueAsGuest => 'استمر في التصفح كزائر';
 }

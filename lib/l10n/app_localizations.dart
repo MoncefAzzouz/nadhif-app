@@ -1198,6 +1198,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No cleaner available on this day. Please choose another date.'**
   String get noCleanersAvailable;
+
+  /// No description provided for @authConnectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to your account'**
+  String get authConnectTitle;
+
+  /// No description provided for @authCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create your account'**
+  String get authCreateTitle;
+
+  /// No description provided for @authConnectSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your email and password to continue.'**
+  String get authConnectSubtitle;
+
+  /// No description provided for @authCreateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your email and password to create a customer account.'**
+  String get authCreateSubtitle;
+
+  /// No description provided for @authFullNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get authFullNameLabel;
+
+  /// No description provided for @authEmailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get authEmailLabel;
+
+  /// No description provided for @authPhoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get authPhoneLabel;
+
+  /// No description provided for @authPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get authPasswordLabel;
+
+  /// No description provided for @authForgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get authForgotPassword;
+
+  /// No description provided for @authContinueButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get authContinueButton;
+
+  /// No description provided for @authCreateAccountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account'**
+  String get authCreateAccountButton;
+
+  /// No description provided for @authToggleToSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Already have an account? Sign in'**
+  String get authToggleToSignIn;
+
+  /// No description provided for @authToggleToSignUp.
+  ///
+  /// In en, this message translates to:
+  /// **'New customer? Create an account'**
+  String get authToggleToSignUp;
+
+  /// No description provided for @authContinueAsGuest.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue browsing as guest'**
+  String get authContinueAsGuest;
 }
 
 class _AppLocalizationsDelegate

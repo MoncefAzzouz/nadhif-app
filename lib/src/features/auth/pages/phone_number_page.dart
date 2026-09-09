@@ -1,3 +1,4 @@
+import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
@@ -76,6 +77,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: ColorApp.primary,
       body: SafeArea(
@@ -123,7 +125,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _isRegisterMode ? "Create your account" : "Connect to your account",
+                            _isRegisterMode ? l10n.authCreateTitle : l10n.authConnectTitle,
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,
@@ -133,8 +135,8 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           const SizedBox(height: 12),
                           Text(
                             _isRegisterMode
-                                ? "Use your email and password to create a customer account."
-                                : "Use your email and password to continue.",
+                                ? l10n.authCreateSubtitle
+                                : l10n.authConnectSubtitle,
                             style: const TextStyle(
                               fontSize: 14,
                               color: ColorApp.textGrey,
@@ -145,7 +147,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           if (_isRegisterMode) ...[
                             _AuthField(
                               controller: _fullNameController,
-                              label: "Full Name",
+                              label: l10n.authFullNameLabel,
                               icon: Icons.person_rounded,
                               textInputAction: TextInputAction.next,
                             ),
@@ -153,7 +155,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           ],
                           _AuthField(
                             controller: _emailController,
-                            label: "Email",
+                            label: l10n.authEmailLabel,
                             icon: Icons.mail_rounded,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
@@ -162,7 +164,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           if (_isRegisterMode) ...[
                             _AuthField(
                               controller: _phoneController,
-                              label: "Phone Number",
+                              label: l10n.authPhoneLabel,
                               icon: Icons.phone_rounded,
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
@@ -175,7 +177,7 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                           ],
                           _AuthField(
                             controller: _passwordController,
-                            label: "Password",
+                            label: l10n.authPasswordLabel,
                             icon: Icons.lock_rounded,
                             obscureText: _obscurePassword,
                             textInputAction: TextInputAction.done,
@@ -203,9 +205,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                     builder: (_) => const ForgotPasswordPage(),
                                   ),
                                 ),
-                                child: const Text(
-                                  'Forgot password?',
-                                  style: TextStyle(
+                                child: Text(
+                                  l10n.authForgotPassword,
+                                  style: const TextStyle(
                                     color: ColorApp.primary,
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,
@@ -231,7 +233,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               child: isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
                                   : Text(
-                                      _isRegisterMode ? "Create Account" : "Continue",
+                                      _isRegisterMode
+                                          ? l10n.authCreateAccountButton
+                                          : l10n.authContinueButton,
                                       style: const TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w900,
@@ -249,8 +253,8 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                                       ),
                               child: Text(
                                 _isRegisterMode
-                                    ? "Already have an account? Sign in"
-                                    : "New customer? Create an account",
+                                    ? l10n.authToggleToSignIn
+                                    : l10n.authToggleToSignUp,
                                 style: const TextStyle(
                                   color: ColorApp.primary,
                                   fontWeight: FontWeight.w900,
@@ -262,9 +266,9 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                             Center(
                               child: TextButton(
                                 onPressed: isLoading ? null : _continueAsGuest,
-                                child: const Text(
-                                  "Continue browsing as guest",
-                                  style: TextStyle(
+                                child: Text(
+                                  l10n.authContinueAsGuest,
+                                  style: const TextStyle(
                                     color: ColorApp.textGrey,
                                     fontWeight: FontWeight.w700,
                                   ),

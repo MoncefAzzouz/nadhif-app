@@ -78,6 +78,14 @@ class AuthCubit extends Cubit<AuthState> {
         return false;
       }
       final user = await locator<AuthApiService>().me();
+      if (user.isGuest) {
+        // Guest sessions don't persist across launches — every fresh app
+        // open with no real account goes back through onboarding/login,
+        // where the user can choose to browse as a guest again or sign in.
+        await locator<AuthTokenStore>().clear();
+        emit(AuthInitial());
+        return false;
+      }
       _authenticated(user.phone);
       return true;
     } catch (_) {
