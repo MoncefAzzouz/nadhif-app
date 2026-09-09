@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:cleanapp/src/features/home/pages/home_page.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
+import 'package:cleanapp/src/core/utils/auth_guard.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/services/booking_pricing.dart';
@@ -367,6 +368,8 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
   }
 
   Future<void> _confirmBooking() async {
+    if (!await requireAccount(context)) return;
+
     final hasServiceOrder =
         widget.serviceId != null && widget.houseConfigId != null;
     final hasCategoryOrder =
@@ -494,9 +497,18 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
+          // Constraining the scrollable's own viewport to stop above the
+          // fixed price/confirm bar below (not just padding its content)
+          // so focusing a field never scrolls it to a point still hidden
+          // behind that opaque bar.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 180,
+            child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-                24, MediaQuery.of(context).padding.top + 80, 24, 180),
+                24, MediaQuery.of(context).padding.top + 80, 24, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -821,6 +833,7 @@ class _OrderSummaryPageState extends State<OrderSummaryPage> {
                 ),
                 const SizedBox(height: 40),
               ],
+            ),
             ),
           ),
           Positioned(

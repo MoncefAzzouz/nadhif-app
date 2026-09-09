@@ -40,7 +40,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD4udXWEv5sH691OQTOx_EJdF3jaSrd3J4',
-    appId: '1:457823581164:android:41dc446797f342733186c9',
+    appId: '1:457823581164:android:616f82f951ce9cdd3186c9',
     messagingSenderId: '457823581164',
     projectId: 'nadif-app-d19f3',
     storageBucket: 'nadif-app-d19f3.firebasestorage.app',
@@ -48,10 +48,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB7x7-bHwBFcogU59IRnmdirVEoBkx4hCY',
-    appId: '1:457823581164:ios:e2621a7bf0a359343186c9',
+    appId: '1:457823581164:ios:86033ce9b0c8ed233186c9',
     messagingSenderId: '457823581164',
     projectId: 'nadif-app-d19f3',
     storageBucket: 'nadif-app-d19f3.firebasestorage.app',
-    iosBundleId: 'com.nadif.app',
+    iosBundleId: 'com.nadhif.app',
   );
 }

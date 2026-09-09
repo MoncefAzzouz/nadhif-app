@@ -244,27 +244,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       value: _tabCubit,
       child: Scaffold(
         backgroundColor: ColorApp.scaffoldBg,
-        body: Stack(
-          children: [
-            BlocBuilder<HomeTabCubit, int>(
-              builder: (context, selectedTab) => IndexedStack(
-                index: selectedTab,
-                children: [
-                  _buildHomeView(context),
-                  const ServicesPage(),
-                  const OrdersPage(),
-                  const ProfilePage(),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _BottomNavBar(ordersCount: _activeOrdersCount),
-            ),
-          ],
+        body: BlocBuilder<HomeTabCubit, int>(
+          builder: (context, selectedTab) => IndexedStack(
+            index: selectedTab,
+            children: [
+              _buildHomeView(context),
+              const ServicesPage(),
+              const OrdersPage(),
+              const ProfilePage(),
+            ],
+          ),
         ),
+        bottomNavigationBar: _BottomNavBar(ordersCount: _activeOrdersCount),
       ),
     );
   }
@@ -287,8 +278,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           const SizedBox(height: 0),
           _SectionHeader(title: l10n.ourServices),
           _buildServiceGrid(context, content.categories),
-          const SizedBox(height: 10),
-          _buildSubscriptionBanner(context),
           const SizedBox(height: 100),
         ],
       ),
@@ -315,14 +304,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         children: [
           GestureDetector(
             onTap: () async {
-              final newLocation = await Navigator.push<String>(
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
                     builder: (context) => const LocationSetupPage()),
               );
-              if (newLocation != null) {
+              if (result is SelectedLocation) {
                 setState(() {
-                  _currentLocation = newLocation;
+                  _currentLocation = result.address;
+                });
+              } else if (result is String) {
+                setState(() {
+                  _currentLocation = result;
                 });
               }
             },
@@ -550,70 +543,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         itemCount: cards.length,
         itemBuilder: (context, index) =>
             _HorizontalServiceCard(data: cards[index]),
-      ),
-    );
-  }
-
-  /// Entry point to the subscription packs (recurring cleaning) flow.
-  Widget _buildSubscriptionBanner(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: GestureDetector(
-        onTap: _openSubscriptionFlow,
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                ColorApp.primary,
-                ColorApp.primary.withValues(alpha: 0.75),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: AppShadows.primaryGlow(),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.autorenew_rounded,
-                    color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.subscriptionPacks,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.subscriptionPacksSubtitle,
-                      style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios_rounded,
-                  color: Colors.white, size: 18),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -959,49 +888,87 @@ class _BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final selectedIndex = context.watch<HomeTabCubit>().state;
-    return Container(
-      margin: const EdgeInsets.only(left: 22, right: 22, bottom: 18),
-      height: 70,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.55)),
-              boxShadow: AppShadows.bottomBar,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  index: 0,
-                  label: l10n.homeLabel,
-                  icon: Icons.home_rounded,
-                  isActive: selectedIndex == 0,
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompact = screenWidth < 360;
+    final textScale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.3);
+    final barHeight = (isCompact ? 68.0 : 72.0) + (textScale - 1) * 12;
+    final horizontalPadding = screenWidth < 340
+        ? 10.0
+        : screenWidth < 430
+            ? 16.0
+            : 24.0;
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Container(
+              height: barHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: AppShadows.bottomBar,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _NavItem(
+                            index: 0,
+                            label: l10n.homeLabel,
+                            icon: Icons.home_rounded,
+                            isActive: selectedIndex == 0,
+                            isCompact: isCompact,
+                          ),
+                        ),
+                        Expanded(
+                          child: _NavItem(
+                            index: 1,
+                            label: l10n.servicesLabel,
+                            icon: Icons.grid_view_rounded,
+                            isActive: selectedIndex == 1,
+                            isCompact: isCompact,
+                          ),
+                        ),
+                        Expanded(
+                          child: _NavItem(
+                            index: 2,
+                            label: l10n.ordersLabel,
+                            icon: Icons.receipt_long_rounded,
+                            isActive: selectedIndex == 2,
+                            badgeCount: ordersCount,
+                            isCompact: isCompact,
+                          ),
+                        ),
+                        Expanded(
+                          child: _NavItem(
+                            index: 3,
+                            label: l10n.profileLabel,
+                            icon: Icons.person_rounded,
+                            isActive: selectedIndex == 3,
+                            isCompact: isCompact,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                _NavItem(
-                  index: 1,
-                  label: l10n.servicesLabel,
-                  icon: Icons.grid_view_rounded,
-                  isActive: selectedIndex == 1,
-                ),
-                _NavItem(
-                  index: 2,
-                  label: l10n.ordersLabel,
-                  icon: Icons.receipt_long_rounded,
-                  isActive: selectedIndex == 2,
-                  badgeCount: ordersCount,
-                ),
-                _NavItem(
-                  index: 3,
-                  label: l10n.profileLabel,
-                  icon: Icons.person_rounded,
-                  isActive: selectedIndex == 3,
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1016,81 +983,112 @@ class _NavItem extends StatelessWidget {
   final IconData icon;
   final bool isActive;
   final int badgeCount;
+  final bool isCompact;
 
   const _NavItem({
     required this.index,
     required this.label,
     required this.icon,
     required this.isActive,
+    required this.isCompact,
     this.badgeCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.read<HomeTabCubit>().select(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? ColorApp.primary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  icon,
-                  color: isActive ? ColorApp.primary : ColorApp.textGrey,
-                  size: 24,
-                ),
-                if (badgeCount > 0)
-                  Positioned(
-                    right: -8,
-                    top: -8,
-                    child: Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: Center(
-                        child: Text(
-                          badgeCount > 99 ? '99+' : '$badgeCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            height: 1,
-                          ),
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => context.read<HomeTabCubit>().select(index),
+            borderRadius: BorderRadius.circular(24),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              margin: EdgeInsets.symmetric(
+                horizontal: isCompact ? 2 : 4,
+                vertical: 7,
+              ),
+              padding: EdgeInsets.symmetric(horizontal: isCompact ? 2 : 6),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? ColorApp.primary.withValues(alpha: 0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      AnimatedScale(
+                        scale: isActive ? 1.08 : 1,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutBack,
+                        child: Icon(
+                          icon,
+                          color:
+                              isActive ? ColorApp.primary : ColorApp.textGrey,
+                          size: isCompact ? 22 : 24,
                         ),
                       ),
+                      if (badgeCount > 0)
+                        PositionedDirectional(
+                          end: -9,
+                          top: -8,
+                          child: Container(
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: Center(
+                              child: Text(
+                                badgeCount > 99 ? '99+' : '$badgeCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    style: TextStyle(
+                      color: isActive ? ColorApp.primary : ColorApp.textGrey,
+                      fontSize: isCompact ? 9.5 : 10.5,
+                      fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
+                      height: 1,
+                    ),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? ColorApp.primary : ColorApp.textGrey,
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

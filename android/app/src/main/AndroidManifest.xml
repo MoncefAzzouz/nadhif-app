@@ -5,7 +5,7 @@
     <!-- Required to show notifications on Android 13 (API 33) and above. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="cleanapp"
+        android:label="Nadhif"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

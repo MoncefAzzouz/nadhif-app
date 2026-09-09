@@ -13,6 +13,8 @@ class AuthUser {
   final String fullName;
   final String role;
 
+  bool get isGuest => role == 'GUEST';
+
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
       id: json['id'] as String? ?? '',

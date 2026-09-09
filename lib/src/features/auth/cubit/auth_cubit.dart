@@ -57,6 +57,20 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  /// Starts a guest browsing session (no account, nothing to sign up for).
+  /// Best-effort: on failure, the caller should proceed anyway since the
+  /// public catalogue endpoints work with no token at all.
+  Future<bool> continueAsGuest() async {
+    try {
+      await locator<AuthApiService>().guestLogin();
+      emit(AuthAuthenticated('Guest'));
+      return true;
+    } catch (_) {
+      emit(AuthInitial());
+      return false;
+    }
+  }
+
   Future<bool> checkAuthStatus() async {
     try {
       final token = await locator<AuthTokenStore>().readToken();

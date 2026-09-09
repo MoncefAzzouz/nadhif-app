@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
+import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/core/widgets/app_image.dart';
+import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
 import 'package:cleanapp/src/features/orders/data/orders_api_service.dart';
 import 'package:cleanapp/src/features/orders/data/orders_repository.dart';
 import 'package:cleanapp/src/features/orders/pages/order_detail_page.dart';
@@ -41,6 +43,7 @@ class _OrdersPageState extends State<OrdersPage> {
   List<ScheduledOrder> _scheduledOrders = const [];
   List<ActiveOrder> _historyOrders = const [];
   bool _isLoading = true;
+  bool _isGuest = false;
   String? _error;
   OrderFilter _activeFilter = OrderFilter.active;
   StreamSubscription<void>? _orderUpdateSub;
@@ -50,11 +53,27 @@ class _OrdersPageState extends State<OrdersPage> {
     super.initState();
     _activeOrders = widget.repository.getActiveOrders();
     _scheduledOrders = widget.repository.getScheduledOrders();
-    _loadOrders();
+    _init();
     // Refresh live when an order-status push arrives (no manual pull needed).
     _orderUpdateSub = notificationService.onOrderUpdate.listen((_) {
-      if (mounted) _loadOrders();
+      if (mounted && !_isGuest) _loadOrders();
     });
+  }
+
+  /// Orders are account-based — a guest has none, so skip the fetch entirely
+  /// and show a sign-in prompt instead of an empty/erroring list.
+  Future<void> _init() async {
+    final user = await locator<AuthTokenStore>().readUser();
+    final isGuest = user == null || user.isGuest;
+    if (!mounted) return;
+    if (isGuest) {
+      setState(() {
+        _isGuest = true;
+        _isLoading = false;
+      });
+      return;
+    }
+    await _loadOrders();
   }
 
   @override
@@ -269,8 +288,8 @@ class _OrdersPageState extends State<OrdersPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
-                _buildFilterBar(filters),
-                if (_error != null)
+                if (!_isGuest) _buildFilterBar(filters),
+                if (!_isGuest && _error != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -291,7 +310,13 @@ class _OrdersPageState extends State<OrdersPage> {
                       ],
                     ),
                   ),
-                Expanded(child: _isLoading ? const Center(child: CircularProgressIndicator()) : _buildOrderList(context)),
+                Expanded(
+                  child: _isGuest
+                      ? const _OrdersGuestPrompt()
+                      : (_isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _buildOrderList(context)),
+                ),
               ],
             ),
           ),
@@ -741,6 +766,80 @@ class _ScheduledOrderCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shown instead of the order list when browsing as a guest — orders are
+/// account-based, so this is where we ask for a real sign-in.
+class _OrdersGuestPrompt extends StatelessWidget {
+  const _OrdersGuestPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: const BoxDecoration(
+                color: ColorApp.softGrey,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.assignment_rounded,
+                  size: 40, color: ColorApp.primary),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Sign in to view your orders",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: ColorApp.textBlack,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.bookServiceNow,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: ColorApp.textGrey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PhoneNumberPage()),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ColorApp.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "Sign In / Sign Up",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

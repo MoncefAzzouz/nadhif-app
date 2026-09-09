@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
+import 'package:cleanapp/src/core/services/auth_token_store.dart';
+import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/l10n/app_localizations.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
 import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
+import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
 
 class PersonalInfoPage extends StatefulWidget {
@@ -65,6 +70,62 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     }
   }
 
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text(
+          l10n.deleteAccount,
+          style: const TextStyle(fontWeight: FontWeight.w900, color: ColorApp.textBlack),
+        ),
+        content: Text(
+          l10n.deleteAccountWarning,
+          style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w500, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              l10n.cancel,
+              style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w700),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              l10n.delete,
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await locator<NotificationService>().clearToken();
+      await locator<AuthApiService>().deleteAccount();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    await locator<AuthTokenStore>().clear();
+    if (!context.mounted) return;
+    context.read<AuthCubit>().clearError();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PhoneNumberPage()),
+      (route) => false,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -116,45 +177,6 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Profile Avatar Section
-            Center(
-              child: Stack(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 20,
-                        ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: ColorApp.primary.withValues(alpha: 0.1),
-                      child: const Icon(Icons.person_rounded, size: 60, color: ColorApp.primary),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: ColorApp.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
-
             // Form Fields
             _buildInputField(
               label: "First Name",
@@ -187,6 +209,35 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
               controller: _passwordController,
               icon: Icons.lock_outline_rounded,
               isPassword: true,
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => _confirmDeleteAccount(context),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_outline_rounded,
+                        color: Colors.red.withValues(alpha: 0.7), size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.deleteAccount,
+                      style: TextStyle(
+                        color: Colors.red.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
             const SizedBox(height: 40),

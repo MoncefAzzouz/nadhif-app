@@ -1,6 +1,7 @@
 import 'package:cleanapp/l10n/app_localizations.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/shadows.dart';
+import 'package:cleanapp/src/core/utils/auth_guard.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/subscriptions/data/subscriptions_api_service.dart';
 import 'package:cleanapp/src/features/home/pages/location_setup_page.dart';
@@ -102,6 +103,7 @@ class _SubscriptionBookingPageState extends State<SubscriptionBookingPage> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    if (!await requireAccount(context)) return;
     final surface = double.tryParse(_surfaceController.text.trim());
     final rooms = int.tryParse(_roomsController.text.trim());
     final address = _addressController.text.trim();

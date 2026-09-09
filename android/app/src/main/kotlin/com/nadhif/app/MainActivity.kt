@@ -1,4 +1,4 @@
-package com.nadif.app
+package com.nadhif.app
 
 import io.flutter.embedding.android.FlutterActivity
 

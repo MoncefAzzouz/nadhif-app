@@ -63,6 +63,17 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
     }
   }
 
+  Future<void> _continueAsGuest() async {
+    FocusScope.of(context).unfocus();
+    await context.read<AuthCubit>().continueAsGuest();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,6 +258,19 @@ class _PhoneNumberPageState extends State<PhoneNumberPage> {
                               ),
                             ),
                           ),
+                          if (!_isRegisterMode)
+                            Center(
+                              child: TextButton(
+                                onPressed: isLoading ? null : _continueAsGuest,
+                                child: const Text(
+                                  "Continue browsing as guest",
+                                  style: TextStyle(
+                                    color: ColorApp.textGrey,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       );
                     },

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
 import 'package:cleanapp/src/core/res/media_res.dart';
-import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
+import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
+import 'package:cleanapp/src/features/home/pages/home_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -31,10 +33,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
   }
 
-  void _navigateToLogin() {
+  /// Lets the user in as a guest (browse everything, no account needed) and
+  /// heads to Home. Signing in for real only comes up later, at the moment an
+  /// account-based action is attempted (see `requireAccount`).
+  Future<void> _navigateToLogin() async {
+    await context.read<AuthCubit>().continueAsGuest();
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const PhoneNumberPage()),
+      MaterialPageRoute(builder: (context) => const HomePage()),
     );
   }
 

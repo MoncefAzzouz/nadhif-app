@@ -47,6 +47,19 @@ class AuthApiService extends BaseApiService {
     }
   }
 
+  /// Starts a guest session: a signed token with no account behind it, so the
+  /// app can be browsed freely without signing up. See backend commit
+  /// "Add guest mode" / mobile_api_documentation.md section 10.
+  Future<void> guestLogin() async {
+    try {
+      final response = await dio.post('/api/auth/guest');
+      await _saveAuth(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final error = handleError(e);
+      throw Exception(error['message'] ?? 'Failed to start guest session');
+    }
+  }
+
   Future<AuthUser> me() async {
     try {
       final response = await dio.get('/api/auth/me');

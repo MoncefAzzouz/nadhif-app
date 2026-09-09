@@ -5,7 +5,7 @@ import 'package:cleanapp/src/core/services/auth_token_store.dart';
 import 'package:cleanapp/src/core/services/notification_service.dart';
 import 'package:cleanapp/src/core/utils/dependency_injection.dart';
 import 'package:cleanapp/src/features/auth/cubit/auth_cubit.dart';
-import 'package:cleanapp/src/features/auth/data/auth_api_service.dart';
+import 'package:cleanapp/src/features/auth/data/auth_user.dart';
 import 'package:cleanapp/src/features/auth/pages/phone_number_page.dart';
 import 'package:cleanapp/src/features/pages/pages_screens.dart';
 import 'package:cleanapp/src/features/profile/data/user_profile.dart';
@@ -24,11 +24,32 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       body: SafeArea(
-        child: FutureBuilder<UserProfile>(
+        child: FutureBuilder<AuthUser?>(
+          future: locator<AuthTokenStore>().readUser(),
+          builder: (context, accountSnapshot) {
+            if (accountSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final account = accountSnapshot.data;
+            if (account == null || account.isGuest) {
+              return _GuestPrompt(
+                title: l10n.personalInfo,
+                message: "Create an account to manage your profile, track orders, and more.",
+              );
+            }
+            return _buildAccountProfile(context, l10n);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountProfile(BuildContext context, AppLocalizations l10n) {
+    return FutureBuilder<UserProfile>(
           future: repository.getCurrentUser(),
           builder: (context, snapshot) {
             final user = snapshot.data;
@@ -102,95 +123,6 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
 
-              // User Profile Card
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [ColorApp.primary, Color(0xFF00BFA5)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: ColorApp.primary.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Stack(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CircleAvatar(
-                              radius: 38,
-                              backgroundColor: Colors.grey[200],
-                              child: const Icon(Icons.person_rounded, size: 45, color: ColorApp.primary),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.camera_alt_rounded, size: 14, color: ColorApp.primary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              profile.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              profile.email,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.qr_code_rounded, color: Colors.white, size: 20),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-
               const SizedBox(height: 6),
 
               // Menu Sections
@@ -206,7 +138,6 @@ class ProfilePage extends StatelessWidget {
                   );
                 },
               ),
-              _buildMenuItem(context, Icons.location_on_outlined, l10n.manageAddresses),
 
               const SizedBox(height: 10),
 
@@ -226,7 +157,6 @@ class ProfilePage extends StatelessWidget {
                   );
                 },
               ),
-              _buildMenuItem(context, Icons.dark_mode_outlined, l10n.appearance),
 
               const SizedBox(height: 10),
 
@@ -293,102 +223,18 @@ class ProfilePage extends StatelessWidget {
                   ),
                 ),
               ),
-              
-              // Delete Account (store-policy requirement)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                child: GestureDetector(
-                  onTap: () => _confirmDeleteAccount(context),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.delete_outline_rounded,
-                          color: Colors.red.withValues(alpha: 0.7), size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        l10n.deleteAccount,
-                        style: TextStyle(
-                          color: Colors.red.withValues(alpha: 0.7),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.red.withValues(alpha: 0.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
 
               const SizedBox(height: 120),
               ],
             ),
           );
           },
-        ),
-      ),
-    );
+        );
   }
 
   Future<void> _logout(BuildContext context) async {
     // Deregister the push token while the JWT is still valid.
     await locator<NotificationService>().clearToken();
-    await locator<AuthTokenStore>().clear();
-    if (!context.mounted) return;
-    context.read<AuthCubit>().clearError();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PhoneNumberPage()),
-      (route) => false,
-    );
-  }
-
-  Future<void> _confirmDeleteAccount(BuildContext context) async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(
-          l10n.deleteAccount,
-          style: const TextStyle(fontWeight: FontWeight.w900, color: ColorApp.textBlack),
-        ),
-        content: Text(
-          l10n.deleteAccountWarning,
-          style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w500, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(
-              l10n.cancel,
-              style: const TextStyle(color: ColorApp.textGrey, fontWeight: FontWeight.w700),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              l10n.delete,
-              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    try {
-      await locator<NotificationService>().clearToken();
-      await locator<AuthApiService>().deleteAccount();
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
     await locator<AuthTokenStore>().clear();
     if (!context.mounted) return;
     context.read<AuthCubit>().clearError();
@@ -530,6 +376,82 @@ class ProfilePage extends StatelessWidget {
               const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: ColorApp.textGrey),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown instead of the profile UI when browsing as a guest (or fully signed
+/// out) — Personal Information, orders, etc. are account-based, so this is
+/// the point where we ask for a real sign-in rather than erroring.
+class _GuestPrompt extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _GuestPrompt({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: ColorApp.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person_outline_rounded,
+                  size: 40, color: ColorApp.primary),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: ColorApp.textBlack,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: ColorApp.textGrey,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PhoneNumberPage()),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ColorApp.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "Sign In / Sign Up",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

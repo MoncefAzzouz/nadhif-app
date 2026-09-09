@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:cleanapp/src/core/res/color_app.dart';
@@ -17,7 +20,81 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
   LatLng _currentCenter = const LatLng(36.1911, 5.4137); // Setif Center
   bool _isMapFullscreen = false;
   bool _isLocating = false;
+  bool _isResolvingAddress = false;
   String _locationSubtitle = 'Tap to detect your GPS location';
+  Timer? _geocodeDebounce;
+
+  @override
+  void dispose() {
+    _geocodeDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Called continuously while the map is being dragged/panned. Keeps the
+  /// pin in sync immediately, but only fires the (network-bound) reverse
+  /// geocoding lookup after movement settles, so we don't spam it mid-drag.
+  void _onMapMoved(LatLng center) {
+    setState(() => _currentCenter = center);
+    _geocodeDebounce?.cancel();
+    _geocodeDebounce = Timer(const Duration(milliseconds: 700), () {
+      _reverseGeocode(_currentCenter);
+    });
+  }
+
+  Future<void> _reverseGeocode(LatLng point) async {
+    if (!mounted) return;
+    setState(() => _isResolvingAddress = true);
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        point.latitude,
+        point.longitude,
+      );
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final parts = <String>{
+          if (p.street != null && p.street!.trim().isNotEmpty) p.street!.trim(),
+          if (p.subLocality != null && p.subLocality!.trim().isNotEmpty)
+            p.subLocality!.trim(),
+          if (p.locality != null && p.locality!.trim().isNotEmpty)
+            p.locality!.trim(),
+          if (p.administrativeArea != null &&
+              p.administrativeArea!.trim().isNotEmpty)
+            p.administrativeArea!.trim(),
+        }.toList();
+        final address = parts.isNotEmpty ? parts.join(', ') : null;
+        if (!mounted || address == null) return;
+        setState(() => _searchController.text = address);
+      }
+    } catch (_) {
+      // Reverse geocoding can fail offline or if no geocoder is available on
+      // the device; keep whatever address text is already there.
+    } finally {
+      if (mounted) setState(() => _isResolvingAddress = false);
+    }
+  }
+
+  Future<void> _searchPlace(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return;
+
+    setState(() => _isResolvingAddress = true);
+    try {
+      final locations = await locationFromAddress(q);
+      if (locations.isEmpty) {
+        _showLocationMessage('No results found for "$q".');
+        return;
+      }
+      final loc = locations.first;
+      final point = LatLng(loc.latitude, loc.longitude);
+      setState(() => _currentCenter = point);
+      _mapController.move(point, 16);
+    } catch (_) {
+      _showLocationMessage('Could not find that place.');
+    } finally {
+      if (mounted) setState(() => _isResolvingAddress = false);
+    }
+  }
 
   Future<void> _useCurrentLocation() async {
     if (_isLocating) return;
@@ -65,12 +142,9 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
       setState(() {
         _currentCenter = location;
         _locationSubtitle = 'Using your current GPS location';
-        if (_searchController.text.trim().isEmpty ||
-            _searchController.text.trim() == 'Setif center ville') {
-          _searchController.text = 'Current location';
-        }
       });
       _mapController.move(location, 16);
+      await _reverseGeocode(location);
     } catch (_) {
       if (!mounted) return;
       _showLocationMessage('Could not get your current location.');
@@ -140,15 +214,30 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                         ),
                         child: TextField(
                           controller: _searchController,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: _searchPlace,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: ColorApp.textBlack,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: "Search for a place in Setif...",
                             border: InputBorder.none,
-                            icon: Icon(Icons.search, color: ColorApp.textGrey),
+                            icon: const Icon(Icons.search, color: ColorApp.textGrey),
+                            suffixIcon: _isResolvingAddress
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: ColorApp.primary,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                           ),
                         ),
                       ),
@@ -242,8 +331,7 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                                   initialZoom: 14.0,
                                   onPositionChanged: (pos, hasGesture) {
                                     if (hasGesture) {
-                                      setState(
-                                          () => _currentCenter = pos.center);
+                                      _onMapMoved(pos.center);
                                     }
                                   },
                                 ),
@@ -401,7 +489,7 @@ class _LocationSetupPageState extends State<LocationSetupPage> {
                         initialZoom: 15.0,
                         onPositionChanged: (pos, hasGesture) {
                           if (hasGesture) {
-                            setState(() => _currentCenter = pos.center);
+                            _onMapMoved(pos.center);
                           }
                         },
                       ),
